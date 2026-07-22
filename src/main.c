@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
@@ -19,12 +20,12 @@ int main(int argc, char *argv[]) {
         }
 
         fseek(database_file, 16, SEEK_SET);  // Skip the first 16 bytes of the header
-        unsigned char buffer[2];
+        uint8_t buffer[2];
         fread(buffer, 1, 2, database_file);
-        unsigned short page_size = (buffer[1] | (buffer[0] << 8));
+        uint16_t page_size = (buffer[1] | (buffer[0] << 8));
 
         // You can use print statements as follows for debugging, they'll be visible when running tests.
-        fprintf(stderr, "Logs from your program will appear here!\n");
+        // fprintf(stderr, "Logs from your program will appear here!\n");
 
         // TODO: Uncomment the code below to pass the first stage
         // printf("database page size: %u\n", page_size);
