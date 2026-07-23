@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-int main(int argc, char *argv[]) {
+int main(const int argc, const char *argv[]) {
     if (argc != 3) {
         fprintf(stderr, "Usage: ./your_program.sh <database path> <command>\n");
         return 1;
@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
         fseek(database_file, 16, SEEK_SET);  // Skip the first 16 bytes of the header
         uint8_t buffer[2];
         fread(buffer, 1, 2, database_file);
-        uint16_t page_size = (buffer[0] << 8) | buffer[1];
+        const uint16_t page_size = (buffer[0] << 8) | buffer[1];
 
         printf("database page size: %u\n", page_size);
 
