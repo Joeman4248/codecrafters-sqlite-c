@@ -10,7 +10,7 @@
 
 uint8_t header_string[HEADER_STR_SZ];
 
-typedef enum {
+typedef enum : uint8_t {
     PAGE_TYPE_INTERIOR_TABLE,
     PAGE_TYPE_INTERIOR_INDEX,
     PAGE_TYPE_LEAF_TABLE,
@@ -19,10 +19,11 @@ typedef enum {
 
 typedef struct {
     PageType type;
+    uint8_t num_free_bytes;
     uint16_t freeblock_offset;
     uint16_t cell_count;
     uint16_t cell_area_start;
-    uint8_t num_free_bytes;
+    uint32_t* rightmost_ptr;
 } PageHeader;
 
 typedef struct {
@@ -30,9 +31,7 @@ typedef struct {
 } FileHeader;
 
 int read_uint8(FILE* file, uint8_t* value) {
-    uint8_t buffer[1];
-    if (fread(buffer, 1, 1, file) != 1) return 1;
-    *value = buffer[0];
+    if (fread(value, 1, 1, file) != 1) return 1;
     return 0;
 }
 
@@ -40,6 +39,13 @@ int read_uint16(FILE* file, uint16_t* value) {
     uint8_t buffer[2];
     if (fread(buffer, 1, 2, file) != 2) return 1;
     *value = (buffer[0] << 8) | buffer[1];
+    return 0;
+}
+
+int read_uint32(FILE* file, uint32_t* value) {
+    uint8_t buffer[4];
+    if (fread(buffer, 1, 4, file) != 4) return 1;
+    *value = (buffer[0] << 24) | (buffer[1] << 16) | (buffer[2] << 8) | buffer[3];
     return 0;
 }
 
