@@ -23,7 +23,6 @@ typedef struct {
     uint16_t freeblock_offset;
     uint16_t cell_count;
     uint16_t cell_area_start;
-    uint32_t* rightmost_ptr;
 } PageHeader;
 
 typedef struct {
