@@ -30,7 +30,7 @@ typedef struct {
 
 int read_uint8(FILE* file, uint8_t* value) {
     uint8_t buffer[1];
-    if (fread(buffer, 1, 2, file) != 1) return 1;
+    if (fread(buffer, 1, 1, file) != 1) return 1;
     *value = buffer[0];
     return 0;
 }
