@@ -21,7 +21,8 @@ typedef struct {
     PageType type;
     uint16_t freeblock_offset;
     uint16_t cell_count;
-    uint16_t cell_content_area_start;
+    uint16_t cell_area_start;
+    uint8_t num_free_bytes;
 } PageHeader;
 
 typedef struct {
@@ -46,7 +47,9 @@ int read_btree_header(FILE* file, PageHeader* header) {
     if (fseek(file, FILE_HEADER_SZ, SEEK_SET) != 0) return 1;
 
     uint8_t page_type_flag;
-    if (read_uint8(file, &page_type_flag) != 0) return 1;
+    if (read_uint8(file, &page_type_flag) != 0) {
+        return 1;
+    }
 
     switch (page_type_flag) {
         case 0x02: // means the page is an interior index b-tree page.
@@ -66,12 +69,18 @@ int read_btree_header(FILE* file, PageHeader* header) {
             return 1;
     }
 
-    if (read_uint16(file, &header->freeblock_offset) != 0)
+    if (read_uint16(file, &header->freeblock_offset) != 0) {
         return 1;
-    if (read_uint16(file, &header->cell_count) != 0) 
+    }
+    if (read_uint16(file, &header->cell_count) != 0) {
         return 1;
-    if (read_uint16(file, &header->cell_content_area_start) != 0)
+    }
+    if (read_uint16(file, &header->cell_area_start) != 0) {
         return 1;
+    }
+    if (read_uint8(file, &header->num_free_bytes) != 0) {
+        return 1;
+    }
     
     return 0;
 }
