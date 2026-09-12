@@ -74,36 +74,30 @@ int read_btree_header(FILE* file, PageHeader* header) {
             return 1;
     }
 
-    if (read_uint16(file, &header->freeblock_offset) != 0) {
-        return 1;
-    }
-    if (read_uint16(file, &header->cell_count) != 0) {
-        return 1;
-    }
-    if (read_uint16(file, &header->cell_area_start) != 0) {
-        return 1;
-    }
-    if (read_uint8(file, &header->num_free_bytes) != 0) {
-        return 1;
-    }
-    
+    read_uint16(file, &header->freeblock_offset);
+    read_uint16(file, &header->cell_count);
+    read_uint16(file, &header->cell_area_start);
+    read_uint8(file, &header->num_free_bytes);
+
     return 0;
 }
 
 int read_db_header(FILE* file, FileHeader* header) {
-    if (fseek(file, 0, SEEK_SET) != 0) return 1;
-    
-    if (fread(header_string, 1, HEADER_STR_SZ, file) != HEADER_STR_SZ) {
+    if (fseek(file, 0, SEEK_SET) != 0) {
         fprintf(stderr, "Error seeking to the beginning of the file");
         return 1;
     }
+    
+    if (fread(header_string, 1, HEADER_STR_SZ, file) != HEADER_STR_SZ) {
+        return 1;
+    }
+
     if (memcmp(header_string, VALID_HEADER_STR, HEADER_STR_SZ) != 0) {
         fprintf(stderr, "Invalid header string");
         return 1;
     }
 
     if (read_uint16(file, &header->page_size) != 0) {
-        fprintf(stderr, "Error reading page size");
         return 1;
     }
 
