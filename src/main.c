@@ -3,26 +3,29 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#define HEADER_STR_SZ 16
-#define VALID_HEADER_STR "SQLite format 3"
-
 #define FILE_HEADER_SZ 100
 
+#define HEADER_STR_SZ 16
+#define VALID_HEADER_STR "SQLite format 3"
 uint8_t header_string[HEADER_STR_SZ];
 
-typedef enum : uint8_t {
-    PAGE_TYPE_INTERIOR_TABLE,
-    PAGE_TYPE_INTERIOR_INDEX,
-    PAGE_TYPE_LEAF_TABLE,
-    PAGE_TYPE_LEAF_INDEX,
-} PageType;
+enum PageType {
+    PAGE_TYPE_INTERIOR_TABLE = 0x02,
+    PAGE_TYPE_INTERIOR_INDEX = 0x05,
+    PAGE_TYPE_LEAF_TABLE = 0x0a,
+    PAGE_TYPE_LEAF_INDEX = 0x0d,
+};
 
 typedef struct {
-    PageType type;
-    uint8_t num_free_bytes;
-    uint16_t freeblock_offset;
-    uint16_t cell_count;
-    uint16_t cell_area_start;
+    uint8_t page_type;          // offset 0
+    uint8_t num_free_bytes;     // offset 7
+
+    uint16_t freeblock_offset;  // offset 1
+    uint16_t cell_count;        // offset 3
+    uint16_t cell_area_start;   // offset 5
+    uint32_t rightmost_ptr;     // offset 8, interior pages
+
+    uint8_t header_size;
 } PageHeader;
 
 typedef struct {
@@ -51,24 +54,23 @@ int read_uint32(FILE* file, uint32_t* value) {
 int read_btree_header(FILE* file, PageHeader* header) {
     if (fseek(file, FILE_HEADER_SZ, SEEK_SET) != 0) return 1;
 
-    uint8_t page_type_flag;
-    if (read_uint8(file, &page_type_flag) != 0) {
+    if (read_uint8(file, &header->page_type) != 0) {
         return 1;
     }
 
-    switch (page_type_flag) {
-        case 0x02: // means the page is an interior index b-tree page.
-            header->type = PAGE_TYPE_INTERIOR_INDEX;
+    switch (header->page_type) {
+        // 12 bytes in size for interior pages
+        case PAGE_TYPE_INTERIOR_INDEX:
+        case PAGE_TYPE_INTERIOR_TABLE:
+            header->header_size = 12;
             break;
-        case 0x05: // means the page is an interior table b-tree page.
-            header->type = PAGE_TYPE_INTERIOR_TABLE;
+
+        // 8 bytes in size for leaf pages
+        case PAGE_TYPE_LEAF_INDEX:
+        case PAGE_TYPE_LEAF_TABLE:
+            header->header_size = 8;
             break;
-        case 0x0a: // means the page is a leaf index b-tree page.
-            header->type = PAGE_TYPE_LEAF_INDEX;
-            break;
-        case 0x0d: // means the page is a leaf table b-tree page.
-            header->type = PAGE_TYPE_LEAF_TABLE;
-            break;
+
         default:
             fprintf(stderr, "Invalid page header type flag\n");
             return 1;
@@ -78,6 +80,13 @@ int read_btree_header(FILE* file, PageHeader* header) {
     read_uint16(file, &header->cell_count);
     read_uint16(file, &header->cell_area_start);
     read_uint8(file, &header->num_free_bytes);
+    header->rightmost_ptr = 0;
+
+    switch (header->page_type) {
+        case PAGE_TYPE_INTERIOR_INDEX:
+        case PAGE_TYPE_INTERIOR_TABLE:
+            read_uint32(file, &header->rightmost_ptr);
+    }
 
     return 0;
 }
@@ -136,6 +145,9 @@ int main(const int argc, const char *argv[]) {
     if (strcmp(command, ".dbinfo") == 0) {
         printf("database page size: %u\n", header.page_size);
         printf("number of tables: %u\n", schema_page.cell_count);
+    }
+    else if (strcmp(command, ".tables") == 0) {
+        
     }
     else {
         fprintf(stderr, "Unknown command %s\n", command);
