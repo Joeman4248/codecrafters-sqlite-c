@@ -51,8 +51,12 @@ int read_uint32(FILE* file, uint32_t* value) {
     return 0;
 }
 
-int read_btree_header(FILE* file, PageHeader* header) {
-    if (fseek(file, FILE_HEADER_SZ, SEEK_SET) != 0) return 1;
+int read_btree_header(FILE* file, PageHeader* header, 
+        const uint16_t page_size, const uint32_t page_number) {
+    const long offset = FILE_HEADER_SZ + (page_number - 1) * page_size;
+    if (fseek(file, (long) offset, SEEK_SET) != 0) {
+        return 1;
+    }
 
     if (read_uint8(file, &header->page_type) != 0) {
         return 1;
@@ -91,7 +95,7 @@ int read_btree_header(FILE* file, PageHeader* header) {
     return 0;
 }
 
-int read_db_header(FILE* file, FileHeader* header) {
+int read_file_header(FILE* file, FileHeader* header) {
     if (fseek(file, 0, SEEK_SET) != 0) {
         fprintf(stderr, "Error seeking to the beginning of the file");
         return 1;
@@ -129,21 +133,21 @@ int main(const int argc, const char *argv[]) {
         return 1;
     }
 
-    FileHeader header;
+    FileHeader file_header;
     PageHeader schema_page;
 
-    if (read_db_header(database_file, &header) != 0) {
-        fprintf(stderr, "Error reading database header\n");
+    if (read_file_header(database_file, &file_header) != 0) {
+        fprintf(stderr, "Error reading database file header\n");
         return 1;
     }
     
-    if (read_btree_header(database_file, &schema_page) != 0) {
+    if (read_btree_header(database_file, &schema_page, file_header.page_size, 1) != 0) {
         fprintf(stderr, "Error reading schema page\n");
         return 1;
     }
 
     if (strcmp(command, ".dbinfo") == 0) {
-        printf("database page size: %u\n", header.page_size);
+        printf("database page size: %u\n", file_header.page_size);
         printf("number of tables: %u\n", schema_page.cell_count);
     }
     else if (strcmp(command, ".tables") == 0) {
