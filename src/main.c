@@ -95,7 +95,6 @@ int read_btree_header(FILE* file, PageHeader* header,
 
 int read_file_header(FILE* file, FileHeader* header) {
     if (fseek(file, 0, SEEK_SET) != 0) {
-        fprintf(stderr, "Error seeking to the beginning of the file");
         return 1;
     }
     
