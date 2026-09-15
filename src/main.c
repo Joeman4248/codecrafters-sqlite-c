@@ -23,9 +23,9 @@ typedef struct {
     uint16_t freeblock_offset;  // offset 1
     uint16_t cell_count;        // offset 3
     uint16_t cell_area_start;   // offset 5
-    uint32_t rightmost_ptr;     // offset 8, interior pages
+    uint32_t rightmost_ptr;     // offset 8, only exists on interior pages
 
-    uint8_t header_size;
+    uint8_t header_size;    // 8 bytes in size for leaf pages and 12 bytes for interior pages
 } PageHeader;
 
 typedef struct {
@@ -63,13 +63,11 @@ int read_btree_header(FILE* file, PageHeader* header,
     }
 
     switch (header->page_type) {
-        // 12 bytes in size for interior pages
         case PAGE_TYPE_INTERIOR_INDEX:
         case PAGE_TYPE_INTERIOR_TABLE:
             header->header_size = 12;
             break;
 
-        // 8 bytes in size for leaf pages
         case PAGE_TYPE_LEAF_INDEX:
         case PAGE_TYPE_LEAF_TABLE:
             header->header_size = 8;
