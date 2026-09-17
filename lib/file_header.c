@@ -37,25 +37,10 @@ static int validate_file_header(const FileHeader* header) {
         return 1;
     }
 
-    switch (header->max_embedded_payload_fraction) {
-        case MAX_EMBEDDED_PAYLOAD_FRACTION:
-            break;
-        default:
-            return 1;
-    }
-
-    switch (header->min_embedded_payload_fraction) {
-        case MIN_EMBEDDED_PAYLOAD_FRACTION:
-            break;
-        default:
-            return 1;
-    }
-
-    switch (header->leaf_payload_fraction) {
-        case LEAF_PAYLOAD_FRACTION:
-            break;
-        default:
-            return 1;
+    if (header->max_embedded_payload_fraction != MAX_EMBEDDED_PAYLOAD_FRACTION ||
+        header->min_embedded_payload_fraction != MIN_EMBEDDED_PAYLOAD_FRACTION ||
+        header->leaf_payload_fraction != LEAF_PAYLOAD_FRACTION) {
+        return 1;
     }
 
     // supported schema formats are 0-4 (0 means an empty database)
