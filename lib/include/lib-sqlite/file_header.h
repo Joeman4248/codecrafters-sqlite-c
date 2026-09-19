@@ -9,15 +9,16 @@
 #define VALID_HEADER_STR "SQLite format 3"
 #define FILE_HEADER_RESERVED_SZ 20    // header bytes reserved for expansion (offset 72)
 
-// page size field (offset 16): a power of two between
-// FILE_PAGE_SIZE_MIN and FILE_PAGE_SIZE_MAX, or
-// PAGE_SIZE_65536_MARKER meaning 65536 bytes
-#define PAGE_SIZE_MIN 512
-#define PAGE_SIZE_MAX 32768
-#define PAGE_SIZE_65536_MARKER 1
-// #define PAGE_SIZE_65536 65536
+// page size field (offset 16): stores an ordinary page size directly, as a
+// power of two between PAGE_SIZE_MIN and PAGE_SIZE_2_BYTE_MAX, or the
 
-#define MIN_USABLE_PAGE_SIZE 480      // usable = page_size - reserved_space
+#define PAGE_SIZE_MIN (1 << 9)          // smallest valid page size
+#define PAGE_SIZE_2_BYTE_MAX (1 << 15)  // largest size the 4-byte page size field stores directly
+
+#define PAGE_SIZE_MAX (1 << 16)         // largest possible page size, does not fit directly into the 4-byte page size field
+#define PAGE_SIZE_65536_MARKER 1        // field value encoding a PAGE_SIZE_MAX page
+
+#define MIN_USABLE_PAGE_SIZE 480        // usable = page_size - reserved_space
 
 enum FileFormatVersion {
     FILE_FORMAT_VERSION_LEGACY = 1,   // rollback journal mode
@@ -69,6 +70,10 @@ typedef struct {
     uint32_t version_valid_for;            // offset 92
     uint32_t sqlite_version_number;        // offset 96
 } FileHeader;
+
+// resolves the page size field into the actual page size in bytes,
+// translating the marker value 1 into 65536
+uint32_t page_size_bytes(uint16_t page_size);
 
 int read_file_header(FILE* file, FileHeader* header);
 
