@@ -3,6 +3,7 @@
 
 #include "lib-sqlite/database.h"
 #include "lib-sqlite/btree_page.h"
+#include "lib-sqlite/commands.h"
 
 int main(const int argc, const char *argv[]) {
     if (argc != 3) {
@@ -38,6 +39,11 @@ int main(const int argc, const char *argv[]) {
         printf("number of tables: %u\n", schema_page.cell_count);
     }
     else if (strcmp(command, ".tables") == 0) {
+        if (run_tables_command(&db) != 0) {
+            fprintf(stderr, "Error reading table names\n");
+            fclose(db.file);
+            return 1;
+        }
     }
     else {
         fprintf(stderr, "Unknown command %s\n", command);
