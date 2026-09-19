@@ -9,7 +9,7 @@ int run_tables_command(const Database* db) {
     for (uint32_t i = 0; i < db->schema_count; i++) {
         const SchemaEntry* entry = &db->schema[i];
 
-        if (strcmp(entry->type, "table") == 0 && strncmp(entry->name, "sqlite_", 7) != 0) {
+        if (entry->type == SCHEMA_TYPE_TABLE && strncmp(entry->name, "sqlite_", 7) != 0) {
             if (table_count > 0) printf(" ");
             printf("%s", entry->name);
             table_count++;

@@ -1,8 +1,28 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "include/lib-sqlite/schema.h"
 #include "include/lib-sqlite/btree_page.h"
 #include "include/lib-sqlite/record.h"
+
+// type strings, indexed by their SchemaType value; SCHEMA_TYPE_COUNT keeps
+// this list in sync with the enum
+static const char* const TYPE_NAMES[SCHEMA_TYPE_COUNT] = {
+    [SCHEMA_TYPE_TABLE]   = "table",
+    [SCHEMA_TYPE_INDEX]   = "index",
+    [SCHEMA_TYPE_VIEW]    = "view",
+    [SCHEMA_TYPE_TRIGGER] = "trigger",
+};
+
+// maps a sqlite_schema type string to its enum value
+static enum SchemaType type_from_text(const char* text) {
+    for (int i = 0; i < SCHEMA_TYPE_COUNT; i++) {
+        if (strcmp(text, TYPE_NAMES[i]) == 0) {
+            return (enum SchemaType) i;
+        }
+    }
+    return SCHEMA_TYPE_UNKNOWN;
+}
 
 int read_schema(Database* db) {
     PageHeader schema_page;
@@ -48,10 +68,13 @@ int read_schema(Database* db) {
         SchemaEntry* entry = &db->schema[i];
 
         // sqlite_schema columns: type, name, tbl_name, rootpage, sql
+        char type[SCHEMA_TYPE_MAX];
         if (record_get_text(payload, (uint32_t) payload_size,
-                columns, column_count, SCHEMA_COL_TYPE, entry->type, sizeof(entry->type)) != 0) {
+                columns, column_count, SCHEMA_COL_TYPE, type, sizeof(type)) != 0) {
             return 1;
         }
+        entry->type = type_from_text(type);
+
         if (record_get_text(payload, (uint32_t) payload_size,
                 columns, column_count, SCHEMA_COL_NAME, entry->name, sizeof(entry->name)) != 0) {
             return 1;
