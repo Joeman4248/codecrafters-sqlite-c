@@ -53,7 +53,7 @@ int parse_record(const uint8_t* data, uint32_t size,
         count++;
     }
 
-    if ((uint32_t) header_size > size - body_size) return 1;
+    if (body_size > size || header_size > size - body_size) return 1;
 
     *column_count = count;
     return 0;
