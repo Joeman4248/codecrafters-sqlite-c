@@ -25,9 +25,9 @@ enum FileFormatVersion {
 };
 
 enum PayloadFraction {
-    MAX_EMBEDDED_PAYLOAD_FRACTION = 64,
-    MIN_EMBEDDED_PAYLOAD_FRACTION = 32,
-    LEAF_PAYLOAD_FRACTION = 32,
+    MAX_EMBEDDED_PAYLOAD_FRACTION = 64, // Maximum embedded payload fraction. Must be 64.
+    MIN_EMBEDDED_PAYLOAD_FRACTION = 32, // Minimum embedded payload fraction. Must be 32.
+    LEAF_PAYLOAD_FRACTION = 32,         // Leaf payload fraction. Must be 32.
 };
 
 enum SchemaFormat {

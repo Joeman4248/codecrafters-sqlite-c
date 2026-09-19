@@ -39,7 +39,7 @@ int main(const int argc, const char *argv[]) {
         printf("number of tables: %u\n", schema_page.cell_count);
     }
     else if (strcmp(command, ".tables") == 0) {
-
+        
     }
     else {
         fprintf(stderr, "Unknown command %s\n", command);
