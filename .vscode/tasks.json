@@ -1,0 +1,29 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "CMake: build",
+            "type": "shell",
+            "command": "cmake --build build",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"],
+            "detail": "Build the project with CMake"
+        },
+        {
+            "label": "CMake: configure",
+            "type": "shell",
+            "command": "cmake -B build -S . -G \"MinGW Makefiles\" -DCMAKE_BUILD_TYPE=Debug",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "detail": "Configure the project with CMake"
+        }
+    ]
+}

@@ -1,0 +1,45 @@
+{
+    "version": "0.2.0",
+    "inputs": [
+        {
+            "id": "dbFile",
+            "type": "promptString",
+            "description": "Database file path",
+            "default": "sample.db"
+        },
+        {
+            "id": "command",
+            "type": "promptString",
+            "description": "Command to run (e.g. .dbinfo, .tables)",
+            "default": ".dbinfo"
+        }
+    ],
+    "configurations": [
+        {
+            "name": "Debug sqlite (GDB)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/sqlite.exe",
+            "args": ["${input:dbFile}", "${input:command}"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Set disassembly flavor to Intel",
+                    "text": "-gdb-set disassembly-flavor intel",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "CMake: build"
+        }
+    ]
+}
