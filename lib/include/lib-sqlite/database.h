@@ -42,4 +42,8 @@ typedef struct {
     uint32_t    schema_count;     // number of objects in the schema
 } Database;
 
+// closes the database file and frees the schema. Safe to call on a
+// zero-initialised or already-closed Database.
+void close_database(Database* db);
+
 #endif // CODECRAFTERS_SQLITE_DATABASE_H
