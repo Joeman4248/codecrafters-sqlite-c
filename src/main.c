@@ -1,6 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "lib-sqlite/database.h"
 #include "lib-sqlite/schema.h"
@@ -19,18 +17,20 @@ static int run(Database* db, const char* command) {
         return 1;
     }
 
-    if (strcmp(command, ".dbinfo") == 0) {
-        printf("database page size: %u\n", db->file_header.page_size);
-        printf("number of tables: %u\n", db->schema_count);
-        return 0;
+    // anything that isn't a dot-command is treated as SQL
+    if (command[0] != '.') {
+        return run_sql_command(db, command);
     }
 
-    if (strcmp(command, ".tables") == 0) {
-        if (run_tables_command(db) != 0) {
-            fprintf(stderr, "Error reading table names\n");
-            return 1;
-        }
-        return 0;
+    switch (parse_dot_command(command)) {
+        case DOT_COMMAND_DBINFO:
+            return run_dbinfo_command(db);
+
+        case DOT_COMMAND_TABLES:
+            return run_tables_command(db);
+
+        case DOT_COMMAND_UNKNOWN:
+            break;
     }
 
     fprintf(stderr, "Unknown command %s\n", command);
