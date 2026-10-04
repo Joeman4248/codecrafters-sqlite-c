@@ -15,8 +15,8 @@ enum SchemaType {
     SCHEMA_TYPE_INDEX,
     SCHEMA_TYPE_VIEW,
     SCHEMA_TYPE_TRIGGER,
-    SCHEMA_TYPE_COUNT,                // number of real type names
-    SCHEMA_TYPE_UNKNOWN,              // not one of the four standard types
+    SCHEMA_TYPE_COUNT,                          // number of real type names
+    SCHEMA_TYPE_UNKNOWN = SCHEMA_TYPE_COUNT,    // not one of the four standard types
 };
 
 // one row of sqlite_schema, storing the fields .tables uses
