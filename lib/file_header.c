@@ -15,6 +15,11 @@ static bool is_powerof2(const uint16_t val) {
 // validates the field values once the header has been fully read,
 // per the SQLite file format spec
 static int validate_file_header(const FileHeader* header) {
+    if (memcmp(header->header_string, VALID_HEADER_STR, HEADER_STR_SZ) != 0) {
+        // fprintf(stderr, "Invalid header string");
+        return 1;
+    }
+
     // page size must be a power of two between 512 and 32768, or the
     // marker value 1 which means a 65536-byte page
     if (header->page_size != PAGE_SIZE_65536_MARKER &&
@@ -86,11 +91,6 @@ int read_file_header(FILE* file, FileHeader* header) {
     
     if (fread(header->header_string, 1, HEADER_STR_SZ, file) != HEADER_STR_SZ) {
         // fprintf(stderr, "Error reading header string");
-        return 1;
-    }
-
-    if (memcmp(header->header_string, VALID_HEADER_STR, HEADER_STR_SZ) != 0) {
-        // fprintf(stderr, "Invalid header string");
         return 1;
     }
 
