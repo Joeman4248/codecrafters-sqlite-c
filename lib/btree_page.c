@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "include/lib-sqlite/btree_page.h"
-#include "include/lib-sqlite/varint.h"
+#include "include/lib-sqlite/record.h"
 
 // returns the file offset where the b-tree content of the given page begins:
 // page 1 starts after the 100-byte database header, all other pages start at

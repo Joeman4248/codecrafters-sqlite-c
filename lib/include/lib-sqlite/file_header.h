@@ -16,7 +16,7 @@
 #define PAGE_SIZE_2_BYTE_MAX (1 << 15)  // largest size the 4-byte page size field stores directly
 
 #define PAGE_SIZE_MAX (1 << 16)         // largest possible page size, does not fit directly into the 4-byte page size field
-#define PAGE_SIZE_65536_MARKER 1        // field value encoding a PAGE_SIZE_MAX page
+#define PAGE_SIZE_MAX_MARKER 1          // field value encoding a PAGE_SIZE_MAX page
 
 #define MIN_USABLE_PAGE_SIZE 480        // usable = page_size - reserved_space
 

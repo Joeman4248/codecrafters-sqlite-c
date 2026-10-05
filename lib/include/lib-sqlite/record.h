@@ -3,6 +3,15 @@
 
 #include <stdint.h>
 
+#define VARINT_MAX_SZ 9               // a varint can be up to 9 bytes long
+
+// a varint is between 1 and 9 bytes long: the lower 7 bits of each of the
+// first 1-8 bytes (which all have the high bit set) plus all 8 bits of the
+// ninth byte (which never has the high bit set), big-endian.
+// Reads a variable-length integer (1-9 bytes) from an in-memory buffer,
+// advancing offset past the bytes it consumed.
+int decode_varint(const uint8_t* buf, const uint32_t size, uint32_t* offset, uint64_t* value);
+
 // serial type codes for the record format
 enum SerialType {
     SERIAL_NULL,

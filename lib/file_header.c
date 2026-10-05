@@ -4,7 +4,7 @@
 #include "include/lib-sqlite/file_helpers.h"
 
 uint32_t page_size_bytes(const uint16_t page_size) {
-    return page_size == PAGE_SIZE_65536_MARKER ? PAGE_SIZE_MAX : page_size;
+    return (page_size == PAGE_SIZE_MAX_MARKER) ? PAGE_SIZE_MAX : page_size;
 }
 
 // checks if a uint16 is a valid power of 2
@@ -22,7 +22,7 @@ static int validate_file_header(const FileHeader* header) {
 
     // page size must be a power of two between 512 and 32768, or the
     // marker value 1 which means a 65536-byte page
-    if (header->page_size != PAGE_SIZE_65536_MARKER &&
+    if (header->page_size != PAGE_SIZE_MAX_MARKER &&
         (header->page_size < PAGE_SIZE_MIN ||
          header->page_size > PAGE_SIZE_2_BYTE_MAX ||
          !is_powerof2(header->page_size))) {
@@ -41,7 +41,7 @@ static int validate_file_header(const FileHeader* header) {
 
     // usable page size = page_size - reserved_space, and must be >= 480
     // (always satisfied for a 65536-byte page, so skip the marker)
-    if (header->page_size != PAGE_SIZE_65536_MARKER &&
+    if (header->page_size != PAGE_SIZE_MAX_MARKER &&
         header->page_size < header->reserved_space + MIN_USABLE_PAGE_SIZE) {
         return 1;
     }
