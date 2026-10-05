@@ -67,8 +67,8 @@ int record_get_text(const uint8_t* data, const uint32_t size,
     const RecordColumn* col = &columns[column];
     // text values use odd serial types 13 and up
     if (col->serial_type < 13 || col->serial_type % 2 == 0) return 1;
-    if (col->value_offset + col->value_size > size) return 1;
-    if (col->value_size >= out_capacity) return 1;
+    if (col->value_offset + col->value_size > size)         return 1;
+    if (col->value_size >= out_capacity)                    return 1;
 
     memcpy(out, data + col->value_offset, col->value_size);
     out[col->value_size] = '\0';
