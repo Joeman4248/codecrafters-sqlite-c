@@ -127,7 +127,7 @@ int read_file_header(FILE* file, FileHeader* header) {
     }
 
     // skip empty reserved bytes in the header
-    offset += FILE_HEADER_RESERVED_SZ;
+    offset += FILE_HEADER_RESV_SZ;
 
     if (decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->version_valid_for) ||
         decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->sqlite_version_number)) {
