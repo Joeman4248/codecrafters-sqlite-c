@@ -27,12 +27,24 @@ int decode_uint32(const uint8_t* buf, const uint32_t size, uint32_t* offset, uin
     return 0;
 }
 
+// bytes 1-8 each contribute their lower 7 bits and use the high bit as a
+// "more bytes follow" flag, so the loop stops at the first byte with it clear.
+// If all 8 have it set, the 9th byte contributes all 8 of its bits, for
+// 8 * 7 + 8 = 64 bits in total.
+//
+// a varint holds the bits of a 64-bit two's-complement integer, but the value
+// is built in a uint64_t because shifting bits into or past the sign bit of a
+// signed type is undefined behavior. Callers that need a signed value (e.g. a
+// rowid) convert the result themselves.
+//
+// on failure, offset may already have advanced past some of the varint's bytes.
 int decode_varint(const uint8_t* buf, const uint32_t size, uint32_t* offset, uint64_t* value) {
     if (*offset >= size) return 1;
 
     uint64_t result = 0;
 
-    for (uint8_t i = 1; i <= 8; i++) {
+    // copy the first 1-8 bytes
+    for (uint8_t i = 0; i <= 8; i++) {
         // copy the 7 lower bits
         const uint8_t byte = buf[(*offset)++];
         result = (result << 7) | (byte & 0x7F);
