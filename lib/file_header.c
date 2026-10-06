@@ -89,46 +89,48 @@ int read_file_header(FILE* file, FileHeader* header) {
         return 1;
     }
     
-    if (fread(header->header_string, 1, HEADER_STR_SZ, file) != HEADER_STR_SZ) {
-        // fprintf(stderr, "Error reading header string");
+    uint8_t buf[FILE_HEADER_SZ];
+    if (fread(buf, 1, FILE_HEADER_SZ, file) != FILE_HEADER_SZ) {
+        // fprintf(stderr, "Error reading file header");
         return 1;
     }
 
-    if (read_uint16(file, &header->page_size)) {
+    memcpy(header->header_string, buf, HEADER_STR_SZ);
+    uint32_t offset = HEADER_STR_SZ;
+
+    if (decode_uint16(buf, FILE_HEADER_SZ, &offset, &header->page_size)) {
         return 1;
     }
 
-    if (read_uint8(file, &header->write_version) ||
-        read_uint8(file, &header->read_version) ||
-        read_uint8(file, &header->reserved_space) ||
-        read_uint8(file, &header->max_embedded_payload_fraction) ||
-        read_uint8(file, &header->min_embedded_payload_fraction) ||
-        read_uint8(file, &header->leaf_payload_fraction)) {
+    if (decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->write_version) ||
+        decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->read_version) ||
+        decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->reserved_space) ||
+        decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->max_embedded_payload_fraction) ||
+        decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->min_embedded_payload_fraction) ||
+        decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->leaf_payload_fraction)) {
         return 1;
     }
 
-    if (read_uint32(file, &header->file_change_counter) ||
-        read_uint32(file, &header->db_size_in_pages) ||
-        read_uint32(file, &header->first_freelist_trunk_page) ||
-        read_uint32(file, &header->freelist_page_count) ||
-        read_uint32(file, &header->schema_cookie) ||
-        read_uint32(file, &header->schema_format) ||
-        read_uint32(file, &header->default_page_cache_size) ||
-        read_uint32(file, &header->largest_root_btree_page) ||
-        read_uint32(file, &header->text_encoding) ||
-        read_uint32(file, &header->user_version) ||
-        read_uint32(file, &header->incremental_vacuum_enabled) ||
-        read_uint32(file, &header->application_id)) {
+    if (decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->file_change_counter) ||
+        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->db_size_in_pages) ||
+        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->first_freelist_trunk_page) ||
+        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->freelist_page_count) ||
+        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->schema_cookie) ||
+        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->schema_format) ||
+        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->default_page_cache_size) ||
+        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->largest_root_btree_page) ||
+        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->text_encoding) ||
+        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->user_version) ||
+        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->incremental_vacuum_enabled) ||
+        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->application_id)) {
         return 1;
     }
 
     // skip empty reserved bytes in the header
-    if (fseek(file, FILE_HEADER_RESERVED_SZ, SEEK_CUR) != 0) {
-        return 1;
-    }
+    offset += FILE_HEADER_RESERVED_SZ;
 
-    if (read_uint32(file, &header->version_valid_for) ||
-        read_uint32(file, &header->sqlite_version_number)) {
+    if (decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->version_valid_for) ||
+        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->sqlite_version_number)) {
         return 1;
     }
 

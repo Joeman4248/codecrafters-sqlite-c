@@ -24,14 +24,15 @@ static enum SchemaType type_from_text(const char* text) {
     return SCHEMA_TYPE_UNKNOWN;
 }
 
-int read_schema(Database* db) {
+// fills db->schema from the in-memory schema root page
+static int parse_schema_page(Database* db, const uint8_t* page, const uint32_t page_size) {
     PageHeader schema_page;
-    if (read_btree_header(db, &schema_page, SCHEMA_ROOT_PAGE) != 0) {
+    if (read_btree_header(page, page_size, SCHEMA_ROOT_PAGE, &schema_page) != 0) {
         return 1;
     }
 
     uint16_t cell_offsets[schema_page.cell_count];
-    if (read_cell_pointers(db, &schema_page, SCHEMA_ROOT_PAGE, cell_offsets) != 0) {
+    if (read_cell_pointers(page, page_size, SCHEMA_ROOT_PAGE, &schema_page, cell_offsets) != 0) {
         return 1;
     }
 
@@ -41,16 +42,15 @@ int read_schema(Database* db) {
     }
     db->schema_count = schema_page.cell_count;
 
-    // the payload of a leaf table cell always fits fully on its page, so the
-    // largest possible inline payload is bounded by the maximum page size
-    uint8_t payload[PAGE_SIZE_MAX];
+    const uint32_t usable_size = page_size - db->file_header.reserved_space;
+    const uint8_t* payload = NULL;
     uint64_t payload_size = 0;
     uint64_t rowid = 0;
 
     for (uint32_t i = 0; i < schema_page.cell_count; i++) {
 
-        if (read_leaf_table_cell(db, SCHEMA_ROOT_PAGE, cell_offsets[i],
-                payload, sizeof(payload), &payload_size, &rowid) != 0) {
+        if (read_leaf_table_cell(page, usable_size, cell_offsets[i],
+                &payload, &payload_size, &rowid) != 0) {
             return 1;
         }
 
@@ -82,4 +82,19 @@ int read_schema(Database* db) {
     }
 
     return 0;
+}
+
+int read_schema(Database* db) {
+    // pages can be up to 64 KiB, so keep the buffer off the stack
+    const uint32_t page_size = page_size_bytes(db->file_header.page_size);
+    uint8_t* page = malloc(page_size);
+    if (page == NULL) return 1;
+
+    int result = read_page(db, SCHEMA_ROOT_PAGE, page);
+    if (result == 0) {
+        result = parse_schema_page(db, page, page_size);
+    }
+
+    free(page);
+    return result;
 }
