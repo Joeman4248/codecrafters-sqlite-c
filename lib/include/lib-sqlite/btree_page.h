@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #include "database.h"
-#include "file_helpers.h"
+#include "decode.h"
 
 #define SCHEMA_ROOT_PAGE 1            // root page of the sqlite_schema b-tree
 
@@ -32,9 +32,6 @@ typedef struct {
     uint8_t header_size;    // 8 bytes in size for leaf pages and 12 bytes for interior pages
 } PageHeader;
 
-// reads the whole of page page_number from the database file into buf, which
-// must hold at least the database's page size in bytes
-int read_page(const Database* db, uint32_t page_number, uint8_t* buf);
 // decodes the b-tree page header of an in-memory page of page_size bytes
 int read_btree_header(const uint8_t* page, uint32_t page_size,
         uint32_t page_number, PageHeader* header);

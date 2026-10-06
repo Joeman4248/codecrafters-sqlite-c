@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "include/lib-sqlite/file_header.h"
-#include "include/lib-sqlite/file_helpers.h"
+#include "include/lib-sqlite/decode.h"
 
 uint32_t page_size_bytes(const uint16_t page_size) {
     return (page_size == PAGE_SIZE_MAX_MARKER) ? PAGE_SIZE_MAX : page_size;

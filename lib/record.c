@@ -1,33 +1,7 @@
 #include <string.h>
 
 #include "include/lib-sqlite/record.h"
-
-int decode_varint(const uint8_t* buf, const uint32_t size, uint32_t* offset, uint64_t* value) {
-    if (*offset >= size) return 1;
-
-    uint64_t result = 0;
-
-    for (uint8_t i = 1; i <= 8; i++) {
-        // copy the 7 lower bits
-        const uint8_t byte = buf[(*offset)++];
-        result = (result << 7) | (byte & 0x7F);
-
-        // final byte never has 8th-most bit set
-        if ((byte & 0x80) == 0) {
-            *value = result;
-            return 0;
-        }
-
-        if (*offset >= size) return 1;
-    }
-
-    if (*offset >= size) return 1;
-
-    // copy the entire 9th byte
-    result = (result << 8) | buf[(*offset)++];
-    *value = result;
-    return 0;
-}
+#include "include/lib-sqlite/decode.h"
 
 uint32_t serial_type_size(uint64_t serial_type) {
     switch (serial_type) {

@@ -1,5 +1,4 @@
 #include "include/lib-sqlite/btree_page.h"
-#include "include/lib-sqlite/record.h"
 
 // returns the offset within the page where the b-tree page header begins:
 // page 1 starts after the 100-byte database header, all other pages start at
@@ -8,20 +7,6 @@ static uint32_t page_header_start(const uint32_t page_number) {
     return page_number == 1 ? FILE_HEADER_SZ : 0;
 }
 
-int read_page(const Database* db, const uint32_t page_number, uint8_t* buf) {
-    const uint32_t page_size = page_size_bytes(db->file_header.page_size);
-
-    if (fseek(db->file, (long) (page_number - 1) * page_size, SEEK_SET) != 0) {
-        // fprintf(stderr, "Error seeking to start of page");
-        return 1;
-    }
-
-    if (fread(buf, 1, page_size, db->file) != page_size) {
-        return 1;
-    }
-
-    return 0;
-}
 int read_btree_header(const uint8_t* page, const uint32_t page_size,
         const uint32_t page_number, PageHeader* header) {
     uint32_t offset = page_header_start(page_number);

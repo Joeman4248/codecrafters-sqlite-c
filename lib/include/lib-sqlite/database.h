@@ -42,6 +42,10 @@ typedef struct {
     uint32_t    schema_count;     // number of objects in the schema
 } Database;
 
+// reads the whole of page page_number from the database file into buf, which
+// must hold at least the database's page size in bytes
+int read_page(const Database* db, uint32_t page_number, uint8_t* buf);
+
 // closes the database file and frees the schema. Safe to call on a
 // zero-initialised or already-closed Database.
 void close_database(Database* db);
