@@ -44,7 +44,7 @@ int decode_varint(const uint8_t* buf, const uint32_t size, uint32_t* offset, uin
     uint64_t result = 0;
 
     // copy the first 1-8 bytes
-    for (uint8_t i = 0; i <= 8; i++) {
+    for (uint8_t i = 1; i <= 8; i++) {
         // copy the 7 lower bits
         const uint8_t byte = buf[(*offset)++];
         result = (result << 7) | (byte & 0x7F);
