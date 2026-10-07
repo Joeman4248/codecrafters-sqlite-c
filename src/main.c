@@ -37,14 +37,14 @@ static int run(Database* db, const char* command) {
     return 1;
 }
 
-int main(const int argc, const char *argv[]) {
+int main(const int argc, const char* argv[]) {
     if (argc != 3) {
         fprintf(stderr, "Usage: ./your_program.sh <database path> <command>\n");
         return 1;
     }
 
-    const char *database_file_path = argv[1];
-    const char *command = argv[2];
+    const char* database_file_path = argv[1];
+    const char* command = argv[2];
 
     Database db = { 0 };              // zero-init so close_database is always safe
     db.file = fopen(database_file_path, "rb");
