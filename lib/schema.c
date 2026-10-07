@@ -54,14 +54,14 @@ static int parse_schema_page(Database* db, const uint8_t* page, const uint32_t p
             return 1;
         }
 
-        RecordColumn columns[16];
+        RecordColumn columns[SCHEMA_COL_COUNT];
         uint32_t column_count = 0;
         if (parse_record(payload, (uint32_t) payload_size,
-                columns, sizeof(columns) / sizeof(columns[0]), &column_count) != 0) {
+                columns, SCHEMA_COL_COUNT, &column_count) != 0) {
             return 1;
         }
 
-        if (column_count < 2) {
+        if (column_count != SCHEMA_COL_COUNT) {
             return 1;
         }
 

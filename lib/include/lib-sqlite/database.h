@@ -32,6 +32,7 @@ enum SchemaColumn {
     SCHEMA_COL_TBL_NAME,    // table the object belongs to
     SCHEMA_COL_ROOTPAGE,    // root b-tree page (0 for views and triggers)
     SCHEMA_COL_SQL,         // original CREATE statement
+    SCHEMA_COL_COUNT,       // number of columns in a sqlite_schema record
 };
 
 typedef struct {
