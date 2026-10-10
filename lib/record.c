@@ -59,10 +59,10 @@ int parse_record(const uint8_t* data, uint32_t size,
 
 int record_get_text(const uint8_t* data, const uint32_t size,
         const RecordColumn* columns, const uint32_t column_count,
-        const uint32_t column, char* out, const uint32_t out_capacity) {
-    if (column >= column_count) return 1;
+        const uint32_t index, char* out, const uint32_t out_capacity) {
+    if (index >= column_count) return 1;
 
-    const RecordColumn* col = &columns[column];
+    const RecordColumn* col = &columns[index];
     // text values use odd serial types 13 and up
     if (col->serial_type < 13 || col->serial_type % 2 == 0) return 1;
     if (col->value_offset + col->value_size > size)         return 1;
