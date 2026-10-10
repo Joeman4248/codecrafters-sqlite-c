@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "name": "MinGW",
+            "compilerPath": "C:/Users/joseph/scoop/apps/mingw/current/bin/gcc.exe",
+            "intelliSenseMode": "windows-gcc-x64",
+            "cStandard": "c23",
+            "includePath": [
+                "${workspaceFolder}/lib/include"
+            ]
+        }
+    ],
+    "version": 4
+}
