@@ -70,7 +70,7 @@ int read_leaf_table_cell(const uint8_t* page, const uint32_t usable_size,
         const uint16_t cell_offset, const uint8_t** payload,
         uint64_t* payload_size, uint64_t* rowid) {
     // cell offsets are relative to the start of the physical page; page 1's
-    // 100-byte database header only shifts the b-tree page header, not cell-offs
+    // 100-byte database header only shifts the b-tree page header, not cell-offset
     uint32_t offset = cell_offset;
 
     // two varints precede the payload: the payload length and the rowid
