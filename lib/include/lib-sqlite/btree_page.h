@@ -9,10 +9,10 @@
 #define SCHEMA_ROOT_PAGE 1            // root page of the sqlite_schema b-tree
 
 enum PageType {
-    PAGE_TYPE_INTERIOR_TABLE = 0x02,
-    PAGE_TYPE_INTERIOR_INDEX = 0x05,
-    PAGE_TYPE_LEAF_TABLE = 0x0a,
-    PAGE_TYPE_LEAF_INDEX = 0x0d,
+    PAGE_TYPE_INTERIOR_INDEX = 0x02,
+    PAGE_TYPE_INTERIOR_TABLE = 0x05,
+    PAGE_TYPE_LEAF_INDEX = 0x0a,
+    PAGE_TYPE_LEAF_TABLE = 0x0d
 };
 
 enum PageHeaderSize {
