@@ -125,7 +125,7 @@ static int parse_schema_page(Database* db, const uint8_t* page, const uint32_t p
 
 int read_schema(Database* db) {
     // pages can be up to 64 KiB, so keep the buffer off the stack
-    const uint32_t page_size = page_size_bytes(db->file_header.page_size);
+    const uint32_t page_size = db->file_header.page_size;
     uint8_t* page = malloc(page_size);
     if (page == NULL) return 1;
 

@@ -3,12 +3,14 @@
 #include "include/lib-sqlite/file_header.h"
 #include "include/lib-sqlite/decode.h"
 
-uint32_t page_size_bytes(const uint16_t page_size) {
+// resolves the page size field into the actual page size in bytes,
+// translating the marker value 1 into 65536
+static uint32_t page_size_bytes(const uint16_t page_size) {
     return (page_size == PAGE_SIZE_MAX_MARKER) ? PAGE_SIZE_MAX : page_size;
 }
 
-// checks if a uint16 is a valid power of 2
-static bool is_powerof2(const uint16_t val) {
+// checks if a uint32 is a valid power of 2
+static bool is_powerof2(const uint32_t val) {
     return (val & (val - 1)) == 0;
 }
 
@@ -20,12 +22,11 @@ static int validate_file_header(const FileHeader* header) {
         return 1;
     }
 
-    // page size must be a power of two between 512 and 32768, or the
-    // marker value 1 which means a 65536-byte page
-    if (header->page_size != PAGE_SIZE_MAX_MARKER &&
-        (header->page_size < PAGE_SIZE_MIN ||
-         header->page_size > PAGE_SIZE_2_BYTE_MAX ||
-         !is_powerof2(header->page_size))) {
+    // page size must be a power of two between 512 and 65536 (the marker
+    // value 1 was already resolved to 65536 when reading)
+    if (header->page_size < PAGE_SIZE_MIN ||
+        header->page_size > PAGE_SIZE_MAX ||
+        !is_powerof2(header->page_size)) {
         return 1;
     }
 
@@ -40,9 +41,7 @@ static int validate_file_header(const FileHeader* header) {
     }
 
     // usable page size = page_size - reserved_space, and must be >= 480
-    // (always satisfied for a 65536-byte page, so skip the marker)
-    if (header->page_size != PAGE_SIZE_MAX_MARKER &&
-        header->page_size < header->reserved_space + MIN_USABLE_PAGE_SIZE) {
+    if (header->page_size < header->reserved_space + MIN_USABLE_PAGE_SIZE) {
         return 1;
     }
 
@@ -98,9 +97,11 @@ int read_file_header(FILE* file, FileHeader* header) {
     memcpy(header->header_string, buf, HEADER_STR_SZ);
     uint32_t offset = HEADER_STR_SZ;
 
-    if (decode_uint16(buf, FILE_HEADER_SZ, &offset, &header->page_size)) {
+    uint16_t page_size;
+    if (decode_uint16(buf, FILE_HEADER_SZ, &offset, &page_size)) {
         return 1;
     }
+    header->page_size = page_size_bytes(page_size);
 
     if (decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->write_version) ||
         decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->read_version) ||

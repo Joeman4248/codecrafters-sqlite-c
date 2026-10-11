@@ -4,7 +4,7 @@
 #include "include/lib-sqlite/database.h"
 
 int read_page(const Database* db, const uint32_t page_number, uint8_t* buf) {
-    const uint32_t page_size = page_size_bytes(db->file_header.page_size);
+    const uint32_t page_size = db->file_header.page_size;
 
     if (fseek(db->file, (long) (page_number - 1) * page_size, SEEK_SET) != 0) {
         // fprintf(stderr, "Error seeking to start of page");
