@@ -20,7 +20,7 @@ enum DotCommand parse_dot_command(const char* text) {
 }
 
 int run_dbinfo_command(const Database* db) {
-    printf("database page size: %u\n", db->file_header.page_size);
+    printf("database page size: %u\n", page_size_bytes(db->file_header.page_size));
     printf("number of tables: %u\n", db->schema_count);
     return 0;
 }
