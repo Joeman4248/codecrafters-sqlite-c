@@ -44,10 +44,10 @@ int read_cell_pointers(const uint8_t* page, uint32_t page_size,
 
 // decodes a table b-tree leaf cell. payload is set to point at the payload
 // inside page (no copy), with payload_size and rowid receiving the cell's
-// payload length and integer key. Returns nonzero if the payload overflows
-// onto overflow pages or on error.
+// payload length (at most the usable page size) and its signed rowid.
+// Returns nonzero if the payload overflows onto overflow pages or on error.
 int read_leaf_table_cell(const uint8_t* page, uint32_t usable_size,
         uint16_t cell_offset, const uint8_t** payload,
-        uint64_t* payload_size, uint64_t* rowid);
+        uint32_t* payload_size, int64_t* rowid);
 
 #endif // CODECRAFTERS_SQLITE_BTREE_PAGE_H

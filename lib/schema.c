@@ -55,10 +55,10 @@ static int parse_schema_page(Database* db, const uint8_t* page, const uint32_t p
     }
     db->schema_count = schema_page.cell_count;
 
-    const uint32_t usable_size = page_size - db->file_header.reserved_space;
+    const uint32_t usable_size = db->file_header.usable_size;
     const uint8_t* payload = NULL;
-    uint64_t payload_size = 0;
-    uint64_t rowid = 0;
+    uint32_t payload_size = 0;
+    int64_t rowid = 0;
 
     for (uint32_t i = 0; i < schema_page.cell_count; i++) {
 
@@ -69,7 +69,7 @@ static int parse_schema_page(Database* db, const uint8_t* page, const uint32_t p
 
         RecordColumn columns[SCHEMA_COL_COUNT];
         uint32_t column_count = 0;
-        if (parse_record(payload, (uint32_t) payload_size,
+        if (parse_record(payload, payload_size,
                 columns, SCHEMA_COL_COUNT, &column_count) != 0) {
             return 1;
         }
@@ -78,11 +78,11 @@ static int parse_schema_page(Database* db, const uint8_t* page, const uint32_t p
             return 1;
         }
 
+        // sqlite_schema columns: type, name, tbl_name, rootpage, sql
         SchemaEntry* entry = &db->schema[i];
 
-        // sqlite_schema columns: type, name, tbl_name, rootpage, sql
         char type[SCHEMA_TYPE_MAX];
-        if (record_get_text(payload, (uint32_t) payload_size,
+        if (record_get_text(payload, payload_size,
                 columns, column_count, SCHEMA_COL_TYPE, type, sizeof(type)) != 0) {
             return 1;
         }
@@ -93,7 +93,7 @@ static int parse_schema_page(Database* db, const uint8_t* page, const uint32_t p
             case SCHEMA_TYPE_TABLE:
             case SCHEMA_TYPE_INDEX:
                 int64_t rootpage;
-                if (record_get_int(payload, (uint32_t) payload_size,
+                if (record_get_int(payload, payload_size,
                         columns, SCHEMA_COL_COUNT, SCHEMA_COL_ROOTPAGE, &rootpage) != 0 ||
                     rootpage < 0 || rootpage > UINT32_MAX) {
                     return 1;
@@ -110,11 +110,11 @@ static int parse_schema_page(Database* db, const uint8_t* page, const uint32_t p
                 return 1;
         }
         
-        if (alloc_column_text(payload, (uint32_t) payload_size,
+        if (alloc_column_text(payload, payload_size,
                 columns, SCHEMA_COL_COUNT, SCHEMA_COL_NAME, &entry->name) ||
-            alloc_column_text(payload, (uint32_t) payload_size,
+            alloc_column_text(payload, payload_size,
                 columns, SCHEMA_COL_COUNT, SCHEMA_COL_TBL_NAME, &entry->tbl_name) ||
-            alloc_column_text(payload, (uint32_t) payload_size,
+            alloc_column_text(payload, payload_size,
                 columns, SCHEMA_COL_COUNT, SCHEMA_COL_SQL, &entry->sql)) {
             return 1;
         }

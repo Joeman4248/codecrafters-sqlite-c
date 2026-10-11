@@ -69,6 +69,8 @@ typedef struct {
     // uint8_t reserved[FILE_HEADER_RESV_SZ];   // offset 72
     uint32_t version_valid_for;                 // offset 92
     uint32_t sqlite_version_number;             // offset 96
+
+    uint32_t usable_size;   // not stored: page_size - reserved_space, validated >= MIN_USABLE_PAGE_SIZE
 } FileHeader;
 
 int read_file_header(FILE* file, FileHeader* header);

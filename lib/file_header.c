@@ -135,5 +135,12 @@ int read_file_header(FILE* file, FileHeader* header) {
         return 1;
     }
 
-    return validate_file_header(header);
+    if (validate_file_header(header)) {
+        return 1;
+    }
+
+    // computed only after validation guarantees page_size >= reserved_space + 480,
+    // so the subtraction can't wrap
+    header->usable_size = header->page_size - header->reserved_space;
+    return 0;
 }
