@@ -18,6 +18,7 @@ int decode_uint16(const uint8_t* buf, const uint32_t size, uint32_t* offset, uin
 }
 
 // decodes 3 bytes from buf into a uint32 value in big-endian format
+// as an upper uint16 and lower uint8
 int decode_uint24(const uint8_t* buf, const uint32_t size, uint32_t* offset, uint32_t* value) {
     uint16_t upper;
     uint8_t  lower;
@@ -38,6 +39,7 @@ int decode_uint32(const uint8_t* buf, const uint32_t size, uint32_t* offset, uin
 }
 
 // decodes 6 bytes from buf into a uint64 value in big-endian format
+// as an upper uint32 and lower uint16
 int decode_uint48(const uint8_t* buf, const uint32_t size, uint32_t* offset, uint64_t* value) {
     uint32_t upper;
     uint16_t lower;
