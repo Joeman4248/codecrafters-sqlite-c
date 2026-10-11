@@ -34,6 +34,13 @@ uint32_t serial_type_size(uint64_t serial_type);
 int parse_record(const uint8_t* data, uint32_t size,
         RecordColumn* columns, uint32_t max_columns, uint32_t* column_count);
 
+// reads an INTEGER column (serial types 1-6, 8 and 9) from a parsed record into
+// value as a signed 64-bit integer. Returns nonzero if the column is not an
+// integer or its bytes run past the end of the record.
+int record_get_int(const uint8_t* data, uint32_t size,
+        const RecordColumn* columns, uint32_t column_count,
+        uint32_t index, int64_t* value);
+
 // copies a TEXT column (odd serial type >= 13) from a parsed record into a
 // null-terminated buffer of out_capacity bytes. Returns nonzero if the column
 // is not text or does not fit in the buffer.

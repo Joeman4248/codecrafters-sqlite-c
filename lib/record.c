@@ -57,6 +57,71 @@ int parse_record(const uint8_t* data, uint32_t size,
     return 0;
 }
 
+// interprets the low 'bits' bits of raw as a two's-complement value. XOR-ing
+// the sign bit and subtracting it back maps e.g. 0xFF (8 bits) to -1 using
+// only well-defined arithmetic, since raw < 2^48 always fits in an int64_t.
+static int64_t sign_extend(const uint64_t raw, const unsigned bits) {
+    const int64_t sign_bit = INT64_C(1) << (bits - 1);
+    return ((int64_t) raw ^ sign_bit) - sign_bit;
+}
+
+int record_get_int(const uint8_t* data, const uint32_t size,
+        const RecordColumn* columns, const uint32_t column_count,
+        const uint32_t index, int64_t* value) {
+    if (index >= column_count) return 1;
+
+    const RecordColumn* col = &columns[index];
+    uint32_t offset = col->value_offset;
+
+    switch (col->serial_type) {
+        case SERIAL_ZERO: *value = 0; return 0;
+        case SERIAL_ONE:  *value = 1; return 0;
+
+        case SERIAL_INT8: {
+            uint8_t raw;
+            if (decode_uint8(data, size, &offset, &raw)) return 1;
+            *value = sign_extend(raw, 8);
+            return 0;
+        }
+        case SERIAL_INT16: {
+            uint16_t raw;
+            if (decode_uint16(data, size, &offset, &raw)) return 1;
+            *value = sign_extend(raw, 16);
+            return 0;
+        }
+        case SERIAL_INT24: {
+            uint32_t raw;
+            if (decode_uint24(data, size, &offset, &raw)) return 1;
+            *value = sign_extend(raw, 24);
+            return 0;
+        }
+        case SERIAL_INT32: {
+            uint32_t raw;
+            if (decode_uint32(data, size, &offset, &raw)) return 1;
+            *value = sign_extend(raw, 32);
+            return 0;
+        }
+        case SERIAL_INT48: {
+            uint64_t raw;
+            if (decode_uint48(data, size, &offset, &raw)) return 1;
+            *value = sign_extend(raw, 48);
+            return 0;
+        }
+        case SERIAL_INT64: {
+            // all 64 bits are already the two's-complement pattern; memcpy
+            // copies them without an implementation-defined conversion
+            uint64_t raw;
+            if (decode_uint64(data, size, &offset, &raw)) return 1;
+            memcpy(value, &raw, sizeof(*value));
+            return 0;
+        }
+
+        default:
+            // NULL, float, text, or blob
+            return 1;
+    }
+}
+
 int record_get_text(const uint8_t* data, const uint32_t size,
         const RecordColumn* columns, const uint32_t column_count,
         const uint32_t index, char* out, const uint32_t out_capacity) {

@@ -9,10 +9,14 @@
 // advances offset past the bytes it consumed, and returns nonzero if the
 // value would run past the end of the buffer.
 
-// big-endian fixed-width unsigned integers
+// big-endian fixed-width unsigned integers. The 24- and 48-bit widths (used by
+// record integer values) are returned in the next wider type.
 int decode_uint8(const uint8_t* buf, uint32_t size, uint32_t* offset, uint8_t* value);
 int decode_uint16(const uint8_t* buf, uint32_t size, uint32_t* offset, uint16_t* value);
+int decode_uint24(const uint8_t* buf, uint32_t size, uint32_t* offset, uint32_t* value);
 int decode_uint32(const uint8_t* buf, uint32_t size, uint32_t* offset, uint32_t* value);
+int decode_uint48(const uint8_t* buf, uint32_t size, uint32_t* offset, uint64_t* value);
+int decode_uint64(const uint8_t* buf, uint32_t size, uint32_t* offset, uint64_t* value);
 
 // a varint is between 1 and 9 bytes long: the lower 7 bits of each of the
 // first 1-8 bytes (which all have the high bit set) plus all 8 bits of the

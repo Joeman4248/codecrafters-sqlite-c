@@ -17,6 +17,16 @@ int decode_uint16(const uint8_t* buf, const uint32_t size, uint32_t* offset, uin
     return 0;
 }
 
+// decodes 3 bytes from buf into a uint32 value in big-endian format
+int decode_uint24(const uint8_t* buf, const uint32_t size, uint32_t* offset, uint32_t* value) {
+    uint16_t upper;
+    uint8_t  lower;
+    if (decode_uint16(buf, size, offset, &upper)) return 1;
+    if (decode_uint8(buf, size, offset, &lower))  return 1;
+    *value = ((uint32_t)upper << 8) | lower;
+    return 0;
+}
+
 // decodes 4 bytes from buf into a uint32 value in big-endian format,
 // as an upper and lower uint16
 int decode_uint32(const uint8_t* buf, const uint32_t size, uint32_t* offset, uint32_t* value) {
@@ -24,6 +34,26 @@ int decode_uint32(const uint8_t* buf, const uint32_t size, uint32_t* offset, uin
     if (decode_uint16(buf, size, offset, &upper)) return 1;
     if (decode_uint16(buf, size, offset, &lower)) return 1;
     *value = ((uint32_t)upper << 16) | lower;
+    return 0;
+}
+
+// decodes 6 bytes from buf into a uint32 value in big-endian format
+int decode_uint48(const uint8_t* buf, const uint32_t size, uint32_t* offset, uint64_t* value) {
+    uint32_t upper;
+    uint16_t lower;
+    if (decode_uint32(buf, size, offset, &upper)) return 1;
+    if (decode_uint16(buf, size, offset, &lower)) return 1;
+    *value = ((uint64_t)upper << 16) | lower;
+    return 0;
+}
+
+// decodes 8 bytes from buf into a uint32 value in big-endian format,
+// as an upper and lower uint32
+int decode_uint64(const uint8_t* buf, const uint32_t size, uint32_t* offset, uint64_t* value) {
+    uint32_t upper, lower;
+    if (decode_uint32(buf, size, offset, &upper)) return 1;
+    if (decode_uint32(buf, size, offset, &lower)) return 1;
+    *value = ((uint64_t)upper << 32) | lower;
     return 0;
 }
 
