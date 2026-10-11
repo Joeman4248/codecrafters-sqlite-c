@@ -25,7 +25,13 @@ void close_database(Database* db) {
         db->file = NULL;
     }
 
-    // free(NULL) is a no-op, so no check needed
+    // free(NULL) is a no-op, so entries left partly filled by a failed
+    // read_schema (calloc'd, so unset fields are NULL) need no checks
+    for (uint32_t i = 0; i < db->schema_count; i++) {
+        free(db->schema[i].name);
+        free(db->schema[i].tbl_name);
+        free(db->schema[i].sql);
+    }
     free(db->schema);
     db->schema = NULL;
     db->schema_count = 0;

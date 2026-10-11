@@ -24,6 +24,19 @@ static enum SchemaType type_from_text(const char* text) {
     return SCHEMA_TYPE_UNKNOWN;
 }
 
+// allocates *out to fit the column and copies the text into it; leaves *out
+// NULL for a NULL column (sql is NULL for automatic indexes)
+static int alloc_column_text(const uint8_t* payload, uint32_t size,
+        const RecordColumn* columns, uint32_t column_count,
+        const uint32_t index, char** out) {
+    if (columns[index].serial_type == SERIAL_NULL) return 0;
+
+    const uint32_t len = columns[index].value_size;
+    *out = malloc(len + 1);
+    if (*out == NULL) return 1;
+    return record_get_text(payload, size, columns, column_count, index, *out, len + 1);
+}
+
 // fills db->schema from the in-memory schema root page
 static int parse_schema_page(Database* db, const uint8_t* page, const uint32_t page_size) {
     PageHeader schema_page;
@@ -74,9 +87,35 @@ static int parse_schema_page(Database* db, const uint8_t* page, const uint32_t p
             return 1;
         }
         entry->type = type_from_text(type);
+        
+        // page numbers are positive and fit in 32 bits; views and triggers use 0
+        switch (entry->type) {
+            case SCHEMA_TYPE_TABLE:
+            case SCHEMA_TYPE_INDEX:
+                int64_t rootpage;
+                if (record_get_int(payload, (uint32_t) payload_size,
+                        columns, SCHEMA_COL_COUNT, SCHEMA_COL_ROOTPAGE, &rootpage) != 0 ||
+                    rootpage < 0 || rootpage > UINT32_MAX) {
+                    return 1;
+                }
+                entry->rootpage = (uint32_t) rootpage;
+                break;
 
-        if (record_get_text(payload, (uint32_t) payload_size,
-                columns, column_count, SCHEMA_COL_NAME, entry->name, sizeof(entry->name)) != 0) {
+            case SCHEMA_TYPE_VIEW:
+            case SCHEMA_TYPE_TRIGGER:
+                entry->rootpage = 0;
+                break;
+
+            case SCHEMA_TYPE_UNKNOWN:
+                return 1;
+        }
+        
+        if (alloc_column_text(payload, (uint32_t) payload_size,
+                columns, SCHEMA_COL_COUNT, SCHEMA_COL_NAME, &entry->name) ||
+            alloc_column_text(payload, (uint32_t) payload_size,
+                columns, SCHEMA_COL_COUNT, SCHEMA_COL_TBL_NAME, &entry->tbl_name) ||
+            alloc_column_text(payload, (uint32_t) payload_size,
+                columns, SCHEMA_COL_COUNT, SCHEMA_COL_SQL, &entry->sql)) {
             return 1;
         }
     }

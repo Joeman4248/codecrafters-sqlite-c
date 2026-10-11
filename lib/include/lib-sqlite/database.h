@@ -6,8 +6,7 @@
 
 #include "file_header.h"
 
-#define SCHEMA_TYPE_MAX 16            // capacity for the type-column text while parsing
-#define SCHEMA_NAME_MAX 256           // longest table/index name we support
+#define SCHEMA_TYPE_MAX 16      // capacity for the type-column text while parsing
 
 // the value stored in a sqlite_schema row's type column
 enum SchemaType {
@@ -22,7 +21,10 @@ enum SchemaType {
 // one row of sqlite_schema, storing the fields .tables uses
 typedef struct {
     enum SchemaType type;
-    char            name[SCHEMA_NAME_MAX];
+    char*           name;
+    char*           tbl_name;
+    uint32_t        rootpage;
+    char*           sql;
 } SchemaEntry;
 
 // column indices into a sqlite_schema record
