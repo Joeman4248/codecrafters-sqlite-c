@@ -23,8 +23,8 @@ typedef struct {
     enum SchemaType type;
     char*           name;
     char*           tbl_name;
-    uint32_t        rootpage;
     char*           sql;
+    uint32_t        rootpage;
 } SchemaEntry;
 
 // column indices into a sqlite_schema record
