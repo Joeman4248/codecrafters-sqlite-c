@@ -67,7 +67,6 @@ static int parse_schema_page(Database* db, const uint8_t* page) {
     int64_t rowid = 0;
 
     for (uint32_t i = 0; i < schema_page.cell_count; i++) {
-
         if (read_leaf_table_cell(page, usable_size, cell_offsets[i],
                 &payload, &payload_size, &rowid) != 0) {
             return 1;
