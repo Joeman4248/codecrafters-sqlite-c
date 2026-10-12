@@ -15,7 +15,7 @@ static const char* const TYPE_NAMES[SCHEMA_TYPE_COUNT] = {
 };
 
 // maps a sqlite_schema type string to its enum value
-static enum SchemaType type_from_text(const char* text) {
+static enum SchemaType schema_type_from_text(const char* text) {
     for (int i = 0; i < SCHEMA_TYPE_COUNT; i++) {
         if (strcmp(text, TYPE_NAMES[i]) == 0) {
             return (enum SchemaType) i;
@@ -92,7 +92,7 @@ static int parse_schema_page(Database* db, const uint8_t* page) {
                 columns, column_count, SCHEMA_COL_TYPE, type, sizeof(type)) != 0) {
             return 1;
         }
-        entry->type = type_from_text(type);
+        entry->type = schema_type_from_text(type);
         
         // page numbers are positive and fit in 32 bits; views and triggers use 0
         switch (entry->type) {
