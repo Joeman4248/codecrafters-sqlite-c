@@ -3,7 +3,7 @@
 
 #include "include/lib-sqlite/database.h"
 
-int read_page(const Database* db, const uint32_t page_number, uint8_t* buf) {
+int read_page(const Database* db, const uint32_t page_number, uint8_t* page) {
     const uint32_t page_size = db->file_header.page_size;
 
     if (fseek(db->file, (long) (page_number - 1) * page_size, SEEK_SET) != 0) {
@@ -11,7 +11,7 @@ int read_page(const Database* db, const uint32_t page_number, uint8_t* buf) {
         return 1;
     }
 
-    if (fread(buf, 1, page_size, db->file) != page_size) {
+    if (fread(page, 1, page_size, db->file) != page_size) {
         return 1;
     }
 

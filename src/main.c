@@ -3,6 +3,7 @@
 #include "lib-sqlite/database.h"
 #include "lib-sqlite/schema.h"
 #include "lib-sqlite/commands.h"
+#include "lib-sqlite/sql.h"
 
 // reads the header and schema, then runs the command.
 // Returns nonzero on error. Does not release db; the caller does.

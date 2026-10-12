@@ -41,9 +41,3 @@ int run_tables_command(const Database* db) {
     printf("\n");
     return 0;
 }
-
-int run_sql_command(const Database* db, const char* sql) {
-    (void) db;
-    fprintf(stderr, "SQL queries are not supported yet: %s\n", sql);
-    return 1;
-}

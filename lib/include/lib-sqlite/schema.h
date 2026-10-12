@@ -10,4 +10,9 @@
 // Returns nonzero on error.
 int read_schema(Database* db);
 
+// returns the schema entry for the table named name (type == "table"), or
+// NULL if there is none. The pointer is into db->schema and stays valid
+// until close_database.
+const SchemaEntry* find_table(const Database* db, const char* name);
+
 #endif // CODECRAFTERS_SQLITE_SCHEMA_H

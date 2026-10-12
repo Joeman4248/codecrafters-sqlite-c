@@ -24,7 +24,4 @@ int run_dbinfo_command(const Database* db);
 // (rows where type == "table" and the name does not start with "sqlite_")
 int run_tables_command(const Database* db);
 
-// runs a SQL statement. Not implemented yet; always returns nonzero.
-int run_sql_command(const Database* db, const char* sql);
-
 #endif // CODECRAFTERS_SQLITE_COMMANDS_H

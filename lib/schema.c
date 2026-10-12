@@ -44,6 +44,11 @@ static int parse_schema_page(Database* db, const uint8_t* page, const uint32_t p
         return 1;
     }
 
+    if (schema_page.page_type != PAGE_TYPE_LEAF_TABLE) {
+        fprintf(stderr, "multi-page schema not supported yet\n");
+        return 1;
+    }
+
     uint16_t cell_offsets[schema_page.cell_count];
     if (read_cell_pointers(page, page_size, SCHEMA_ROOT_PAGE, &schema_page, cell_offsets) != 0) {
         return 1;
@@ -136,4 +141,14 @@ int read_schema(Database* db) {
 
     free(page);
     return result;
+}
+
+const SchemaEntry* find_table(const Database* db, const char* name) {
+    for (uint32_t i = 0; i < db->schema_count; i++) {
+        const SchemaEntry* entry = &db->schema[i];
+        if (entry->type == SCHEMA_TYPE_TABLE && strcmp(entry->name, name) == 0) {
+            return entry;
+        }
+    }
+    return NULL;
 }
