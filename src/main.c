@@ -57,7 +57,7 @@ int main(const int argc, const char* argv[]) {
 
     Database db = { 0 };              // zero-init so close_database is always safe
     db.file = fopen(database_file_path, "rb");
-    if (!db.file) {
+    if (db.file == NULL) {
         fprintf(stderr, "Failed to open the database file\n");
         return 1;
     }
