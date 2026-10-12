@@ -6,12 +6,7 @@
 #include "lib-sqlite/sql.h"
 
 // positions of the command-line arguments in argv
-enum Arg {
-    ARG_PROGRAM,          // argv[0], the program's name
-    ARG_DATABASE_PATH,
-    ARG_COMMAND,
-    ARG_COUNT,            // number of arguments expected, including the program name
-};
+enum Arg { ARG_PROGRAM, ARG_DATABASE_PATH, ARG_COMMAND, ARG_COUNT, };
 
 // reads the header and schema, then runs the command.
 // Returns nonzero on error. Does not release db; the caller does.
