@@ -7,7 +7,7 @@ int read_page(const Database* db, const uint32_t page_number, uint8_t* page) {
     const uint32_t page_size = db->file_header.page_size;
 
     if (fseek(db->file, (long) (page_number - 1) * page_size, SEEK_SET) != 0) {
-        // fprintf(stderr, "Error seeking to start of page");
+        fprintf(stderr, "Error seeking to start of page\n");
         return 1;
     }
 
