@@ -5,6 +5,14 @@
 #include "lib-sqlite/commands.h"
 #include "lib-sqlite/sql.h"
 
+// positions of the command-line arguments in argv
+enum Arg {
+    ARG_PROGRAM,          // argv[0], the program's name
+    ARG_DATABASE_PATH,
+    ARG_COMMAND,
+    ARG_COUNT,            // number of arguments expected, including the program name
+};
+
 // reads the header and schema, then runs the command.
 // Returns nonzero on error. Does not release db; the caller does.
 static int run(Database* db, const char* command) {
@@ -39,13 +47,13 @@ static int run(Database* db, const char* command) {
 }
 
 int main(const int argc, const char* argv[]) {
-    if (argc != 3) {
+    if (argc != ARG_COUNT) {
         fprintf(stderr, "Usage: ./your_program.sh <database path> <command>\n");
         return 1;
     }
 
-    const char* database_file_path = argv[1];
-    const char* command = argv[2];
+    const char* database_file_path = argv[ARG_DATABASE_PATH];
+    const char* command = argv[ARG_COMMAND];
 
     Database db = { 0 };              // zero-init so close_database is always safe
     db.file = fopen(database_file_path, "rb");
