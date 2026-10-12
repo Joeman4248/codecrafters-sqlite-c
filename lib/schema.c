@@ -38,7 +38,8 @@ static int alloc_column_text(const uint8_t* payload, uint32_t size,
 }
 
 // fills db->schema from the in-memory schema root page
-static int parse_schema_page(Database* db, const uint8_t* page, const uint32_t page_size) {
+static int parse_schema_page(Database* db, const uint8_t* page) {
+    const uint32_t page_size = db->file_header.page_size;
     PageHeader schema_page;
     if (read_btree_header(page, page_size, SCHEMA_ROOT_PAGE, &schema_page) != 0) {
         return 1;
@@ -136,7 +137,7 @@ int read_schema(Database* db) {
 
     int result = read_page(db, SCHEMA_ROOT_PAGE, page);
     if (result == 0) {
-        result = parse_schema_page(db, page, page_size);
+        result = parse_schema_page(db, page);
     }
 
     free(page);
