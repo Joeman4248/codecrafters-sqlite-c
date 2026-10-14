@@ -7,22 +7,24 @@ enum TokenType {
     // keywords, matched ignoring case. Anything word-shaped that isn't one of
     // these (including type names like integer and function names like count)
     // is a TOKEN_IDENTIFIER.
-    TOKEN_SELECT,
+    TOKEN_KEYWORD_START,                    // starting point for loops
+    TOKEN_SELECT = TOKEN_KEYWORD_START,
     TOKEN_FROM,
     TOKEN_CREATE,
     TOKEN_TABLE,
-    TOKEN_KEYWORD_COUNT,                     // number of keywords
+    TOKEN_KEYWORD_COUNT,                    // number of keywords
 
-    TOKEN_IDENTIFIER = TOKEN_KEYWORD_COUNT,  // table or column name
+    TOKEN_IDENTIFIER = TOKEN_KEYWORD_COUNT, // table or column name
+    TOKEN_STRING,                           // 'text' without the quotes
 
-    TOKEN_LPAREN,                            // (
-    TOKEN_RPAREN,                            // )
-    TOKEN_COMMA,                             // ,
-    TOKEN_STAR,                              // *
+    TOKEN_LPAREN,                           // (
+    TOKEN_RPAREN,                           // )
+    TOKEN_COMMA,                            // ,
+    TOKEN_STAR,                             // *
 
-    TOKEN_EOF,                               // end of the SQL text
-    TOKEN_UNKNOWN,                           // a character no token starts with
-    TOKEN_TYPE_COUNT,                        // number of token types
+    TOKEN_EOF,                              // end of the SQL text
+    TOKEN_UNKNOWN,                          // a character no token starts with
+    TOKEN_TYPE_COUNT,                       // number of token types
 };
 
 // one token. The text is not copied: start points into the SQL string, which

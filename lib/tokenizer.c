@@ -2,22 +2,33 @@
 #include <stdbool.h>
 
 #include "include/lib-sqlite/tokenizer.h"
+#include <strings.h>
+
+typedef struct {
+    const char* text;
+    uint32_t    len;    // strlen(text), worked out at compile time
+} TokenName;
+
+// sizeof sees the string literal itself (a char array, not a pointer), so this
+// is its length without the '\0'
+#define NAME(s) { s, sizeof(s) - 1 }
 
 // token type names, indexed by their TokenType value. The first
 // TOKEN_KEYWORD_COUNT entries double as the keyword spellings.
-static const char* const TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
-    [TOKEN_SELECT]     = "SELECT",
-    [TOKEN_FROM]       = "FROM",
-    [TOKEN_CREATE]     = "CREATE",
-    [TOKEN_TABLE]      = "TABLE",
+static const TokenName TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
+    [TOKEN_SELECT]      = NAME("SELECT"),
+    [TOKEN_FROM]        = NAME("FROM"),
+    [TOKEN_CREATE]      = NAME("CREATE"),
+    [TOKEN_TABLE]       = NAME("TABLE"),
 
-    [TOKEN_IDENTIFIER] = "IDENTIFIER",
-    [TOKEN_LPAREN]     = "(",
-    [TOKEN_RPAREN]     = ")",
-    [TOKEN_COMMA]      = ",",
-    [TOKEN_STAR]       = "*",
-    [TOKEN_EOF]        = "EOF",
-    [TOKEN_UNKNOWN]    = "UNKNOWN",
+    [TOKEN_IDENTIFIER]  = NAME("IDENTIFIER"),
+    [TOKEN_STRING]      = NAME("STRING"),
+    [TOKEN_LPAREN]      = NAME("("),
+    [TOKEN_RPAREN]      = NAME(")"),
+    [TOKEN_COMMA]       = NAME(","),
+    [TOKEN_STAR]        = NAME("*"),
+    [TOKEN_EOF]         = NAME("EOF"),
+    [TOKEN_UNKNOWN]     = NAME("UNKNOWN"),
 };
 
 // true for characters that can start an identifier or keyword
@@ -41,19 +52,42 @@ static void skip_whitespace(Tokenizer* tokenizer) {
 // case against the first TOKEN_KEYWORD_COUNT entries of TOKEN_NAMES, or
 // TOKEN_IDENTIFIER if it is not a keyword
 static enum TokenType lookup_keyword(const char* text, const uint32_t len) {
-    // TODO
-    (void) text;
-    (void) len;
+    for (int i = TOKEN_KEYWORD_START; i < TOKEN_KEYWORD_COUNT; i++) {
+        const TokenName keyword = TOKEN_NAMES[i];
+        if (len != keyword.len) continue;
+        if (strncasecmp(text, keyword.text, len) == 0) return (enum TokenType) i;
+    }
     return TOKEN_IDENTIFIER;
+}
+
+static void scan_quoted_word(Tokenizer* tokenizer, Token* token) {
+    tokenizer->pos++;   // skip opening quote
+
+    while (*tokenizer->pos != '"') {
+        // string runs out before quote is closed
+        if (*tokenizer->pos == '\0') {
+            token->type = TOKEN_UNKNOWN;
+            token->len = (uint32_t) (tokenizer->pos - token->start);
+            return;
+        }
+        tokenizer->pos++;
+    }
+    
+    token->type = TOKEN_IDENTIFIER;
+    token->len = (uint32_t) (tokenizer->pos - token->start);
+
+    tokenizer->pos++;   // skip the closing quote
 }
 
 // scans a keyword or identifier: letters, digits and underscores. Called with
 // tokenizer->pos on the first character and token->start set to it; fills in
 // token->type and token->len and moves tokenizer->pos past the word.
 static void scan_word(Tokenizer* tokenizer, Token* token) {
-    // TODO
-    (void) token;
-    tokenizer->pos++;
+    while (is_word_char(*tokenizer->pos)) {
+        tokenizer->pos++;        
+    }
+    token->len = (uint32_t) (tokenizer->pos - token->start);
+    token->type = lookup_keyword(token->start, token->len);
 }
 
 void tokenizer_init(Tokenizer* tokenizer, const char* sql) {
@@ -93,5 +127,5 @@ Token next_token(Tokenizer* tokenizer) {
 }
 
 const char* token_type_name(const enum TokenType type) {
-    return TOKEN_NAMES[type];
+    return TOKEN_NAMES[type].text;
 }
