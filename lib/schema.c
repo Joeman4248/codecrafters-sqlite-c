@@ -91,26 +91,13 @@ static int parse_schema_page(Database* db, const uint8_t* page) {
         entry->type = schema_type_from_text(type);
         
         // page numbers are positive and fit in 32 bits; views and triggers use 0
-        switch (entry->type) {
-            case SCHEMA_TYPE_TABLE:
-            case SCHEMA_TYPE_INDEX:
-                int64_t rootpage;
-                if (record_get_int(payload, payload_size,
-                        columns, SCHEMA_COL_COUNT, SCHEMA_COL_ROOTPAGE, &rootpage) != 0 ||
-                    rootpage < 0 || rootpage > UINT32_MAX) {
-                    return 1;
-                }
-                entry->rootpage = (uint32_t) rootpage;
-                break;
-
-            case SCHEMA_TYPE_VIEW:
-            case SCHEMA_TYPE_TRIGGER:
-                entry->rootpage = 0;
-                break;
-
-            case SCHEMA_TYPE_UNKNOWN:
-                return 1;
+        int64_t rootpage = 0;
+        if (record_get_int(payload, payload_size,
+                columns, SCHEMA_COL_COUNT, SCHEMA_COL_ROOTPAGE, &rootpage) != 0 ||
+            rootpage < 0 || rootpage > UINT32_MAX) {
+            return 1;
         }
+        entry->rootpage = (uint32_t) rootpage;
         
         if (alloc_column_text(payload, payload_size,
                 columns, SCHEMA_COL_COUNT, SCHEMA_COL_NAME, &entry->name) ||
