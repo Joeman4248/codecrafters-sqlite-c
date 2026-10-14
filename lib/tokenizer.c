@@ -60,10 +60,10 @@ static enum TokenType lookup_keyword(const char* text, const uint32_t len) {
     return TOKEN_IDENTIFIER;
 }
 
-static void scan_quoted_word(Tokenizer* tokenizer, Token* token) {
-    tokenizer->pos++;   // skip opening quote
+static void scan_quoted_word(Tokenizer* tokenizer, Token* token, const char quote) {
+    token->start = ++tokenizer->pos;    // skip opening quote
 
-    while (*tokenizer->pos != '"') {
+    while (*tokenizer->pos != quote) {
         // string runs out before quote is closed
         if (*tokenizer->pos == '\0') {
             token->type = TOKEN_UNKNOWN;
@@ -73,10 +73,10 @@ static void scan_quoted_word(Tokenizer* tokenizer, Token* token) {
         tokenizer->pos++;
     }
     
-    token->type = TOKEN_IDENTIFIER;
+    token->type = (quote == '"') ? TOKEN_IDENTIFIER : TOKEN_STRING;
     token->len = (uint32_t) (tokenizer->pos - token->start);
 
-    tokenizer->pos++;   // skip the closing quote
+    tokenizer->pos++;                   // skip the closing quote
 }
 
 // scans a keyword or identifier: letters, digits and underscores. Called with
@@ -104,6 +104,11 @@ Token next_token(Tokenizer* tokenizer) {
     if (c == '\0') {
         token.type = TOKEN_EOF;
         token.len = 0;
+        return token;
+    }
+
+    if (c == '"' || c == '\'') {
+        scan_quoted_word(tokenizer, &token, c);
         return token;
     }
 
