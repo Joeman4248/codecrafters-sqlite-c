@@ -75,11 +75,8 @@ static int parse_schema_page(Database* db, const uint8_t* page) {
         RecordColumn columns[SCHEMA_COL_COUNT];
         uint32_t column_count = 0;
         if (parse_record(payload, payload_size,
-                columns, SCHEMA_COL_COUNT, &column_count) != 0) {
-            return 1;
-        }
-
-        if (column_count != SCHEMA_COL_COUNT) {
+                columns, SCHEMA_COL_COUNT, &column_count) != 0 ||
+            column_count != SCHEMA_COL_COUNT) {
             return 1;
         }
 
