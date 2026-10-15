@@ -68,7 +68,11 @@ static int parse_column_definition(Parser* parser, TableColumns* columns) {
 
     while (!match(parser, TOKEN_EOF)) {
         switch (parser->current.type) {
-            case TOKEN_COMMA:   return 0;
+            case TOKEN_COMMA: {
+                if (paren_depth == 0)
+                    return 0;
+                break;
+            }
             case TOKEN_LPAREN:  paren_depth++; break;
             case TOKEN_RPAREN: {
                 if (paren_depth == 0)
