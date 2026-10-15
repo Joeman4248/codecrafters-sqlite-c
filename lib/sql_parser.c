@@ -59,7 +59,6 @@ static bool token_is(const Token token, const char* word) {
 // columns->rowid_column if the column is the INTEGER PRIMARY KEY. Returns
 // nonzero if the text ends first.
 static int parse_column_definition(Parser* parser, TableColumns* columns) {
-    int
     uint32_t paren_depth = 0;
 
     // the type comes straight after the name. Only a type of exactly INTEGER
@@ -81,7 +80,7 @@ static int parse_column_definition(Parser* parser, TableColumns* columns) {
                 // such as a CHECK expression
                 if (paren_depth == 0 && is_integer &&
                     token_is(previous, "primary") && token_is(parser->current, "key")) {
-                    columns->rowid_column = (int32_t) (columns->count - 1);
+                    columns->rowid_column = (int32_t) columns->count - 1;
                 }
                 break;
             }
