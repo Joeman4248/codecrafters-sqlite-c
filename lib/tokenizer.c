@@ -20,6 +20,7 @@ static const TokenName TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_FROM]        = NAME("FROM"),
     [TOKEN_CREATE]      = NAME("CREATE"),
     [TOKEN_TABLE]       = NAME("TABLE"),
+    [TOKEN_COUNT]       = NAME("COUNT"),
 
     [TOKEN_IDENTIFIER]  = NAME("IDENTIFIER"),
     [TOKEN_STRING]      = NAME("STRING"),

@@ -11,7 +11,6 @@
 // returns nonzero if the root page is not a leaf table page, or on error.
 static int count_rows(const Database* db, const uint32_t rootpage, uint8_t* page, uint32_t* count) {
     const uint32_t page_size = db->file_header.page_size;
-    if (read_page(db, rootpage, page) != 0) return 1;
 
     PageHeader header;
     if (read_btree_header(page, page_size, rootpage, &header) != 0) return 1;
@@ -25,24 +24,46 @@ static int count_rows(const Database* db, const uint32_t rootpage, uint8_t* page
     return 0;
 }
 
-// runs an SQL statement. only SELECT COUNT(*) FROM <table> is supported so far.
-// prints its own error message to stderr and returns nonzero on failure.
-int run_sql_command(const Database* db, const char* sql) {
-    // const SchemaEntry* table = find_table(db, table_name, );
-    // if (table == NULL) {
-    //     fprintf(stderr, "No such table: %s\n", table_name);
-    //     return 1;
-    // }
-
-    TableColumns table_columns;
-    parse_table_columns(db->schema->sql, &table_columns);
-
-    // pages can be up to 64 KiB, so keep the buffer off the stack
+static int run_select_query(const Database* db, SelectQuery* query) {
+    const uint32_t page_size = db->file_header.page_size;
     uint8_t* page = malloc(db->file_header.page_size);
     if (page == NULL) return 1;
 
-    const int result = 0;
-    free(page);
+    const SchemaEntry* table = find_table(db, &query->table.start, &query->table.len);
 
-    return result;
+    PageHeader header;
+    if (read_btree_header(page, page_size, table->rootpage, &header) != 0) return 1;
+
+    if (header.page_type != PAGE_TYPE_LEAF_TABLE) {
+        fprintf(stderr, "Tables spanning multiple pages are not supported yet\n");
+        return 1;
+    }
+
+    Statement table_create_statement = { 0 };
+    if (parse_statement(table->sql, &table_create_statement.create_table)) return 1;
+    
+    const TableColumns column_names = table_create_statement.create_table;
+
+    free(page);
+    return 0;
+}
+
+int run_sql_command(const Database* db, const char* sql) {
+    Statement sql_statement = { 0 };
+    if (parse_statement(sql, &sql_statement)) return 1;
+
+    switch(sql_statement.type) {
+        case STATEMENT_TYPE_SELECT:
+            return run_select_query(db, &sql_statement.select);
+            
+        case STATEMENT_TYPE_CREATE_TABLE:
+            printf("CREATE type sql commands aren't supported yet\n");
+            break;
+
+        case STATEMENT_TYPE_UNKNOWN: return 1;
+    }
+
+    free_statement(&sql_statement);
+
+    return 0;
 }

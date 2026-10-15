@@ -1,4 +1,3 @@
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,10 +21,15 @@ static void advance(Parser* parser) {
     parser->current = next_token(&parser->tokenizer);
 }
 
+// true if the current token has the given type. Never consumes it.
+static bool check(const Parser* parser, const enum TokenType type) {
+    return parser->current.type == type;
+}
+
 // if the current token has the given type, consumes it and returns true;
 // otherwise leaves it in place and returns false
 static bool match(Parser* parser, const enum TokenType type) {
-    if (parser->current.type == type) {
+    if (check(parser, type)) {
         advance(parser);
         return true;
     }
@@ -52,23 +56,53 @@ static bool token_is(const Token token, const char* word) {
     return token.len == len && strncasecmp(token.start, word, len) == 0;
 }
 
-// the end of the query is checked with match rather than expect so the error
-// can show the unsupported rest of the query instead of just its first token
-int parse_select(const char* sql, SelectQuery* query) {
+// consumes a column name or * and stores it in *out. Otherwise prints what was
+// found instead and returns nonzero.
+static int parse_name_or_star(Parser* parser, Token* out) {
+    switch (parser->current.type) {
+        case TOKEN_IDENTIFIER:
+        case TOKEN_STAR:
+            *out = parser->current;
+            advance(parser);
+            return 0;
+        default:
+            fprintf(stderr, "expected a column name or *, got %s\n",
+                    token_type_name(parser->current.type));
+            return 1;
+    }
+}
 
-    Parser parser;
-    parser_init(&parser, sql);
+// parses everything from SELECT onwards into *query; see parse_statement for
+// the form accepted
+static int parse_select_into(Parser* parser, SelectQuery* query) {
+    *query = (SelectQuery) { 0 };
 
-    if (expect(&parser, TOKEN_SELECT, NULL) ||
-        expect(&parser, TOKEN_IDENTIFIER, &query->column) ||
-        expect(&parser, TOKEN_FROM, NULL) ||
-        expect(&parser, TOKEN_IDENTIFIER, &query->table)) {
+    // SELECT
+    if (expect(parser, TOKEN_SELECT, NULL)) return 1;
+
+    // name or *
+    if (parse_name_or_star(parser, &query->name)) {
+        return 1;
+    }
+    // COUNT(name), COUNT(*)
+    else if (match(parser, TOKEN_COUNT)) {
+        query->is_count = true;
+        if (expect(parser, TOKEN_LPAREN, NULL) ||
+            parse_name_or_star(parser, &query->name) ||
+            expect(parser, TOKEN_RPAREN, NULL)) {
+            return 1;
+        }
+    } 
+
+    // FROM table
+    if (expect(parser, TOKEN_FROM, NULL) ||
+        expect(parser, TOKEN_IDENTIFIER, &query->table)) {
         return 1;
     }
 
-    if (!match(&parser, TOKEN_EOF)) {
+    if (!match(parser, TOKEN_EOF)) {
         fprintf(stderr, "Unsupported query: nothing after the table name is supported yet: %s\n",
-                parser.current.start);
+                parser->current.start);
         return 1;
     }
 
@@ -130,13 +164,20 @@ static int add_column(TableColumns* columns, const Token name) {
     return 0;
 }
 
+// frees the column list. Safe to call on a zero-initialised TableColumns.
+static void free_table_columns(TableColumns* columns) {
+    free(columns->columns);
+    columns->columns = NULL;
+    columns->count = 0;
+}
+
 // parses everything from CREATE onwards into *columns. On failure *columns
 // may be partly filled; the caller frees it.
 static int parse_table_columns_into(Parser* parser, TableColumns* columns) {
     // parses: CREATE TABLE tbl_name (
     if (expect(parser, TOKEN_CREATE, NULL) || 
         expect(parser, TOKEN_TABLE, NULL) || 
-        expect(parser, TOKEN_IDENTIFIER, &columns->table_name) ||
+        expect(parser, TOKEN_IDENTIFIER, &columns->table) ||
         expect(parser, TOKEN_LPAREN, NULL)) {
         return 1;
     }
@@ -156,24 +197,17 @@ static int parse_table_columns_into(Parser* parser, TableColumns* columns) {
     return expect(parser, TOKEN_RPAREN, NULL);  // parses: )
 }
 
-int parse_table_columns(const char* sql, TableColumns* columns) {
+// initialises *columns, then parses into it, freeing it again on failure so
+// the caller is left with nothing to free
+static int parse_create_table(Parser* parser, TableColumns* columns) {
     // zero would mean column 0 is the rowid alias, so start from -1
     *columns = (TableColumns) { .rowid_column = -1 };
 
-    Parser parser;
-    parser_init(&parser, sql);
-
-    if (parse_table_columns_into(&parser, columns) != 0) {
+    if (parse_table_columns_into(parser, columns) != 0) {
         free_table_columns(columns);
         return 1;
     }
     return 0;
-}
-
-void free_table_columns(TableColumns* columns) {
-    free(columns->columns);
-    columns->columns = NULL;
-    columns->count = 0;
 }
 
 int32_t find_column(const TableColumns* columns, const Token name) {
@@ -185,4 +219,32 @@ int32_t find_column(const TableColumns* columns, const Token name) {
         }
     }
     return -1;
+}
+
+// the first token is only looked at, not consumed: each statement's parser
+// expects its own leading keyword
+int parse_statement(const char* sql, Statement* statement) {
+    Parser parser;
+    parser_init(&parser, sql);
+
+    switch (parser.current.type) {
+        case TOKEN_SELECT:
+            statement->type = STATEMENT_TYPE_SELECT;
+            return parse_select_into(&parser, &statement->select);
+        case TOKEN_CREATE:
+            statement->type = STATEMENT_TYPE_CREATE_TABLE;
+            return parse_create_table(&parser, &statement->create_table);
+        default:
+            statement->type = STATEMENT_TYPE_UNKNOWN;
+            fprintf(stderr, "Unsupported statement: %s\n", sql);
+            return 1;
+    }
+}
+
+void free_statement(Statement* statement) {
+    switch (statement->type) {
+        case STATEMENT_TYPE_SELECT:         break;     // nothing allocated
+        case STATEMENT_TYPE_CREATE_TABLE:   free_table_columns(&statement->create_table); break;
+        case STATEMENT_TYPE_UNKNOWN:        break;
+    }
 }

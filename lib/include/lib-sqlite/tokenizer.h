@@ -5,13 +5,13 @@
 
 enum TokenType {
     // keywords, matched ignoring case. Anything word-shaped that isn't one of
-    // these (including type names like integer and function names like count)
+    // these (including type names like integer and function names like max)
     // is a TOKEN_IDENTIFIER.
     TOKEN_SELECT,
     TOKEN_FROM,
     TOKEN_CREATE,
     TOKEN_TABLE,
-    TOKEN_COUNT,
+    TOKEN_COUNT,                            // the token 'COUNT' not the number of token types
     
     TOKEN_IDENTIFIER,                       // table or column name
     TOKEN_STRING,                           // 'text' without the quotes
