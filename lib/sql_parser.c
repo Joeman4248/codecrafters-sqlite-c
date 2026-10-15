@@ -118,9 +118,8 @@ static int parse_table_columns_into(Parser* parser, TableColumns* columns) {
         return 1;
     }
     
-    while (1) {
-        Token column_name;
-
+    Token column_name;
+    while (true) {
         if (expect(parser, TOKEN_IDENTIFIER, &column_name) ||
             add_column(columns, column_name) ||
             parse_column_definition(parser, columns) ) {
@@ -157,9 +156,10 @@ void free_table_columns(TableColumns* columns) {
 int32_t find_column(const TableColumns* columns, const Token name) {
     for (uint32_t i = 0; i < columns->count; i++) {
         const Token column = columns->columns[i];
-        if (column.len != name.len) continue;
-        if (strncasecmp(column.start, name.start, name.len) == 0)
+        if (column.len == name.len &&
+            strncasecmp(column.start, name.start, name.len) == 0) {
             return (int32_t) i;
+        }
     }
     return -1;
 }
