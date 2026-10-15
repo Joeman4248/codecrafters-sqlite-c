@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "include/lib-sqlite/schema.h"
 #include "include/lib-sqlite/btree_page.h"
@@ -126,10 +127,12 @@ int read_schema(Database* db) {
     return result;
 }
 
-const SchemaEntry* find_table(const Database* db, const char* name) {
+const SchemaEntry* find_table(const Database* db, const char* name, uint32_t len) {
     for (uint32_t i = 0; i < db->schema_count; i++) {
         const SchemaEntry* entry = &db->schema[i];
-        if (entry->type == SCHEMA_TYPE_TABLE && strcmp(entry->name, name) == 0) {
+        if (entry->type == SCHEMA_TYPE_TABLE &&
+            strlen(entry->name) == len &&
+            strncasecmp(entry->name, name, len) == 0) {
             return entry;
         }
     }
