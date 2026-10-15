@@ -52,6 +52,29 @@ static bool token_is(const Token token, const char* word) {
     return token.len == len && strncasecmp(token.start, word, len) == 0;
 }
 
+// the end of the query is checked with match rather than expect so the error
+// can show the unsupported rest of the query instead of just its first token
+int parse_select(const char* sql, SelectQuery* query) {
+
+    Parser parser;
+    parser_init(&parser, sql);
+
+    if (expect(&parser, TOKEN_SELECT, NULL) ||
+        expect(&parser, TOKEN_IDENTIFIER, &query->column) ||
+        expect(&parser, TOKEN_FROM, NULL) ||
+        expect(&parser, TOKEN_IDENTIFIER, &query->table)) {
+        return 1;
+    }
+
+    if (!match(&parser, TOKEN_EOF)) {
+        fprintf(stderr, "Unsupported query: nothing after the table name is supported yet: %s\n",
+                parser.current.start);
+        return 1;
+    }
+
+    return 0;
+}
+
 // reads the type and constraints of the column just added to columns:
 // everything up to the comma or closing parenthesis that ends the column,
 // which is left as the current token. Parentheses inside the definition, as

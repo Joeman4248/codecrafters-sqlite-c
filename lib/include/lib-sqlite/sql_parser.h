@@ -15,6 +15,22 @@ typedef struct {
     int32_t  rowid_column;  // index of the INTEGER PRIMARY KEY column, or -1
 } TableColumns;
 
+// the parts of a SELECT query. Like TableColumns, the tokens point into the
+// query string, which must outlive the SelectQuery.
+typedef struct {
+    Token column;
+    Token table;
+} SelectQuery;
+
+// parses a query of the form:
+//
+//     SELECT column FROM table
+//
+// with nothing after the table name. On success fills in *query; nothing is
+// allocated, so there is nothing to free. On failure prints an error to
+// stderr and returns nonzero.
+int parse_select(const char* sql, SelectQuery* query);
+
 // parses a CREATE TABLE statement such as the sql column of a sqlite_schema
 // row:
 //
