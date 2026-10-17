@@ -126,7 +126,7 @@ Token next_token(Tokenizer* tokenizer) {
         case ')': token.type = TOKEN_RPAREN; break;
         case ',': token.type = TOKEN_COMMA;  break;
         case '*': token.type = TOKEN_STAR;   break;
-        case '+': token.type = TOKEN_EQUALS; break;
+        case '=': token.type = TOKEN_EQUALS; break;
         default:  break;    // stays TOKEN_UNKNOWN
     }
 
