@@ -126,17 +126,27 @@ int record_get_int(const uint8_t* data, const uint32_t size,
     }
 }
 
-int record_get_text(const uint8_t* data, const uint32_t size,
+int record_text_view(const uint8_t* data, const uint32_t size,
         const RecordColumn* columns, const uint32_t column_count,
-        const uint32_t index, char* out, const uint32_t out_capacity) {
+        const uint32_t index, StringView* out) {
     if (index >= column_count) return 1;
 
     const RecordColumn* col = &columns[index];
     if (!serial_type_is_text(col->serial_type))             return 1;
     if (col->value_offset + col->value_size > size)         return 1;
-    if (col->value_size >= out_capacity)                    return 1;
 
-    memcpy(out, data + col->value_offset, col->value_size);
-    out[col->value_size] = '\0';
+    *out = (StringView) { (const char*) data + col->value_offset, col->value_size };
+    return 0;
+}
+
+int record_get_text(const uint8_t* data, const uint32_t size,
+        const RecordColumn* columns, const uint32_t column_count,
+        const uint32_t index, char* out, const uint32_t out_capacity) {
+    StringView text;
+    if (record_text_view(data, size, columns, column_count, index, &text)) return 1;
+    if (text.len >= out_capacity) return 1;
+
+    memcpy(out, text.data, text.len);
+    out[text.len] = '\0';
     return 0;
 }

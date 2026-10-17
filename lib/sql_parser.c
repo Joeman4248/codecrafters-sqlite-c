@@ -52,8 +52,7 @@ static int expect(Parser* parser, const enum TokenType type, Token* out) {
 // true if token's text is word, ignoring case. For words like integer and
 // primary that the tokenizer reads as identifiers rather than keywords.
 static bool token_is(const Token token, const char* word) {
-    const size_t len = strlen(word);
-    return token.len == len && strncasecmp(token.start, word, len) == 0;
+    return sv_equal_nocase(token.text, sv_from_cstr(word));
 }
 
 // appends token to list, growing the array by one
@@ -135,7 +134,7 @@ static int parse_select_into(Parser* parser, SelectQuery* query) {
 
     if (!match(parser, TOKEN_EOF, NULL)) {
         fprintf(stderr, "Unsupported query: only WHERE column = 'text' can follow the table name, got: %s\n",
-                parser->current.start);
+                parser->current.text.data);
         return 1;
     }
 
@@ -236,12 +235,10 @@ static int parse_create_table(Parser* parser, TableColumns* columns) {
 }
 
 int32_t find_column(const TableColumns* columns, const Token name) {
+    // an empty name, such as the zeroed token of a missing WHERE, matches no
+    // column: every column name has at least one character
     for (uint32_t i = 0; i < columns->names.count; i++) {
-        const Token column = columns->names.items[i];
-        if (column.len == name.len &&
-            strncasecmp(column.start, name.start, name.len) == 0) {
-            return (int32_t) i;
-        }
+        if (sv_equal_nocase(columns->names.items[i].text, name.text)) return (int32_t) i;
     }
     return -1;
 }

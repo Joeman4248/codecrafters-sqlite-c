@@ -6,7 +6,6 @@
 
 #include "file_header.h"
 
-#define SCHEMA_TYPE_MAX 16      // capacity for the type-column text while parsing
 
 // the value stored in a sqlite_schema row's type column
 enum SchemaType {

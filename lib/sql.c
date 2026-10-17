@@ -30,6 +30,8 @@ typedef struct {
     const TableColumns* columns;
     const uint8_t*      page;
     const uint16_t*     cell_offsets;   // one per row
+    const int32_t       where_column;   // index of the WHERE column, or -1 when there is no WHERE
+    const Token         where_value;    // the text it must equal
     uint16_t            row_count;
     RecordColumn*       record;         // room for columns->names.count entries, reused for every row
 } TableScan;
@@ -78,9 +80,10 @@ static int print_value(const TableScan* scan, const Row* row, const uint32_t ind
     // printed straight from the page, without copying
     if (serial_type_is_text(column->serial_type)) {
         if (column->value_offset + column->value_size > row->payload_size) return 1;
-        const char* column_text = (const char*) row->payload + column->value_offset;
-        const int column_text_len = (int) column->value_size;
-        printf("%.*s", (int) column_text_len, column_text);
+        const StringView text = {
+            (const char*) row->payload + column->value_offset, column->value_size
+        };
+        printf(SV_FMT, SV_ARG(text));
         return 0;
     }
 
@@ -103,7 +106,7 @@ static int print_rows(const TableScan* scan, const uint32_t* selected, const uin
 
         for (uint32_t j = 0; j < selected_count; j++) {
             if (j > 0) printf("|");
-            if (print_value(scan, &row, selected[j]) != 0) return 1;
+            if (print_value(scan, &row, selected[j])) return 1;
         }
         printf("\n");
     }
@@ -148,7 +151,7 @@ static int select_columns(const SelectQuery* query, const TableColumns* columns,
 
         const int32_t index = find_column(columns, name);
         if (index < 0) {
-            fprintf(stderr, "no such column: %.*s\n", (int) name.len, name.start);
+            fprintf(stderr, "no such column: " SV_FMT "\n", SV_ARG(name.text));
             return 1;
         }
         selected[count++] = (uint32_t) index;
@@ -190,7 +193,10 @@ static int select_rows(const Database* db, const SelectQuery* query, const Schem
     if (result == 0) {
         const TableScan scan = {
             .db = db, .columns = columns, .page = page,
-            .cell_offsets = cell_offsets, .row_count = header.cell_count, .record = record,
+            .cell_offsets = cell_offsets, 
+            .where_column = find_column(columns, query->where.value),   // -1 when where.value is empty
+            .where_value = query->where.value,
+            .row_count = header.cell_count, .record = record,
         };
         result = query->is_count ? count_values(&scan, selected[0])
                                  : print_rows(&scan, selected, selected_count);
@@ -203,9 +209,9 @@ static int select_rows(const Database* db, const SelectQuery* query, const Schem
 }
 
 static int run_select_query(const Database* db, const SelectQuery* query) {
-    const SchemaEntry* table = find_table(db, query->table.start, query->table.len);
+    const SchemaEntry* table = find_table(db, query->table.text);
     if (table == NULL) {
-        fprintf(stderr, "no such table: %.*s\n", (int) query->table.len, query->table.start);
+        fprintf(stderr, "no such table: " SV_FMT "\n", SV_ARG(query->table.text));
         return 1;
     }
 

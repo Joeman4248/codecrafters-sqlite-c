@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "view.h"
+
 // serial type codes for the record format
 enum SerialType {
     SERIAL_NULL,
@@ -49,6 +51,14 @@ int parse_record(const uint8_t* data, uint32_t size,
 int record_get_int(const uint8_t* data, uint32_t size,
         const RecordColumn* columns, uint32_t column_count,
         uint32_t index, int64_t* value);
+
+// points *out at a TEXT column (odd serial type >= 13) of a parsed record,
+// without copying it: the view is into data, so it is valid while data is.
+// Returns nonzero if the column is not text or runs past the end of the
+// record.
+int record_text_view(const uint8_t* data, uint32_t size,
+        const RecordColumn* columns, uint32_t column_count,
+        uint32_t index, StringView* out);
 
 // copies a TEXT column (odd serial type >= 13) from a parsed record into a
 // null-terminated buffer of out_capacity bytes. Returns nonzero if the column

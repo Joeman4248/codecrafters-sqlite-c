@@ -1,6 +1,5 @@
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
 
 #include "include/lib-sqlite/schema.h"
 #include "include/lib-sqlite/btree_page.h"
@@ -8,21 +7,17 @@
 
 // type strings, indexed by their SchemaType value; SCHEMA_TYPE_COUNT keeps
 // this list in sync with the enum
-static const char* const TYPE_NAMES[SCHEMA_TYPE_COUNT] = {
-    [SCHEMA_TYPE_TABLE]   = "table",
-    [SCHEMA_TYPE_INDEX]   = "index",
-    [SCHEMA_TYPE_VIEW]    = "view",
-    [SCHEMA_TYPE_TRIGGER] = "trigger",
+static const StringView TYPE_NAMES[SCHEMA_TYPE_COUNT] = {
+    [SCHEMA_TYPE_TABLE]   = SV_LIT("table"),
+    [SCHEMA_TYPE_INDEX]   = SV_LIT("index"),
+    [SCHEMA_TYPE_VIEW]    = SV_LIT("view"),
+    [SCHEMA_TYPE_TRIGGER] = SV_LIT("trigger"),
 };
 
 // maps a sqlite_schema type string to its enum value
-static enum SchemaType schema_type_from_text(const char* text) {
-    for (int i = 0; i < SCHEMA_TYPE_COUNT; i++) {
-        if (strcmp(text, TYPE_NAMES[i]) == 0) {
-            return (enum SchemaType) i;
-        }
-    }
-    return SCHEMA_TYPE_UNKNOWN;
+static enum SchemaType schema_type_from_text(const StringView text) {
+    const int32_t i = sv_find(TYPE_NAMES, SCHEMA_TYPE_COUNT, text);
+    return (i < 0) ? SCHEMA_TYPE_UNKNOWN : (enum SchemaType) i;
 }
 
 // allocates *out to fit the column and copies the text into it; leaves *out
@@ -84,9 +79,12 @@ static int parse_schema_page(Database* db, const uint8_t* page) {
         // sqlite_schema columns: type, name, tbl_name, rootpage, sql
         SchemaEntry* entry = &db->schema[i];
 
-        char type[SCHEMA_TYPE_MAX];
-        if (record_get_text(payload, payload_size,
-                columns, column_count, SCHEMA_COL_TYPE, type, sizeof(type)) != 0) {
+        // compared where it sits in the page. A type that isn't text stays
+        // empty, and so unknown, rather than failing the whole schema.
+        StringView type = { 0 };
+        if (serial_type_is_text(columns[SCHEMA_COL_TYPE].serial_type) &&
+            record_text_view(payload, payload_size,
+                columns, column_count, SCHEMA_COL_TYPE, &type) != 0) {
             return 1;
         }
         entry->type = schema_type_from_text(type);
@@ -127,12 +125,11 @@ int read_schema(Database* db) {
     return result;
 }
 
-const SchemaEntry* find_table(const Database* db, const char* name, uint32_t len) {
+const SchemaEntry* find_table(const Database* db, const StringView name) {
     for (uint32_t i = 0; i < db->schema_count; i++) {
         const SchemaEntry* entry = &db->schema[i];
         if (entry->type == SCHEMA_TYPE_TABLE &&
-            strlen(entry->name) == len &&
-            strncasecmp(entry->name, name, len) == 0) {
+            sv_equal_nocase(sv_from_cstr(entry->name), name)) {
             return entry;
         }
     }
