@@ -94,12 +94,12 @@ int read_varint(Reader* reader, uint64_t* value) {
     }
 
     // the entire 9th byte
-    uint8_t last;
-    if (read_u8(reader, &last)) {
+    uint8_t last_byte;
+    if (read_u8(reader, &last_byte)) {
         *value = 0;
         return 1;
     }
-    *value = (result << 8) | last;
+    *value = (result << 8) | last_byte;
     return 0;
 }
 
