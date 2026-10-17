@@ -22,14 +22,22 @@ typedef struct {
     int32_t   rowid_column; // index of the INTEGER PRIMARY KEY column, or -1
 } TableColumns;
 
+// a WHERE condition of the form column = 'text'
+typedef struct {
+    Token column;   // TOKEN_IDENTIFIER: the column to compare
+    Token value;    // TOKEN_STRING: the text it must equal, without the quotes
+} Condition;
+
 // the parts of a SELECT query. Like TableColumns, the tokens point into the
 // query string, which must outlive the SelectQuery.
 typedef struct {
     Token     table;
-    TokenList names;    // column names and TOKEN_STARs, in query order. A *
-                        // means every column, except inside COUNT, where the
-                        // list holds just the one name or *, and * means every row.
-    bool      is_count; // COUNT(names.items[0]) rather than the values themselves
+    TokenList names;        // column names and TOKEN_STARs, in query order. A *
+                            // means every column, except inside COUNT, where the
+                            // list holds just the one name or *, and * means every row.
+    bool      is_count;     // COUNT(names.items) rather than the values themselves
+    bool      has_where;    // whether the query has a WHERE clause
+    Condition where;        // only valid when has_where is true
 } SelectQuery;
 
 // returns the position of the column whose name matches the text of name

@@ -123,8 +123,18 @@ static int parse_select_into(Parser* parser, SelectQuery* query) {
         return 1;
     }
 
+    // WHERE name = 'text'
+    query->has_where = match(parser, TOKEN_WHERE, NULL);
+    if (query->has_where) {
+        if (expect(parser, TOKEN_IDENTIFIER, &query->where.column) ||
+            expect(parser, TOKEN_EQUALS, NULL) ||
+            expect(parser, TOKEN_STRING, &query->where.value)) {
+            return 1;
+        }
+    }
+
     if (!match(parser, TOKEN_EOF, NULL)) {
-        fprintf(stderr, "Unsupported query: nothing after the table name is supported yet: %s\n",
+        fprintf(stderr, "Unsupported query: only WHERE column = 'text' can follow the table name, got: %s\n",
                 parser->current.start);
         return 1;
     }
