@@ -39,31 +39,31 @@ uint32_t serial_type_size(uint64_t serial_type);
 bool serial_type_is_text(uint64_t serial_type);
 
 // parses a record's header: reads the header-size varint and the per-column
-// serial type varints from data, filling the caller-provided columns array
+// serial type varints from payload, filling the caller-provided columns array
 // (which must hold at least max_columns entries). Stores the number of columns
 // in column_count. Returns nonzero if the record is malformed.
-int parse_record(const uint8_t* data, uint32_t size,
+int parse_record(ByteView payload,
         RecordColumn* columns, uint32_t max_columns, uint32_t* column_count);
 
 // reads an INTEGER column (serial types 1-6, 8 and 9) from a parsed record into
 // value as a signed 64-bit integer. Returns nonzero if the column is not an
 // integer or its bytes run past the end of the record.
-int record_get_int(const uint8_t* data, uint32_t size,
+int record_get_int(ByteView payload,
         const RecordColumn* columns, uint32_t column_count,
         uint32_t index, int64_t* value);
 
 // points *out at a TEXT column (odd serial type >= 13) of a parsed record,
-// without copying it: the view is into data, so it is valid while data is.
+// without copying it: the view is into payload, so it is valid while payload is.
 // Returns nonzero if the column is not text or runs past the end of the
 // record.
-int record_text_view(const uint8_t* data, uint32_t size,
+int record_text_view(ByteView payload,
         const RecordColumn* columns, uint32_t column_count,
         uint32_t index, StringView* out);
 
 // copies a TEXT column (odd serial type >= 13) from a parsed record into a
 // null-terminated buffer of out_capacity bytes. Returns nonzero if the column
 // is not text or does not fit in the buffer.
-int record_get_text(const uint8_t* data, uint32_t size,
+int record_get_text(ByteView payload,
         const RecordColumn* columns, uint32_t column_count,
         uint32_t column, char* out, uint32_t out_capacity);
 

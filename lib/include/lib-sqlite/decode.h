@@ -3,24 +3,43 @@
 
 #include <stdint.h>
 
+#include "view.h"
+
 #define VARINT_MAX_SZ 9               // a varint can be up to 9 bytes long
 
-// decoders over an in-memory buffer of size bytes. Each reads at *offset,
-// advances offset past the bytes it consumed, and returns nonzero if the
-// value would run past the end of the buffer.
+// reads values one after another from a run of bytes
+typedef struct {
+    ByteView bytes;
+    uint32_t pos;       // offset of the next byte to read
+} Reader;
+
+// a reader over bytes, starting at offset pos
+static inline Reader reader_at(const ByteView bytes, const uint32_t pos) {
+    return (Reader) { bytes, pos };
+}
+
+// Each read_* function reads at reader->pos and advances it past the bytes it
+// consumed. It returns nonzero if the value would run past the end of the
+// bytes, in which case pos may already have moved.
 
 // big-endian fixed-width unsigned integers. The 24- and 48-bit widths (used by
 // record integer values) are returned in the next wider type.
-int decode_uint8(const uint8_t* buf, uint32_t size, uint32_t* offset, uint8_t* value);
-int decode_uint16(const uint8_t* buf, uint32_t size, uint32_t* offset, uint16_t* value);
-int decode_uint24(const uint8_t* buf, uint32_t size, uint32_t* offset, uint32_t* value);
-int decode_uint32(const uint8_t* buf, uint32_t size, uint32_t* offset, uint32_t* value);
-int decode_uint48(const uint8_t* buf, uint32_t size, uint32_t* offset, uint64_t* value);
-int decode_uint64(const uint8_t* buf, uint32_t size, uint32_t* offset, uint64_t* value);
+int read_u8(Reader* reader, uint8_t* value);
+int read_u16(Reader* reader, uint16_t* value);
+int read_u24(Reader* reader, uint32_t* value);
+int read_u32(Reader* reader, uint32_t* value);
+int read_u48(Reader* reader, uint64_t* value);
+int read_u64(Reader* reader, uint64_t* value);
 
 // a varint is between 1 and 9 bytes long: the lower 7 bits of each of the
 // first 1-8 bytes (which all have the high bit set) plus all 8 bits of the
 // ninth byte (which never has the high bit set), big-endian.
-int decode_varint(const uint8_t* buf, uint32_t size, uint32_t* offset, uint64_t* value);
+int read_varint(Reader* reader, uint64_t* value);
+
+// points *out at the next len bytes and moves past them
+int reader_take(Reader* reader, uint32_t len, ByteView* out);
+
+// moves past the next len bytes
+int reader_skip(Reader* reader, uint32_t len);
 
 #endif // CODECRAFTERS_SQLITE_DECODE_H

@@ -45,6 +45,26 @@ static inline bool sv_equal_nocase(const StringView a, const StringView b) {
     return a.len == b.len && (a.len == 0 || strncasecmp(a.data, b.data, a.len) == 0);
 }
 
+// points *out at the len bytes of bytes starting at offset. Returns nonzero,
+// leaving *out alone, if they run past the end.
+static inline int bv_slice(const ByteView bytes, const uint32_t offset, const uint32_t len,
+        ByteView* out) {
+    // written so neither side can overflow: offset <= bytes.len is checked first
+    if (offset > bytes.len || len > bytes.len - offset) return 1;
+    *out = (ByteView) { bytes.data + offset, len };
+    return 0;
+}
+
+// the first len bytes of bytes, or all of them if there are fewer
+static inline ByteView bv_prefix(const ByteView bytes, const uint32_t len) {
+    return (ByteView) { bytes.data, len < bytes.len ? len : bytes.len };
+}
+
+// the same bytes viewed as text
+static inline StringView bv_as_text(const ByteView bytes) {
+    return (StringView) { (const char*) bytes.data, bytes.len };
+}
+
 // returns the index of the first of the count views in list that equals s,
 // or -1 if none does. For mapping text to an enum through a table of names
 // indexed by the enum's values.

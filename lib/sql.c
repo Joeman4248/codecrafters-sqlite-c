@@ -9,13 +9,15 @@
 #include "include/lib-sqlite/record.h"
 #include "include/lib-sqlite/sql_parser.h"
 
-// reads the page numbered rootpage into page and its header into *header.
+// reads the page numbered rootpage into buf and its header into *header.
 // Only single-page tables are supported for now: returns nonzero if the root
 // page is not a leaf table page, or on error.
 static int read_root_page(const Database* db, const uint32_t rootpage,
-        uint8_t* page, PageHeader* header) {
-    if (read_page(db, rootpage, page) != 0) return 1;
-    if (read_btree_header(page, db->file_header.page_size, rootpage, header) != 0) return 1;
+        uint8_t* buf, PageHeader* header) {
+    if (read_page(db, rootpage, buf) != 0) return 1;
+
+    const ByteView page = { buf, db->file_header.page_size };
+    if (read_btree_header(page, rootpage, header) != 0) return 1;
 
     if (header->page_type != PAGE_TYPE_LEAF_TABLE) {
         fprintf(stderr, "Tables spanning multiple pages are not supported yet\n");
@@ -28,7 +30,7 @@ static int read_root_page(const Database* db, const uint32_t rootpage,
 typedef struct {
     const Database*     db;
     const TableColumns* columns;
-    const uint8_t*      page;
+    ByteView            usable;         // the page cut to its usable size, where the cells are
     const uint16_t*     cell_offsets;   // one per row
     const int32_t       where_column;   // index of the WHERE column, or -1 when there is no WHERE
     const Token         where_value;    // the text it must equal
@@ -39,20 +41,17 @@ typedef struct {
 // one row as read by read_row. Its values are in scan->record until the next
 // read_row.
 typedef struct {
-    int64_t        rowid;
-    const uint8_t* payload;
-    uint32_t       payload_size;
-    uint32_t       column_count;   // columns in the record, which can be fewer than the table has
+    int64_t  rowid;
+    ByteView payload;
+    uint32_t column_count;   // columns in the record, which can be fewer than the table has
 } Row;
 
 // reads row number i of the scan into *row
 static int read_row(const TableScan* scan, const uint16_t i, Row* row) {
-    if (read_leaf_table_cell(scan->page, scan->db->file_header.usable_size, scan->cell_offsets[i],
-            &row->payload, &row->payload_size, &row->rowid)) {
+    if (read_leaf_table_cell(scan->usable, scan->cell_offsets[i], &row->payload, &row->rowid)) {
         return 1;
     }
-    return parse_record(row->payload, row->payload_size, scan->record,
-            scan->columns->names.count, &row->column_count);
+    return parse_record(row->payload, scan->record, scan->columns->names.count, &row->column_count);
 }
 
 static bool is_rowid_alias(const TableScan* scan, const uint32_t index) {
@@ -75,21 +74,18 @@ static int print_value(const TableScan* scan, const Row* row, const uint32_t ind
     }
     if (is_null(scan, row, index)) return 0;
 
-    const RecordColumn* column = &scan->record[index];
-
     // printed straight from the page, without copying
-    if (serial_type_is_text(column->serial_type)) {
-        if (column->value_offset + column->value_size > row->payload_size) return 1;
-        const StringView text = {
-            (const char*) row->payload + column->value_offset, column->value_size
-        };
+    if (serial_type_is_text(scan->record[index].serial_type)) {
+        StringView text;
+        if (record_text_view(row->payload, scan->record, row->column_count, index, &text)) {
+            return 1;
+        }
         printf(SV_FMT, SV_ARG(text));
         return 0;
     }
 
     int64_t value;
-    if (record_get_int(row->payload, row->payload_size, scan->record, row->column_count,
-            index, &value) == 0) {
+    if (record_get_int(row->payload, scan->record, row->column_count, index, &value) == 0) {
         printf("%lld", (long long) value);
         return 0;
     }
@@ -160,11 +156,12 @@ static int select_columns(const SelectQuery* query, const TableColumns* columns,
     return 0;
 }
 
-// runs the query against the table's root page, read into page
+// runs the query against the table's root page, using buf to hold it
 static int select_rows(const Database* db, const SelectQuery* query, const SchemaEntry* table,
-        const TableColumns* columns, uint8_t* page) {
+        const TableColumns* columns, uint8_t* buf) {
     PageHeader header;
-    if (read_root_page(db, table->rootpage, page, &header) != 0) return 1;
+    if (read_root_page(db, table->rootpage, buf, &header) != 0) return 1;
+    const ByteView page = { buf, db->file_header.page_size };
 
     // COUNT(*) is just the number of rows
     if (query->is_count && query->names.items[0].type == TOKEN_STAR) {
@@ -187,12 +184,12 @@ static int select_rows(const Database* db, const SelectQuery* query, const Schem
         result = select_columns(query, columns, selected, &selected_count);
     }
     if (result == 0) {
-        result = read_cell_pointers(page, db->file_header.page_size, table->rootpage,
-                &header, cell_offsets);
+        result = read_cell_pointers(page, table->rootpage, &header, cell_offsets);
     }
     if (result == 0) {
         const TableScan scan = {
-            .db = db, .columns = columns, .page = page,
+            .db = db, .columns = columns,
+            .usable = bv_prefix(page, db->file_header.usable_size),
             .cell_offsets = cell_offsets, 
             .where_column = find_column(columns, query->where.value),   // -1 when where.value is empty
             .where_value = query->where.value,

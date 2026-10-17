@@ -29,22 +29,26 @@ bool serial_type_is_text(const uint64_t serial_type) {
     return serial_type >= SERIAL_TEXT && serial_type % 2 == 1;
 }
 
-int parse_record(const uint8_t* data, uint32_t size,
+int parse_record(const ByteView payload,
         RecordColumn* columns, uint32_t max_columns, uint32_t* column_count) {
-    uint32_t offset = 0;
+    Reader reader = reader_at(payload, 0);
     uint64_t header_size = 0;
 
-    if (decode_varint(data, size, &offset, &header_size)) return 1;
-    if (header_size < offset || header_size > size) return 1;
+    if (read_varint(&reader, &header_size)) return 1;
+    if (header_size < reader.pos || header_size > payload.len) return 1;
+
+    // the serial types are read from the header only, so a malformed one
+    // can't run on into the values
+    reader.bytes = bv_prefix(payload, (uint32_t) header_size);
 
     uint32_t count = 0;
     uint32_t body_size = 0;
 
-    while (offset < (uint32_t) header_size) {
+    while (reader.pos < reader.bytes.len) {
         if (count >= max_columns) return 1;
 
         uint64_t serial_type = 0;
-        if (decode_varint(data, size, &offset, &serial_type)) return 1;
+        if (read_varint(&reader, &serial_type)) return 1;
 
         const uint32_t value_size = serial_type_size(serial_type);
         columns[count].serial_type = serial_type;
@@ -55,7 +59,7 @@ int parse_record(const uint8_t* data, uint32_t size,
         count++;
     }
 
-    if (body_size > size || header_size > size - body_size) return 1;
+    if (body_size > payload.len || header_size > payload.len - body_size) return 1;
 
     *column_count = count;
     return 0;
@@ -69,13 +73,13 @@ static int64_t sign_extend(const uint64_t raw, const unsigned bits) {
     return ((int64_t) raw ^ sign_bit) - sign_bit;
 }
 
-int record_get_int(const uint8_t* data, const uint32_t size,
+int record_get_int(const ByteView payload,
         const RecordColumn* columns, const uint32_t column_count,
         const uint32_t index, int64_t* value) {
     if (index >= column_count) return 1;
 
     const RecordColumn* col = &columns[index];
-    uint32_t offset = col->value_offset;
+    Reader reader = reader_at(payload, col->value_offset);
 
     switch (col->serial_type) {
         case SERIAL_ZERO: *value = 0; return 0;
@@ -83,31 +87,31 @@ int record_get_int(const uint8_t* data, const uint32_t size,
 
         case SERIAL_INT8: {
             uint8_t raw;
-            if (decode_uint8(data, size, &offset, &raw)) return 1;
+            if (read_u8(&reader, &raw)) return 1;
             *value = sign_extend(raw, 8);
             return 0;
         }
         case SERIAL_INT16: {
             uint16_t raw;
-            if (decode_uint16(data, size, &offset, &raw)) return 1;
+            if (read_u16(&reader, &raw)) return 1;
             *value = sign_extend(raw, 16);
             return 0;
         }
         case SERIAL_INT24: {
             uint32_t raw;
-            if (decode_uint24(data, size, &offset, &raw)) return 1;
+            if (read_u24(&reader, &raw)) return 1;
             *value = sign_extend(raw, 24);
             return 0;
         }
         case SERIAL_INT32: {
             uint32_t raw;
-            if (decode_uint32(data, size, &offset, &raw)) return 1;
+            if (read_u32(&reader, &raw)) return 1;
             *value = sign_extend(raw, 32);
             return 0;
         }
         case SERIAL_INT48: {
             uint64_t raw;
-            if (decode_uint48(data, size, &offset, &raw)) return 1;
+            if (read_u48(&reader, &raw)) return 1;
             *value = sign_extend(raw, 48);
             return 0;
         }
@@ -115,7 +119,7 @@ int record_get_int(const uint8_t* data, const uint32_t size,
             // all 64 bits are already the two's-complement pattern; memcpy
             // copies them without an implementation-defined conversion
             uint64_t raw;
-            if (decode_uint64(data, size, &offset, &raw)) return 1;
+            if (read_u64(&reader, &raw)) return 1;
             memcpy(value, &raw, sizeof(*value));
             return 0;
         }
@@ -126,24 +130,26 @@ int record_get_int(const uint8_t* data, const uint32_t size,
     }
 }
 
-int record_text_view(const uint8_t* data, const uint32_t size,
+int record_text_view(const ByteView payload,
         const RecordColumn* columns, const uint32_t column_count,
         const uint32_t index, StringView* out) {
     if (index >= column_count) return 1;
 
     const RecordColumn* col = &columns[index];
-    if (!serial_type_is_text(col->serial_type))             return 1;
-    if (col->value_offset + col->value_size > size)         return 1;
+    if (!serial_type_is_text(col->serial_type)) return 1;
 
-    *out = (StringView) { (const char*) data + col->value_offset, col->value_size };
+    ByteView bytes;
+    if (bv_slice(payload, col->value_offset, col->value_size, &bytes)) return 1;
+
+    *out = bv_as_text(bytes);
     return 0;
 }
 
-int record_get_text(const uint8_t* data, const uint32_t size,
+int record_get_text(const ByteView payload,
         const RecordColumn* columns, const uint32_t column_count,
         const uint32_t index, char* out, const uint32_t out_capacity) {
     StringView text;
-    if (record_text_view(data, size, columns, column_count, index, &text)) return 1;
+    if (record_text_view(payload, columns, column_count, index, &text)) return 1;
     if (text.len >= out_capacity) return 1;
 
     memcpy(out, text.data, text.len);

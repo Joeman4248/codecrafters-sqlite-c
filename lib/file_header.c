@@ -95,43 +95,42 @@ int read_file_header(FILE* file, FileHeader* header) {
     }
 
     memcpy(header->header_string, buf, HEADER_STR_SZ);
-    uint32_t offset = HEADER_STR_SZ;
+    Reader reader = reader_at((ByteView) { buf, FILE_HEADER_SZ }, HEADER_STR_SZ);
 
     uint16_t page_size;
-    if (decode_uint16(buf, FILE_HEADER_SZ, &offset, &page_size)) {
+    if (read_u16(&reader, &page_size)) {
         return 1;
     }
     header->page_size = page_size_bytes(page_size);
 
-    if (decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->write_version) ||
-        decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->read_version) ||
-        decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->reserved_space) ||
-        decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->max_embedded_payload_fraction) ||
-        decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->min_embedded_payload_fraction) ||
-        decode_uint8(buf, FILE_HEADER_SZ, &offset, &header->leaf_payload_fraction)) {
+    if (read_u8(&reader, &header->write_version) ||
+        read_u8(&reader, &header->read_version) ||
+        read_u8(&reader, &header->reserved_space) ||
+        read_u8(&reader, &header->max_embedded_payload_fraction) ||
+        read_u8(&reader, &header->min_embedded_payload_fraction) ||
+        read_u8(&reader, &header->leaf_payload_fraction)) {
         return 1;
     }
 
-    if (decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->file_change_counter) ||
-        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->db_size_in_pages) ||
-        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->first_freelist_trunk_page) ||
-        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->freelist_page_count) ||
-        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->schema_cookie) ||
-        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->schema_format) ||
-        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->default_page_cache_size) ||
-        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->largest_root_btree_page) ||
-        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->text_encoding) ||
-        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->user_version) ||
-        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->incremental_vacuum_enabled) ||
-        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->application_id)) {
+    if (read_u32(&reader, &header->file_change_counter) ||
+        read_u32(&reader, &header->db_size_in_pages) ||
+        read_u32(&reader, &header->first_freelist_trunk_page) ||
+        read_u32(&reader, &header->freelist_page_count) ||
+        read_u32(&reader, &header->schema_cookie) ||
+        read_u32(&reader, &header->schema_format) ||
+        read_u32(&reader, &header->default_page_cache_size) ||
+        read_u32(&reader, &header->largest_root_btree_page) ||
+        read_u32(&reader, &header->text_encoding) ||
+        read_u32(&reader, &header->user_version) ||
+        read_u32(&reader, &header->incremental_vacuum_enabled) ||
+        read_u32(&reader, &header->application_id)) {
         return 1;
     }
 
     // skip empty reserved bytes in the header
-    offset += FILE_HEADER_RESV_SZ;
-
-    if (decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->version_valid_for) ||
-        decode_uint32(buf, FILE_HEADER_SZ, &offset, &header->sqlite_version_number)) {
+    if (reader_skip(&reader, FILE_HEADER_RESV_SZ) ||
+        read_u32(&reader, &header->version_valid_for) ||
+        read_u32(&reader, &header->sqlite_version_number)) {
         return 1;
     }
 
