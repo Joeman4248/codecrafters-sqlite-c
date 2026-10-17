@@ -54,17 +54,10 @@ int record_get_int(ByteView payload,
 
 // points *out at a TEXT column (odd serial type >= 13) of a parsed record,
 // without copying it: the view is into payload, so it is valid while payload is.
-// Returns nonzero if the column is not text or runs past the end of the
-// record.
+// Use sv_to_cstr for a copy that outlives it. Returns nonzero if the column is
+// not text or runs past the end of the record.
 int record_text_view(ByteView payload,
         const RecordColumn* columns, uint32_t column_count,
         uint32_t index, StringView* out);
-
-// copies a TEXT column (odd serial type >= 13) from a parsed record into a
-// null-terminated buffer of out_capacity bytes. Returns nonzero if the column
-// is not text or does not fit in the buffer.
-int record_get_text(ByteView payload,
-        const RecordColumn* columns, uint32_t column_count,
-        uint32_t column, char* out, uint32_t out_capacity);
 
 #endif // CODECRAFTERS_SQLITE_RECORD_H

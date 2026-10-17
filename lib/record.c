@@ -144,15 +144,3 @@ int record_text_view(const ByteView payload,
     *out = bv_as_text(bytes);
     return 0;
 }
-
-int record_get_text(const ByteView payload,
-        const RecordColumn* columns, const uint32_t column_count,
-        const uint32_t index, char* out, const uint32_t out_capacity) {
-    StringView text;
-    if (record_text_view(payload, columns, column_count, index, &text)) return 1;
-    if (text.len >= out_capacity) return 1;
-
-    memcpy(out, text.data, text.len);
-    out[text.len] = '\0';
-    return 0;
-}

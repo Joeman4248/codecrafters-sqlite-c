@@ -20,17 +20,19 @@ static enum SchemaType schema_type_from_text(const StringView text) {
     return (i < 0) ? SCHEMA_TYPE_UNKNOWN : (enum SchemaType) i;
 }
 
-// allocates *out to fit the column and copies the text into it; leaves *out
-// NULL for a NULL column (sql is NULL for automatic indexes)
+// copies a text column into a new heap string in *out, since schema entries
+// outlive the page they're read from. Leaves *out NULL for a NULL column (sql
+// is NULL for automatic indexes).
 static int alloc_column_text(const ByteView payload,
         const RecordColumn* columns, uint32_t column_count,
         const uint32_t index, char** out) {
     if (columns[index].serial_type == SERIAL_NULL) return 0;
 
-    const uint32_t len = columns[index].value_size;
-    *out = malloc(len + 1);
-    if (*out == NULL) return 1;
-    return record_get_text(payload, columns, column_count, index, *out, len + 1);
+    StringView text;
+    if (record_text_view(payload, columns, column_count, index, &text)) return 1;
+
+    *out = sv_to_cstr(text);
+    return *out == NULL;
 }
 
 // fills db->schema from the in-memory schema root page

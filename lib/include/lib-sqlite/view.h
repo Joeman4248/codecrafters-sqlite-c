@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
@@ -31,6 +32,17 @@ typedef struct {
 // views a null-terminated string, without its terminator
 static inline StringView sv_from_cstr(const char* s) {
     return (StringView) { s, (uint32_t) strlen(s) };
+}
+
+// copies s into a new null-terminated heap string, for text that must outlive
+// what s points into. The caller frees it. Returns NULL if the allocation fails.
+static inline char* sv_to_cstr(const StringView s) {
+    char* copy = malloc(s.len + 1);
+    if (copy == NULL) return NULL;
+    // memcpy must not be given NULL, even for a length of 0
+    if (s.len > 0) memcpy(copy, s.data, s.len);
+    copy[s.len] = '\0';
+    return copy;
 }
 
 // true if a and b hold the same characters
