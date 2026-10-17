@@ -1,6 +1,7 @@
 #ifndef CODECRAFTERS_SQLITE_DECODE_H
 #define CODECRAFTERS_SQLITE_DECODE_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "view.h"
@@ -11,16 +12,22 @@
 typedef struct {
     ByteView bytes;
     uint32_t pos;       // offset of the next byte to read
+    bool     failed;    // set by the first read that runs out of bytes
 } Reader;
 
 // a reader over bytes, starting at offset pos
 static inline Reader reader_at(const ByteView bytes, const uint32_t pos) {
-    return (Reader) { bytes, pos };
+    return (Reader) { bytes, pos, false };
 }
 
 // Each read_* function reads at reader->pos and advances it past the bytes it
-// consumed. It returns nonzero if the value would run past the end of the
-// bytes, in which case pos may already have moved.
+// consumed. If the value would run past the end of the bytes, it sets
+// reader->failed, stores 0 (or an empty view), and returns nonzero.
+//
+// The failure is sticky: once failed is set, every later read also fails and
+// stores 0. So a run of reads can be checked once at the end with
+// reader.failed instead of one by one, as long as no value read is used to
+// make a decision before that check.
 
 // big-endian fixed-width unsigned integers. The 24- and 48-bit widths (used by
 // record integer values) are returned in the next wider type.

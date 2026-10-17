@@ -1,56 +1,66 @@
 #include "include/lib-sqlite/decode.h"
 
+// every other read goes through this one (or reader_take), so this is where
+// running out of bytes is detected and made sticky
 int read_u8(Reader* reader, uint8_t* value) {
-    if (reader->pos >= reader->bytes.len) return 1;
+    if (reader->failed || reader->pos >= reader->bytes.len) {
+        reader->failed = true;
+        *value = 0;
+        return 1;
+    }
     *value = reader->bytes.data[reader->pos++];
     return 0;
 }
 
+// The wider reads below read every part even after a failure, since a failed
+// read just stores 0, then store 0 overall if anything failed rather than a
+// half-built value.
+
 // 2 bytes, big-endian, as an upper and lower uint8
 int read_u16(Reader* reader, uint16_t* value) {
     uint8_t upper, lower;
-    if (read_u8(reader, &upper)) return 1;
-    if (read_u8(reader, &lower)) return 1;
-    *value = ((uint16_t)upper << 8) | lower;
-    return 0;
+    read_u8(reader, &upper);
+    read_u8(reader, &lower);
+    *value = reader->failed ? 0 : ((uint16_t)upper << 8) | lower;
+    return reader->failed;
 }
 
 // 3 bytes, big-endian, as an upper uint16 and lower uint8
 int read_u24(Reader* reader, uint32_t* value) {
     uint16_t upper;
     uint8_t  lower;
-    if (read_u16(reader, &upper)) return 1;
-    if (read_u8(reader, &lower))  return 1;
-    *value = ((uint32_t)upper << 8) | lower;
-    return 0;
+    read_u16(reader, &upper);
+    read_u8(reader, &lower);
+    *value = reader->failed ? 0 : ((uint32_t)upper << 8) | lower;
+    return reader->failed;
 }
 
 // 4 bytes, big-endian, as an upper and lower uint16
 int read_u32(Reader* reader, uint32_t* value) {
     uint16_t upper, lower;
-    if (read_u16(reader, &upper)) return 1;
-    if (read_u16(reader, &lower)) return 1;
-    *value = ((uint32_t)upper << 16) | lower;
-    return 0;
+    read_u16(reader, &upper);
+    read_u16(reader, &lower);
+    *value = reader->failed ? 0 : ((uint32_t)upper << 16) | lower;
+    return reader->failed;
 }
 
 // 6 bytes, big-endian, as an upper uint32 and lower uint16
 int read_u48(Reader* reader, uint64_t* value) {
     uint32_t upper;
     uint16_t lower;
-    if (read_u32(reader, &upper)) return 1;
-    if (read_u16(reader, &lower)) return 1;
-    *value = ((uint64_t)upper << 16) | lower;
-    return 0;
+    read_u32(reader, &upper);
+    read_u16(reader, &lower);
+    *value = reader->failed ? 0 : ((uint64_t)upper << 16) | lower;
+    return reader->failed;
 }
 
 // 8 bytes, big-endian, as an upper and lower uint32
 int read_u64(Reader* reader, uint64_t* value) {
     uint32_t upper, lower;
-    if (read_u32(reader, &upper)) return 1;
-    if (read_u32(reader, &lower)) return 1;
-    *value = ((uint64_t)upper << 32) | lower;
-    return 0;
+    read_u32(reader, &upper);
+    read_u32(reader, &lower);
+    *value = reader->failed ? 0 : ((uint64_t)upper << 32) | lower;
+    return reader->failed;
 }
 
 // bytes 1-8 each contribute their lower 7 bits and use the high bit as a
@@ -68,7 +78,10 @@ int read_varint(Reader* reader, uint64_t* value) {
     // the first 1-8 bytes
     for (uint8_t i = 1; i <= 8; i++) {
         uint8_t byte;
-        if (read_u8(reader, &byte)) return 1;
+        if (read_u8(reader, &byte)) {
+            *value = 0;
+            return 1;
+        }
 
         // copy the 7 lower bits
         result = (result << 7) | (byte & 0x7F);
@@ -82,13 +95,20 @@ int read_varint(Reader* reader, uint64_t* value) {
 
     // the entire 9th byte
     uint8_t last;
-    if (read_u8(reader, &last)) return 1;
+    if (read_u8(reader, &last)) {
+        *value = 0;
+        return 1;
+    }
     *value = (result << 8) | last;
     return 0;
 }
 
 int reader_take(Reader* reader, const uint32_t len, ByteView* out) {
-    if (bv_slice(reader->bytes, reader->pos, len, out)) return 1;
+    if (reader->failed || bv_slice(reader->bytes, reader->pos, len, out)) {
+        reader->failed = true;
+        *out = (ByteView) { 0 };
+        return 1;
+    }
     reader->pos += len;
     return 0;
 }

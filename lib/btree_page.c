@@ -12,20 +12,19 @@ static uint32_t page_header_start(const uint32_t page_number) {
 int read_btree_header(const ByteView page, const uint32_t page_number, PageHeader* header) {
     Reader reader = reader_at(page, page_header_start(page_number));
 
-    if (read_u8(&reader, &header->page_type) ||
-        read_u16(&reader, &header->freeblock_offset) ||
-        read_u16(&reader, &header->cell_count) ||
-        read_u16(&reader, &header->cell_area_start) ||
-        read_u8(&reader, &header->num_free_bytes)) {
-        return 1;
-    }
+    read_u8(&reader, &header->page_type);
+    read_u16(&reader, &header->freeblock_offset);
+    read_u16(&reader, &header->cell_count);
+    read_u16(&reader, &header->cell_area_start);
+    read_u8(&reader, &header->num_free_bytes);
+
+    // checked before the switch, which decides from page_type what to read next
+    if (reader.failed) return 1;
 
     switch (header->page_type) {
         case PAGE_TYPE_INTERIOR_INDEX:
         case PAGE_TYPE_INTERIOR_TABLE:
-            if (read_u32(&reader, &header->rightmost_ptr)) {
-                return 1;
-            }
+            if (read_u32(&reader, &header->rightmost_ptr)) return 1;
             header->header_size = PAGE_HEADER_SZ_INTERIOR;
             break;
 

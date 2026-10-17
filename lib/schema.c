@@ -47,22 +47,26 @@ static int parse_schema_page(Database* db, const ByteView page) {
         return 1;
     }
 
-    uint16_t cell_offsets[schema_page.cell_count];
+    // a new database has an empty schema. Returning here leaves db->schema
+    // NULL and db->schema_count 0, and keeps the arrays below from having a
+    // length of 0, which is undefined for a variable-length array.
+    const uint16_t schema_count = schema_page.cell_count;
+    if (schema_count == 0) return 0;
+
+    uint16_t cell_offsets[schema_count];
     if (read_cell_pointers(page, SCHEMA_ROOT_PAGE, &schema_page, cell_offsets) != 0) {
         return 1;
     }
 
-    if (schema_page.cell_count > 0) {
-        db->schema = calloc(schema_page.cell_count, sizeof(SchemaEntry));
-        if (db->schema == NULL) return 1;
-    }
-    db->schema_count = schema_page.cell_count;
+    db->schema = calloc(schema_count, sizeof(SchemaEntry));
+    if (db->schema == NULL) return 1;
+    db->schema_count = schema_count;
 
     const ByteView usable = bv_prefix(page, db->file_header.usable_size);
     ByteView payload;
     int64_t rowid = 0;
 
-    for (uint32_t i = 0; i < schema_page.cell_count; i++) {
+    for (uint32_t i = 0; i < schema_count; i++) {
         if (read_leaf_table_cell(usable, cell_offsets[i], &payload, &rowid) != 0) {
             return 1;
         }

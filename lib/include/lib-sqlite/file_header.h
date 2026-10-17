@@ -13,12 +13,12 @@
 // power of two between PAGE_SIZE_MIN and PAGE_SIZE_2_BYTE_MAX, or the marker
 // value PAGE_SIZE_MAX_MARKER for a PAGE_SIZE_MAX page
 
-#define PAGE_SIZE_MIN (1 << 9)          // smallest valid page size
-#define PAGE_SIZE_MAX (1 << 16)         // largest possible page size, does not fit directly into the 2-byte page size field
+#define PAGE_SIZE_MIN (1u << 9)         // smallest valid page size
+#define PAGE_SIZE_MAX (1u << 16)        // largest possible page size, does not fit directly into the 2-byte page size field
 
 #define PAGE_SIZE_MAX_MARKER 1          // field value encoding a PAGE_SIZE_MAX page
 
-#define MIN_USABLE_PAGE_SIZE 480        // usable = page_size - reserved_space
+#define MIN_USABLE_PAGE_SIZE 480u       // usable = page_size - reserved_space
 
 enum FileFormatVersion {
     FILE_FORMAT_VERSION_LEGACY = 1,   // rollback journal mode
