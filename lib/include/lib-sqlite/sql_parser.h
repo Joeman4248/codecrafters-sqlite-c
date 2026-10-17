@@ -6,23 +6,30 @@
 
 #include "tokenizer.h"
 
+// a heap-allocated list of tokens that grows as tokens are added. Freed by
+// free_statement along with the statement holding it.
+typedef struct {
+    Token*   items;
+    uint32_t count;
+} TokenList;
+
 // the column names from a CREATE TABLE statement. The names are tokens: they
 // are not copied or null-terminated, but point into the SQL string, which
 // must outlive the TableColumns.
 typedef struct {
-    Token    table;
-    Token*   columns;       // heap-allocated, in declaration order
-    uint32_t count;
-    int32_t  rowid_column;  // index of the INTEGER PRIMARY KEY column, or -1
+    Token     table;
+    TokenList names;        // in declaration order
+    int32_t   rowid_column; // index of the INTEGER PRIMARY KEY column, or -1
 } TableColumns;
 
 // the parts of a SELECT query. Like TableColumns, the tokens point into the
 // query string, which must outlive the SelectQuery.
 typedef struct {
-    Token table;
-    Token name;         // a column name, or TOKEN_STAR. Inside COUNT, * means
-                        // every row; outside it, every column.
-    bool is_count;      // COUNT(name) rather than name itself
+    Token     table;
+    TokenList names;    // column names and TOKEN_STARs, in query order. A *
+                        // means every column, except inside COUNT, where the
+                        // list holds just the one name or *, and * means every row.
+    bool      is_count; // COUNT(names.items[0]) rather than the values themselves
 } SelectQuery;
 
 // returns the position of the column whose name matches the text of name

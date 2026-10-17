@@ -31,7 +31,7 @@ typedef struct {
     const uint8_t*      page;
     const uint16_t*     cell_offsets;   // one per row
     uint16_t            row_count;
-    RecordColumn*       record;         // room for columns->count entries, reused for every row
+    RecordColumn*       record;         // room for columns->names.count entries, reused for every row
 } TableScan;
 
 // one row as read by read_row. Its values are in scan->record until the next
@@ -50,7 +50,7 @@ static int read_row(const TableScan* scan, const uint16_t i, Row* row) {
         return 1;
     }
     return parse_record(row->payload, row->payload_size, scan->record,
-            scan->columns->count, &row->column_count);
+            scan->columns->names.count, &row->column_count);
 }
 
 static bool is_rowid_alias(const TableScan* scan, const uint32_t index) {
@@ -122,24 +122,38 @@ static int count_values(const TableScan* scan, const uint32_t index) {
     return 0;
 }
 
-// fills selected with the indexes of the columns the query names: every
-// column for *, otherwise just the named one. selected has room for
-// columns->count entries.
+// returns how many column indexes the query's names expand to: every column
+// for each *, and one for each name
+static uint32_t count_selected(const SelectQuery* query, const TableColumns* columns) {
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < query->names.count; i++) {
+        count += (query->names.items[i].type == TOKEN_STAR) ? columns->names.count : 1;
+    }
+    return count;
+}
+
+// fills selected with the indexes of the columns the query names, in query
+// order, with each * expanded to every column. selected has room for
+// count_selected entries.
 static int select_columns(const SelectQuery* query, const TableColumns* columns,
         uint32_t* selected, uint32_t* selected_count) {
-    if (query->name.type == TOKEN_STAR) {
-        for (uint32_t i = 0; i < columns->count; i++) selected[i] = i;
-        *selected_count = columns->count;
-        return 0;
-    }
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < query->names.count; i++) {
+        const Token name = query->names.items[i];
 
-    const int32_t index = find_column(columns, query->name);
-    if (index < 0) {
-        fprintf(stderr, "no such column: %.*s\n", (int) query->name.len, query->name.start);
-        return 1;
+        if (name.type == TOKEN_STAR) {
+            for (uint32_t j = 0; j < columns->names.count; j++) selected[count++] = j;
+            continue;
+        }
+
+        const int32_t index = find_column(columns, name);
+        if (index < 0) {
+            fprintf(stderr, "no such column: %.*s\n", (int) name.len, name.start);
+            return 1;
+        }
+        selected[count++] = (uint32_t) index;
     }
-    selected[0] = (uint32_t) index;
-    *selected_count = 1;
+    *selected_count = count;
     return 0;
 }
 
@@ -150,14 +164,14 @@ static int select_rows(const Database* db, const SelectQuery* query, const Schem
     if (read_root_page(db, table->rootpage, page, &header) != 0) return 1;
 
     // COUNT(*) is just the number of rows
-    if (query->is_count && query->name.type == TOKEN_STAR) {
+    if (query->is_count && query->names.items[0].type == TOKEN_STAR) {
         printf("%u\n", header.cell_count);
         return 0;
     }
 
-    uint32_t* selected = malloc(columns->count * sizeof(uint32_t));
+    uint32_t* selected = malloc(count_selected(query, columns) * sizeof(uint32_t));
     uint16_t* cell_offsets = malloc(header.cell_count * sizeof(uint16_t));
-    RecordColumn* record = malloc(columns->count * sizeof(RecordColumn));
+    RecordColumn* record = malloc(columns->names.count * sizeof(RecordColumn));
 
     // an empty table asks for malloc(0), which may return NULL without failing
     int result = 0;

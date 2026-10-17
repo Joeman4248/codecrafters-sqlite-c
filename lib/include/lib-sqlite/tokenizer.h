@@ -7,8 +7,8 @@ enum TokenType {
     // keywords, matched ignoring case. Anything word-shaped that isn't one of
     // these (including type names like integer and function names like max)
     // is a TOKEN_IDENTIFIER.
-    TOKEN_EOF,                              // end of the SQL text
     TOKEN_UNKNOWN,                          // a character no token starts with
+    TOKEN_EOF,                              // end of the SQL text
 
     TOKEN_SELECT,
     TOKEN_FROM,

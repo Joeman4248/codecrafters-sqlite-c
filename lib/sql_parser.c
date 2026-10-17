@@ -56,11 +56,25 @@ static bool token_is(const Token token, const char* word) {
     return token.len == len && strncasecmp(token.start, word, len) == 0;
 }
 
+// appends token to list, growing the array by one
+static int token_list_add(TokenList* list, const Token token) {
+    Token* grown = realloc(list->items, (list->count + 1) * sizeof(Token));
+    if (grown == NULL) return 1;        // the old array is still valid, caller frees it
+    list->items = grown;
+    list->items[list->count++] = token;
+    return 0;
+}
+
+// frees the list's array. Safe to call on a zero-initialised TokenList.
+static void free_token_list(TokenList* list) {
+    free(list->items);
+    *list = (TokenList) { 0 };
+}
+
 // consumes a column name or * and stores it in *out. Otherwise prints what was
 // found instead and returns nonzero.
 static int parse_name_or_star(Parser* parser, Token* out) {
-    if (match(parser, TOKEN_IDENTIFIER, out) ||
-        match(parser, TOKEN_STAR, out)) {
+    if (match(parser, TOKEN_IDENTIFIER, out) || match(parser, TOKEN_STAR, out)) {
         return 0;
     }
     fprintf(stderr, "expected a column name or *, got %s\n",
@@ -68,25 +82,38 @@ static int parse_name_or_star(Parser* parser, Token* out) {
     return 1;
 }
 
-// parses everything from SELECT onwards into *query; see parse_statement for
-// the form accepted
-static int parse_select_into(Parser* parser, SelectQuery* query) {
-    *query = (SelectQuery) { 0 };
+// parses a comma-separated list of column names and *s into list
+static int parse_name_list(Parser* parser, TokenList* list) {
+    Token name;
+    do {
+        if (parse_name_or_star(parser, &name) || token_list_add(list, name)) {
+            return 1;
+        }
+    } while (match(parser, TOKEN_COMMA, NULL));
+    return 0;
+}
 
+// parses everything from SELECT onwards into *query; see parse_statement for
+// the form accepted. On failure query->names may be partly filled; the
+// caller frees it.
+static int parse_select_into(Parser* parser, SelectQuery* query) {
     // SELECT
     if (expect(parser, TOKEN_SELECT, NULL)) return 1;
 
-    // COUNT(name), COUNT(*)
+    // COUNT(name) or COUNT(*)
     if (match(parser, TOKEN_COUNT, NULL)) {
         query->is_count = true;
+
+        Token name;
         if (expect(parser, TOKEN_LPAREN, NULL) ||
-            parse_name_or_star(parser, &query->name) ||
+            parse_name_or_star(parser, &name) ||
+            token_list_add(&query->names, name) ||
             expect(parser, TOKEN_RPAREN, NULL)) {
             return 1;
         }
     }
-    // name or *
-    else if (parse_name_or_star(parser, &query->name)) {
+    // name, *, name, ...
+    else if (parse_name_list(parser, &query->names)) {
         return 1;
     }
 
@@ -102,6 +129,18 @@ static int parse_select_into(Parser* parser, SelectQuery* query) {
         return 1;
     }
 
+    return 0;
+}
+
+// initialises *query, then parses into it, freeing it again on failure so
+// the caller is left with nothing to free
+static int parse_select(Parser* parser, SelectQuery* query) {
+    *query = (SelectQuery) { 0 };
+
+    if (parse_select_into(parser, query) != 0) {
+        free_token_list(&query->names);
+        return 1;
+    }
     return 0;
 }
 
@@ -134,9 +173,9 @@ static int parse_column_definition(Parser* parser, TableColumns* columns) {
             }
             case TOKEN_IDENTIFIER: {
                 // a PRIMARY KEY inside parentheses belongs to something else
-                if (paren_depth == 0 && is_integer &&
+                if (is_integer && paren_depth == 0 && 
                     token_is(previous, "primary") && token_is(parser->current, "key")) {
-                    columns->rowid_column = (int32_t) columns->count - 1;
+                    columns->rowid_column = (int32_t) columns->names.count - 1;
                 }
                 break;
             }
@@ -148,22 +187,6 @@ static int parse_column_definition(Parser* parser, TableColumns* columns) {
     
     fprintf(stderr, "Error: The sql statement ended before the list closed\n");
     return 1;
-}
-
-// appends name to columns->columns, growing the array as needed
-static int add_column(TableColumns* columns, const Token name) {
-    Token* grown = realloc(columns->columns, (columns->count + 1) * sizeof(Token));
-    if (grown == NULL) return 1;        // the old array is still valid, caller frees it
-    columns->columns = grown;
-    columns->columns[columns->count++] = name;
-    return 0;
-}
-
-// frees the column list. Safe to call on a zero-initialised TableColumns.
-static void free_table_columns(TableColumns* columns) {
-    free(columns->columns);
-    columns->columns = NULL;
-    columns->count = 0;
 }
 
 // parses everything from CREATE onwards into *columns. On failure *columns
@@ -178,16 +201,13 @@ static int parse_table_columns_into(Parser* parser, TableColumns* columns) {
     }
     
     Token column_name;
-    while (true) {
+    do {
         if (expect(parser, TOKEN_IDENTIFIER, &column_name) ||
-            add_column(columns, column_name) ||
+            token_list_add(&columns->names, column_name) ||
             parse_column_definition(parser, columns) ) {
             return 1;
         }
-
-        // comma means another column follows
-        if (!match(parser, TOKEN_COMMA, NULL)) break;
-    }
+    } while (match(parser, TOKEN_COMMA, NULL));     // a comma means another column follows
     
     return expect(parser, TOKEN_RPAREN, NULL);  // parses: )
 }
@@ -199,15 +219,15 @@ static int parse_create_table(Parser* parser, TableColumns* columns) {
     *columns = (TableColumns) { .rowid_column = -1 };
 
     if (parse_table_columns_into(parser, columns) != 0) {
-        free_table_columns(columns);
+        free_token_list(&columns->names);
         return 1;
     }
     return 0;
 }
 
 int32_t find_column(const TableColumns* columns, const Token name) {
-    for (uint32_t i = 0; i < columns->count; i++) {
-        const Token column = columns->columns[i];
+    for (uint32_t i = 0; i < columns->names.count; i++) {
+        const Token column = columns->names.items[i];
         if (column.len == name.len &&
             strncasecmp(column.start, name.start, name.len) == 0) {
             return (int32_t) i;
@@ -225,7 +245,7 @@ int parse_statement(const char* sql, Statement* statement) {
     switch (parser.current.type) {
         case TOKEN_SELECT:
             statement->type = STATEMENT_TYPE_SELECT;
-            return parse_select_into(&parser, &statement->select);
+            return parse_select(&parser, &statement->select);
         case TOKEN_CREATE:
             statement->type = STATEMENT_TYPE_CREATE_TABLE;
             return parse_create_table(&parser, &statement->create_table);
@@ -238,8 +258,8 @@ int parse_statement(const char* sql, Statement* statement) {
 
 void free_statement(Statement* statement) {
     switch (statement->type) {
-        case STATEMENT_TYPE_SELECT:         break;     // nothing allocated
-        case STATEMENT_TYPE_CREATE_TABLE:   free_table_columns(&statement->create_table); break;
+        case STATEMENT_TYPE_SELECT:         free_token_list(&statement->select.names); break;
+        case STATEMENT_TYPE_CREATE_TABLE:   free_token_list(&statement->create_table.names); break;
         case STATEMENT_TYPE_UNKNOWN:        break;
     }
 }
