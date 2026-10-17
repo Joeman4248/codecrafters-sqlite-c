@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define FILE_HEADER_SZ 100              // first 100 bytes of page 1
 #define HEADER_STR_SZ 16
 #define VALID_HEADER_STR "SQLite format 3"
 #define FILE_HEADER_RESV_SZ 20          // header bytes reserved for expansion (offset 72)
