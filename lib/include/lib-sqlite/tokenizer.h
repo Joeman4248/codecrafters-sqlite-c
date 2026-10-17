@@ -14,7 +14,8 @@ enum TokenType {
     TOKEN_FROM,
     TOKEN_CREATE,
     TOKEN_TABLE,
-    TOKEN_COUNT,                            // the token 'COUNT' not the number of token types
+    TOKEN_COUNT,                            // the token 'COUNT', not the number of token types
+    TOKEN_WHERE,
     
     TOKEN_IDENTIFIER,                       // table or column name
     TOKEN_STRING,                           // 'text' without the quotes
@@ -23,6 +24,7 @@ enum TokenType {
     TOKEN_RPAREN,                           // )
     TOKEN_COMMA,                            // ,
     TOKEN_STAR,                             // *
+    TOKEN_EQUALS,                           // =
 
     TOKEN_TYPE_COUNT,                       // number of token types
 

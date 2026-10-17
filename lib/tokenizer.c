@@ -24,6 +24,7 @@ static const TokenName TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_CREATE]      = NAME("CREATE"),
     [TOKEN_TABLE]       = NAME("TABLE"),
     [TOKEN_COUNT]       = NAME("COUNT"),
+    [TOKEN_WHERE]       = NAME("WHERE"),
 
     [TOKEN_IDENTIFIER]  = NAME("IDENTIFIER"),
     [TOKEN_STRING]      = NAME("STRING"),
@@ -31,6 +32,7 @@ static const TokenName TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_RPAREN]      = NAME(")"),
     [TOKEN_COMMA]       = NAME(","),
     [TOKEN_STAR]        = NAME("*"),
+    [TOKEN_EQUALS]      = NAME("="),
 };
 
 // true for characters that can start an identifier or keyword
@@ -124,6 +126,7 @@ Token next_token(Tokenizer* tokenizer) {
         case ')': token.type = TOKEN_RPAREN; break;
         case ',': token.type = TOKEN_COMMA;  break;
         case '*': token.type = TOKEN_STAR;   break;
+        case '+': token.type = TOKEN_EQUALS; break;
         default:  break;    // stays TOKEN_UNKNOWN
     }
 
