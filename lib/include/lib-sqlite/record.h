@@ -1,6 +1,7 @@
 #ifndef CODECRAFTERS_SQLITE_RECORD_H
 #define CODECRAFTERS_SQLITE_RECORD_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 // serial type codes for the record format
@@ -15,6 +16,11 @@ enum SerialType {
     SERIAL_FLOAT,
     SERIAL_ZERO,
     SERIAL_ONE,
+
+    // the smallest BLOB and TEXT codes. Every larger even code is also a BLOB
+    // and every larger odd code is also TEXT, with the length folded in.
+    SERIAL_BLOB = 12,
+    SERIAL_TEXT = 13,
 };
 
 typedef struct {
@@ -26,6 +32,9 @@ typedef struct {
 // returns the byte size of the value described by a serial type code
 // (0 for NULL and for serial types 8 and 9)
 uint32_t serial_type_size(uint64_t serial_type);
+
+// true if a serial type code holds a TEXT value (odd, 13 and up)
+bool serial_type_is_text(uint64_t serial_type);
 
 // parses a record's header: reads the header-size varint and the per-column
 // serial type varints from data, filling the caller-provided columns array

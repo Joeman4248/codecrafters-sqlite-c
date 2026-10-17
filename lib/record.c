@@ -18,11 +18,15 @@ uint32_t serial_type_size(uint64_t serial_type) {
         default:
             // even serial types >= 12: BLOB of (serial_type - 12) / 2 bytes in length
             // odd serial types >= 13: string of (serial_type - 13) / 2 bytes in length
-            if (serial_type % 2 == 0)
-                return (uint32_t) ((serial_type - 12) / 2);
+            if (serial_type_is_text(serial_type))
+                return (uint32_t) ((serial_type - SERIAL_TEXT) / 2);
             else
-                return (uint32_t) ((serial_type - 13) / 2);
+                return (uint32_t) ((serial_type - SERIAL_BLOB) / 2);
     }
+}
+
+bool serial_type_is_text(const uint64_t serial_type) {
+    return serial_type >= SERIAL_TEXT && serial_type % 2 == 1;
 }
 
 int parse_record(const uint8_t* data, uint32_t size,
@@ -128,8 +132,7 @@ int record_get_text(const uint8_t* data, const uint32_t size,
     if (index >= column_count) return 1;
 
     const RecordColumn* col = &columns[index];
-    // text values use odd serial types 13 and up
-    if (col->serial_type < 13 || col->serial_type % 2 == 0) return 1;
+    if (!serial_type_is_text(col->serial_type))             return 1;
     if (col->value_offset + col->value_size > size)         return 1;
     if (col->value_size >= out_capacity)                    return 1;
 

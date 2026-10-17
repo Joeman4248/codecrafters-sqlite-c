@@ -66,18 +66,18 @@ int read_leaf_table_cell(const uint8_t* page, const uint32_t usable_size,
     // 100-byte database header only shifts the b-tree page header, not cell-offset
     uint32_t offset = cell_offset;
 
-    uint64_t raw;
-    if (decode_varint(page, usable_size, &offset, &raw)) {
+    uint64_t varint;
+    if (decode_varint(page, usable_size, &offset, &varint)) {
         return 1;
     }
-    *payload_size = (uint32_t) raw;
+    *payload_size = (uint32_t) varint;
 
-    if (decode_varint(page, usable_size, &offset, &raw)) {
+    if (decode_varint(page, usable_size, &offset, &varint)) {
         return 1;
     }
     // the varint holds the rowid's two's-complement bits; memcpy copies them
     // without an implementation-defined unsigned-to-signed conversion
-    memcpy(rowid, &raw, sizeof(*rowid));
+    memcpy(rowid, &varint, sizeof(*rowid));
 
     // max payload that can be stored inline on a table b-tree leaf page is
     // U - 35, where U is the usable page size. The schema records are far

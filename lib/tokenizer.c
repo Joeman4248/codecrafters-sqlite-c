@@ -16,6 +16,9 @@ typedef struct {
 // token type names, indexed by their TokenType value. The first
 // TOKEN_KEYWORD_COUNT entries double as the keyword spellings.
 static const TokenName TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
+    [TOKEN_EOF]         = NAME("EOF"),
+    [TOKEN_UNKNOWN]     = NAME("UNKNOWN"),
+
     [TOKEN_SELECT]      = NAME("SELECT"),
     [TOKEN_FROM]        = NAME("FROM"),
     [TOKEN_CREATE]      = NAME("CREATE"),
@@ -28,8 +31,6 @@ static const TokenName TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_RPAREN]      = NAME(")"),
     [TOKEN_COMMA]       = NAME(","),
     [TOKEN_STAR]        = NAME("*"),
-    [TOKEN_EOF]         = NAME("EOF"),
-    [TOKEN_UNKNOWN]     = NAME("UNKNOWN"),
 };
 
 // true for characters that can start an identifier or keyword
@@ -123,7 +124,6 @@ Token next_token(Tokenizer* tokenizer) {
         case ')': token.type = TOKEN_RPAREN; break;
         case ',': token.type = TOKEN_COMMA;  break;
         case '*': token.type = TOKEN_STAR;   break;
-
         default:  break;    // stays TOKEN_UNKNOWN
     }
 

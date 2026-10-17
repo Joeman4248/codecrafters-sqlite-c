@@ -26,10 +26,12 @@ static bool check(const Parser* parser, const enum TokenType type) {
     return parser->current.type == type;
 }
 
-// if the current token has the given type, consumes it and returns true;
+// if the current token has the given type, consumes it and returns true,
+// storing it in *out when out is not NULL;
 // otherwise leaves it in place and returns false
-static bool match(Parser* parser, const enum TokenType type) {
+static bool match(Parser* parser, const enum TokenType type, Token* out) {
     if (check(parser, type)) {
+        if (out != NULL) *out = parser->current;
         advance(parser);
         return true;
     }
@@ -40,12 +42,10 @@ static bool match(Parser* parser, const enum TokenType type) {
 // when out is not NULL. Otherwise prints which token was expected and which
 // was found, and returns nonzero.
 static int expect(Parser* parser, const enum TokenType type, Token* out) {
-    Token token = parser->current;
-    if (match(parser, type)) {
-        if (out != NULL) *out = token;
+    if (match(parser, type, out)) {
         return 0;
     }
-    fprintf(stderr, "expected %s, got %s\n", token_type_name(type), token_type_name(token.type));
+    fprintf(stderr, "expected %s, got %s\n", token_type_name(type), token_type_name(parser->current.type));
     return 1;
 }
 
@@ -59,17 +59,13 @@ static bool token_is(const Token token, const char* word) {
 // consumes a column name or * and stores it in *out. Otherwise prints what was
 // found instead and returns nonzero.
 static int parse_name_or_star(Parser* parser, Token* out) {
-    switch (parser->current.type) {
-        case TOKEN_IDENTIFIER:
-        case TOKEN_STAR:
-            *out = parser->current;
-            advance(parser);
-            return 0;
-        default:
-            fprintf(stderr, "expected a column name or *, got %s\n",
-                    token_type_name(parser->current.type));
-            return 1;
+    if (match(parser, TOKEN_IDENTIFIER, out) ||
+        match(parser, TOKEN_STAR, out)) {
+        return 0;
     }
+    fprintf(stderr, "expected a column name or *, got %s\n",
+            token_type_name(parser->current.type));
+    return 1;
 }
 
 // parses everything from SELECT onwards into *query; see parse_statement for
@@ -80,19 +76,19 @@ static int parse_select_into(Parser* parser, SelectQuery* query) {
     // SELECT
     if (expect(parser, TOKEN_SELECT, NULL)) return 1;
 
-    // name or *
-    if (parse_name_or_star(parser, &query->name)) {
-        return 1;
-    }
     // COUNT(name), COUNT(*)
-    else if (match(parser, TOKEN_COUNT)) {
+    if (match(parser, TOKEN_COUNT, NULL)) {
         query->is_count = true;
         if (expect(parser, TOKEN_LPAREN, NULL) ||
             parse_name_or_star(parser, &query->name) ||
             expect(parser, TOKEN_RPAREN, NULL)) {
             return 1;
         }
-    } 
+    }
+    // name or *
+    else if (parse_name_or_star(parser, &query->name)) {
+        return 1;
+    }
 
     // FROM table
     if (expect(parser, TOKEN_FROM, NULL) ||
@@ -100,7 +96,7 @@ static int parse_select_into(Parser* parser, SelectQuery* query) {
         return 1;
     }
 
-    if (!match(parser, TOKEN_EOF)) {
+    if (!match(parser, TOKEN_EOF, NULL)) {
         fprintf(stderr, "Unsupported query: nothing after the table name is supported yet: %s\n",
                 parser->current.start);
         return 1;
@@ -121,9 +117,9 @@ static int parse_column_definition(Parser* parser, TableColumns* columns) {
     // the type comes straight after the name. Only a type of exactly INTEGER
     // makes a primary key the rowid alias; INT or BIGINT do not.
     const bool is_integer = token_is(parser->current, "integer");
-    Token previous = { .type = TOKEN_EOF };
+    Token previous = { 0 };
 
-    while (!match(parser, TOKEN_EOF)) {
+    while (!match(parser, TOKEN_EOF, NULL)) {
         switch (parser->current.type) {
             case TOKEN_COMMA: {
                 if (paren_depth == 0)
@@ -137,8 +133,7 @@ static int parse_column_definition(Parser* parser, TableColumns* columns) {
                 paren_depth--; break;
             }
             case TOKEN_IDENTIFIER: {
-                // a PRIMARY KEY inside parentheses belongs to something else,
-                // such as a CHECK expression
+                // a PRIMARY KEY inside parentheses belongs to something else
                 if (paren_depth == 0 && is_integer &&
                     token_is(previous, "primary") && token_is(parser->current, "key")) {
                     columns->rowid_column = (int32_t) columns->count - 1;
@@ -191,7 +186,7 @@ static int parse_table_columns_into(Parser* parser, TableColumns* columns) {
         }
 
         // comma means another column follows
-        if (!match(parser, TOKEN_COMMA)) break;
+        if (!match(parser, TOKEN_COMMA, NULL)) break;
     }
     
     return expect(parser, TOKEN_RPAREN, NULL);  // parses: )
