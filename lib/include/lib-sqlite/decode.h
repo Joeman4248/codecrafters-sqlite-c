@@ -43,6 +43,10 @@ int read_u64(Reader* reader, uint64_t* value);
 // ninth byte (which never has the high bit set), big-endian.
 int read_varint(Reader* reader, uint64_t* value);
 
+// reads a varint that must fit in 32 bits, such as a size. A larger value
+// fails the same way as running out of bytes.
+int read_varint32(Reader* reader, uint32_t* value);
+
 // points *out at the next len bytes and moves past them
 int reader_take(Reader* reader, uint32_t len, ByteView* out);
 

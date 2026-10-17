@@ -103,6 +103,18 @@ int read_varint(Reader* reader, uint64_t* value) {
     return 0;
 }
 
+// the same encoding as read_varint; only the range of the result is narrower
+int read_varint32(Reader* reader, uint32_t* value) {
+    uint64_t wide;
+    if (read_varint(reader, &wide) || wide > UINT32_MAX) {
+        reader->failed = true;
+        *value = 0;
+        return 1;
+    }
+    *value = (uint32_t) wide;
+    return 0;
+}
+
 int reader_take(Reader* reader, const uint32_t len, ByteView* out) {
     if (reader->failed || bv_slice(reader->bytes, reader->pos, len, out)) {
         reader->failed = true;

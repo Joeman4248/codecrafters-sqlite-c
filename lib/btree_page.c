@@ -63,8 +63,11 @@ int read_leaf_table_cell(const ByteView usable, const uint16_t cell_offset,
     // 100-byte database header only shifts the b-tree page header, not cell-offset
     Reader reader = reader_at(usable, cell_offset);
 
-    uint64_t payload_size, raw_rowid;
-    if (read_varint(&reader, &payload_size) ||
+    // SQLite caps a value's length at 2^31 - 1 bytes, so a payload size always
+    // fits in 32 bits
+    uint32_t payload_size;
+    uint64_t raw_rowid;
+    if (read_varint32(&reader, &payload_size) ||
         read_varint(&reader, &raw_rowid)) {
         return 1;
     }
@@ -78,5 +81,5 @@ int read_leaf_table_cell(const ByteView usable, const uint16_t cell_offset,
     // incorrectly. Usable sizes are at least 480, so this can't wrap.
     if (payload_size > usable.len - 35) return 1;
 
-    return reader_take(&reader, (uint32_t) payload_size, payload);
+    return reader_take(&reader, payload_size, payload);
 }

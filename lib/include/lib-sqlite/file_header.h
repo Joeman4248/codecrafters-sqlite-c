@@ -4,6 +4,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
+// size of the header on disk, at the start of page 1. Not sizeof(FileHeader):
+// that struct is the decoded form, with wider fields, padding, no reserved
+// bytes and the extra usable_size.
+#define FILE_HEADER_SZ 100
+
 #define HEADER_STR_SZ 16
 #define VALID_HEADER_STR "SQLite format 3"
 #define FILE_HEADER_RESV_SZ 20          // header bytes reserved for expansion (offset 72)

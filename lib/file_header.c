@@ -88,7 +88,7 @@ int read_file_header(FILE* file, FileHeader* header) {
         return 1;
     }
     
-    uint8_t buf[sizeof(FileHeader)];
+    uint8_t buf[FILE_HEADER_SZ];
     if (fread(buf, 1, sizeof(buf), file) != sizeof(buf)) {
         // fprintf(stderr, "Error reading file header");
         return 1;
