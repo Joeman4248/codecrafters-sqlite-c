@@ -12,7 +12,8 @@
 // what's needed to read and filter the rows of a table
 typedef struct {
     const TableColumns* columns;
-    int32_t             where_column;   // index of the WHERE column, or -1 when there is no WHERE
+    bool                has_where;
+    uint32_t            where_column;   // index of the WHERE column, when has_where
     Token               where_value;    // the text it must equal
     RecordColumn*       storage;        // room for columns->names.count entries, reused for every row
 } TableScan;
@@ -54,18 +55,16 @@ static bool is_null(const TableScan* scan, const Row* row, const uint32_t index)
 static int row_matches(const TableScan* scan, const Row* row, bool* matches) {
     *matches = false;
 
-    if (scan->where_column < 0) {
+    if (!scan->has_where) {
         *matches = true;
         return 0;
     }
 
-    const uint32_t index = (uint32_t) scan->where_column;
-
     // NULL never equals anything, and only text is compared so far
-    if (!record_is_text(&row->record, index)) return 0;
+    if (!record_is_text(&row->record, scan->where_column)) return 0;
 
     StringView text;
-    if (record_text_view(&row->record, index, &text)) return 1;
+    if (record_text_view(&row->record, scan->where_column, &text)) return 1;
     *matches = sv_equal(text, scan->where_value.text);
     return 0;
 }
@@ -171,16 +170,14 @@ static int select_columns(const SelectQuery* query, const TableColumns* columns,
     return 0;
 }
 
-// sets *index to the index of the query's WHERE column, or -1 when there is no WHERE
-static int where_column(const SelectQuery* query, const TableColumns* columns, int32_t* index) {
-    *index = -1;
-    if (!query->has_where) return 0;
-
-    *index = find_column(columns, query->where.column);
-    if (*index < 0) {
+// sets *index to the index of the query's WHERE column
+static int where_column(const SelectQuery* query, const TableColumns* columns, uint32_t* index) {
+    const int32_t found = find_column(columns, query->where.column);
+    if (found < 0) {
         fprintf(stderr, "no such column: " SV_FMT "\n", SV_ARG(query->where.column.text));
         return 1;
     }
+    *index = (uint32_t) found;
     return 0;
 }
 
@@ -195,14 +192,15 @@ static int select_rows(const Database* db, const SelectQuery* query, const Schem
     int result = (selected == NULL || storage == NULL) ? 1 : 0;
 
     uint32_t selected_count = 0;
-    int32_t where_index = -1;
+    uint32_t where_index = 0;
     if (result == 0) result = select_columns(query, columns, selected, &selected_count);
-    if (result == 0) result = where_column(query, columns, &where_index);
+    if (result == 0 && query->has_where) result = where_column(query, columns, &where_index);
     if (result == 0) result = cursor_open(&cursor, db, table->rootpage);
 
     if (result == 0) {
         const TableScan scan = {
             .columns = columns,
+            .has_where = query->has_where,
             .where_column = where_index,
             .where_value = query->where.value,
             .storage = storage,
