@@ -7,8 +7,9 @@
 #include <string.h>
 #include <strings.h>
 
-// characters that are neither copied nor null-terminated: data points into a
-// longer string, such as the SQL text or a page, which must outlive the view
+// characters that are not copied: data points into a longer string, such as
+// the SQL text or a page, which must outlive the view. The end is given by
+// len, so a view is not necessarily null-terminated.
 typedef struct {
     const char* data;
     uint32_t    len;

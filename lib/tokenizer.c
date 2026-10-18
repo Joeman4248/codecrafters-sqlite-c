@@ -120,6 +120,8 @@ Token next_token(Tokenizer* tokenizer) {
     return token;
 }
 
+// safe to hand out as a C string: every TOKEN_NAMES entry is an SV_LIT of a
+// string literal, which is null-terminated
 const char* token_type_name(const enum TokenType type) {
     return TOKEN_NAMES[type].data;
 }
