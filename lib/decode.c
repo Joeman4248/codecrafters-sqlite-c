@@ -74,10 +74,10 @@ int read_u64(Reader* reader, uint64_t* value) {
 // rowid) convert the result themselves.
 int read_varint(Reader* reader, uint64_t* value) {
     uint64_t result = 0;
+    uint8_t byte;
 
     // the first 1-8 bytes
     for (uint8_t i = 1; i <= 8; i++) {
-        uint8_t byte;
         if (read_u8(reader, &byte)) {
             *value = 0;
             return 1;
@@ -94,12 +94,11 @@ int read_varint(Reader* reader, uint64_t* value) {
     }
 
     // the entire 9th byte
-    uint8_t last_byte;
-    if (read_u8(reader, &last_byte)) {
+    if (read_u8(reader, &byte)) {
         *value = 0;
         return 1;
     }
-    *value = (result << 8) | last_byte;
+    *value = (result << 8) | byte;
     return 0;
 }
 

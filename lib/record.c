@@ -126,9 +126,8 @@ int record_get_int(const ByteView payload,
             return 0;
         }
 
-        default:
-            // NULL, float, text, or blob
-            return 1;
+        // NULL, float, text, or blob
+        default: return 1;
     }
 }
 
