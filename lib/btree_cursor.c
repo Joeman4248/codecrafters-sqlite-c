@@ -54,8 +54,7 @@ static int push_page(TableCursor* cursor, const uint32_t page_number) {
 
 // frees the top frame's page and removes it from the stack
 static void pop_page(TableCursor* cursor) {
-    cursor->depth--;
-    free(cursor->frames[cursor->depth].buf);
+    free(cursor->frames[--cursor->depth].buf);
     cursor->frames[cursor->depth].buf = NULL;
 }
 
