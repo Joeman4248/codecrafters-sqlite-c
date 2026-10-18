@@ -6,8 +6,6 @@
 
 #include "view.h"
 
-#define VARINT_MAX_SZ 9               // a varint can be up to 9 bytes long
-
 // reads values one after another from a run of bytes
 typedef struct {
     ByteView bytes;

@@ -114,13 +114,13 @@ static int parse_schema_page(Database* db, const ByteView page) {
 }
 
 int read_schema(Database* db) {
-    // pages can be up to 64 KiB, so keep the buffer off the stack
-    uint8_t* page = malloc(db->file_header.page_size);
+    const uint32_t page_size = db->file_header.page_size;
+    uint8_t* page = malloc(page_size);
     if (page == NULL) return 1;
 
     int result = read_page(db, SCHEMA_ROOT_PAGE, page);
     if (result == 0) {
-        result = parse_schema_page(db, (ByteView) { page, db->file_header.page_size });
+        result = parse_schema_page(db, (ByteView) { page, page_size });
     }
 
     free(page);

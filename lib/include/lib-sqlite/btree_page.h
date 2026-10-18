@@ -41,6 +41,16 @@ int read_btree_header(ByteView page, uint32_t page_number, PageHeader* header);
 int read_cell_pointers(ByteView page, uint32_t page_number,
         const PageHeader* header, uint16_t* cell_offsets);
 
+// decodes entry index of the cell pointer array into *cell_offset, without
+// reading the rest of the array
+int read_cell_pointer(ByteView page, uint32_t page_number,
+        const PageHeader* header, uint16_t index, uint16_t* cell_offset);
+
+// decodes a table b-tree interior cell: left_child is the page holding every
+// rowid up to and including key
+int read_interior_table_cell(ByteView page, uint16_t cell_offset,
+        uint32_t* left_child, int64_t* key);
+
 // decodes a table b-tree leaf cell. usable is the page cut to its usable size
 // (see bv_prefix), since cells never extend into the reserved bytes at the
 // end. payload is set to view the payload inside the page (no copy), and

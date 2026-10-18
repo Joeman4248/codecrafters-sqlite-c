@@ -34,8 +34,10 @@ int parse_record(const ByteView payload,
     Reader reader = reader_at(payload, 0);
 
     uint32_t header_size = 0;
-    if (read_varint32(&reader, &header_size)) return 1;
-    if (header_size < reader.pos || header_size > payload.len) return 1;
+    if (read_varint32(&reader, &header_size) ||
+        header_size < reader.pos || header_size > payload.len) {
+        return 1;
+    }
 
     // the serial types are read from the header only, so a malformed one
     // can't run on into the values

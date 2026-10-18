@@ -21,6 +21,9 @@ int read_btree_header(const ByteView page, const uint32_t page_number, PageHeade
     // checked before the switch, which decides from page_type what to read next
     if (reader.failed) return 1;
 
+    // so cell_count + 1 still fits in 16 bits
+    if (header->cell_count == UINT16_MAX) return 1;
+
     switch (header->page_type) {
         case PAGE_TYPE_INTERIOR_INDEX:
         case PAGE_TYPE_INTERIOR_TABLE:
@@ -47,30 +50,48 @@ int read_cell_pointers(const ByteView page, const uint32_t page_number,
     // the cell pointer array immediately follows the b-tree page header,
     // not the end of the page
     Reader reader = reader_at(page, page_header_start(page_number) + header->header_size);
-
     for (uint32_t i = 0; i < header->cell_count; i++) {
-        if (read_u16(&reader, &cell_offsets[i])) {
-            return 1;
-        }
+        if (read_u16(&reader, &cell_offsets[i])) return 1;
     }
+    return 0;
+}
 
+int read_cell_pointer(const ByteView page, const uint32_t page_number,
+        const PageHeader* header, const uint16_t index, uint16_t* cell_offset) {
+    if (index >= header->cell_count) return 1;
+    Reader reader = reader_at(page, page_header_start(page_number) + 
+                                    header->header_size + (index * 2u));
+    if (read_u16(&reader, cell_offset)) return 1;
+    return 0;
+}
+
+int read_interior_table_cell(const ByteView page, const uint16_t cell_offset,
+        uint32_t* left_child, int64_t* key) {
+    Reader reader = reader_at(page, cell_offset);
+
+    uint64_t raw_key;
+    read_u32(&reader, left_child);
+    read_varint(&reader, &raw_key);
+    if (reader.failed) return 1;
+
+    // the varint holds the rowid's two's-complement bits; memcpy copies them
+    // without an implementation-defined unsigned-to-signed conversion
+    memcpy(key, &raw_key, sizeof(*key));
     return 0;
 }
 
 int read_leaf_table_cell(const ByteView usable, const uint16_t cell_offset,
         ByteView* payload, int64_t* rowid) {
-    // cell offsets are relative to the start of the physical page; page 1's
-    // 100-byte database header only shifts the b-tree page header, not cell-offset
     Reader reader = reader_at(usable, cell_offset);
 
     // SQLite caps a value's length at 2^31 - 1 bytes, so a payload size always
     // fits in 32 bits
     uint32_t payload_size;
     uint64_t raw_rowid;
-    if (read_varint32(&reader, &payload_size) ||
-        read_varint(&reader, &raw_rowid)) {
-        return 1;
-    }
+    read_varint32(&reader, &payload_size);
+    read_varint(&reader, &raw_rowid);
+    if (reader.failed) return 1;
+
     // the varint holds the rowid's two's-complement bits; memcpy copies them
     // without an implementation-defined unsigned-to-signed conversion
     memcpy(rowid, &raw_rowid, sizeof(*rowid));
