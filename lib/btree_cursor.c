@@ -42,7 +42,7 @@ static int push_page(TableCursor* cursor, const uint32_t page_number) {
     frame->next_entry = 0;
 
     // the buffer is freed here on any failure, so the stack is left as it was
-    if (load_frame(cursor, frame, page_number) != 0) {
+    if (load_frame(cursor, frame, page_number)) {
         free(frame->buf);
         frame->buf = NULL;
         return 1;

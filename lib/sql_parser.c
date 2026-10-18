@@ -146,7 +146,7 @@ static int parse_select_into(Parser* parser, SelectQuery* query) {
 static int parse_select(Parser* parser, SelectQuery* query) {
     *query = (SelectQuery) { 0 };
 
-    if (parse_select_into(parser, query) != 0) {
+    if (parse_select_into(parser, query)) {
         free_token_list(&query->names);
         return 1;
     }
@@ -227,7 +227,7 @@ static int parse_create_table(Parser* parser, TableColumns* columns) {
     // zero would mean column 0 is the rowid alias, so start from -1
     *columns = (TableColumns) { .rowid_column = -1 };
 
-    if (parse_table_columns_into(parser, columns) != 0) {
+    if (parse_table_columns_into(parser, columns)) {
         free_token_list(&columns->names);
         return 1;
     }

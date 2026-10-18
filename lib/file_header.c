@@ -83,7 +83,7 @@ static int validate_file_header(const FileHeader* header) {
 }
 
 int read_file_header(FILE* file, FileHeader* header) {
-    if (fseek(file, 0, SEEK_SET) != 0) {
+    if (fseek(file, 0, SEEK_SET)) {
         // fprintf(stderr, "Error seeking to beginning of file");
         return 1;
     }

@@ -23,13 +23,11 @@ static enum SchemaType schema_type_from_text(const StringView text) {
 // copies a text column into a new heap string in *out, since schema entries
 // outlive the page they're read from. Leaves *out NULL for a NULL column (sql
 // is NULL for automatic indexes).
-static int alloc_column_text(const ByteView payload,
-        const RecordColumn* columns, uint32_t column_count,
-        const uint32_t index, char** out) {
-    if (columns[index].serial_type == SERIAL_NULL) return 0;
+static int alloc_column_text(const Record* record, const uint32_t index, char** out) {
+    if (record_is_null(record, index)) return 0;
 
     StringView text;
-    if (record_text_view(payload, columns, column_count, index, &text)) return 1;
+    if (record_text_view(record, index, &text)) return 1;
 
     *out = sv_to_cstr(text);
     return *out == NULL;
@@ -38,7 +36,7 @@ static int alloc_column_text(const ByteView payload,
 // fills db->schema from the in-memory schema root page
 static int parse_schema_page(Database* db, const ByteView page) {
     PageHeader schema_page;
-    if (read_btree_header(page, SCHEMA_ROOT_PAGE, &schema_page) != 0) {
+    if (read_btree_header(page, SCHEMA_ROOT_PAGE, &schema_page)) {
         return 1;
     }
 
@@ -54,7 +52,7 @@ static int parse_schema_page(Database* db, const ByteView page) {
     if (schema_count == 0) return 0;
 
     uint16_t cell_offsets[schema_count];
-    if (read_cell_pointers(page, SCHEMA_ROOT_PAGE, &schema_page, cell_offsets) != 0) {
+    if (read_cell_pointers(page, SCHEMA_ROOT_PAGE, &schema_page, cell_offsets)) {
         return 1;
     }
 
@@ -67,14 +65,14 @@ static int parse_schema_page(Database* db, const ByteView page) {
     int64_t rowid = 0;
 
     for (uint32_t i = 0; i < schema_count; i++) {
-        if (read_leaf_table_cell(usable, cell_offsets[i], &payload, &rowid) != 0) {
+        if (read_leaf_table_cell(usable, cell_offsets[i], &payload, &rowid)) {
             return 1;
         }
 
         RecordColumn columns[SCHEMA_COL_COUNT];
-        uint32_t column_count = 0;
-        if (parse_record(payload, columns, SCHEMA_COL_COUNT, &column_count) != 0 ||
-            column_count != SCHEMA_COL_COUNT) {
+        Record record;
+        if (parse_record(payload, columns, SCHEMA_COL_COUNT, &record) ||
+            record.count != SCHEMA_COL_COUNT) {
             return 1;
         }
 
@@ -84,28 +82,23 @@ static int parse_schema_page(Database* db, const ByteView page) {
         // compared where it sits in the page. A type that isn't text stays
         // empty, and so unknown, rather than failing the whole schema.
         StringView type = { 0 };
-        if (serial_type_is_text(columns[SCHEMA_COL_TYPE].serial_type) &&
-            record_text_view(payload,
-                columns, column_count, SCHEMA_COL_TYPE, &type) != 0) {
+        if (record_is_text(&record, SCHEMA_COL_TYPE) &&
+            record_text_view(&record, SCHEMA_COL_TYPE, &type)) {
             return 1;
         }
         entry->type = schema_type_from_text(type);
-        
+
         // page numbers are positive and fit in 32 bits; views and triggers use 0
         int64_t rootpage = 0;
-        if (record_get_int(payload,
-                columns, SCHEMA_COL_COUNT, SCHEMA_COL_ROOTPAGE, &rootpage) != 0 ||
+        if (record_get_int(&record, SCHEMA_COL_ROOTPAGE, &rootpage) ||
             rootpage < 0 || rootpage > UINT32_MAX) {
             return 1;
         }
         entry->rootpage = (uint32_t) rootpage;
-        
-        if (alloc_column_text(payload,
-                columns, SCHEMA_COL_COUNT, SCHEMA_COL_NAME, &entry->name) ||
-            alloc_column_text(payload,
-                columns, SCHEMA_COL_COUNT, SCHEMA_COL_TBL_NAME, &entry->tbl_name) ||
-            alloc_column_text(payload,
-                columns, SCHEMA_COL_COUNT, SCHEMA_COL_SQL, &entry->sql)) {
+
+        if (alloc_column_text(&record, SCHEMA_COL_NAME, &entry->name) ||
+            alloc_column_text(&record, SCHEMA_COL_TBL_NAME, &entry->tbl_name) ||
+            alloc_column_text(&record, SCHEMA_COL_SQL, &entry->sql)) {
             return 1;
         }
     }

@@ -29,8 +29,8 @@ bool serial_type_is_text(const uint64_t serial_type) {
     return serial_type >= SERIAL_TEXT && serial_type % 2 == 1;
 }
 
-int parse_record(const ByteView payload,
-        RecordColumn* columns, uint32_t max_columns, uint32_t* column_count) {
+int parse_record(const ByteView payload, RecordColumn* storage, const uint32_t max_columns,
+        Record* out) {
     Reader reader = reader_at(payload, 0);
 
     uint32_t header_size = 0;
@@ -53,9 +53,9 @@ int parse_record(const ByteView payload,
         if (read_varint(&reader, &serial_type)) return 1;
 
         const uint32_t value_size = serial_type_size(serial_type);
-        columns[count].serial_type = serial_type;
-        columns[count].value_size = value_size;
-        columns[count].value_offset = header_size + body_size;
+        storage[count].serial_type = serial_type;
+        storage[count].value_size = value_size;
+        storage[count].value_offset = header_size + body_size;
 
         body_size += value_size;
         count++;
@@ -63,8 +63,16 @@ int parse_record(const ByteView payload,
 
     if (body_size > payload.len || header_size > payload.len - body_size) return 1;
 
-    *column_count = count;
+    *out = (Record) { payload, storage, count };
     return 0;
+}
+
+bool record_is_null(const Record* record, const uint32_t index) {
+    return index >= record->count || record->columns[index].serial_type == SERIAL_NULL;
+}
+
+bool record_is_text(const Record* record, const uint32_t index) {
+    return index < record->count && serial_type_is_text(record->columns[index].serial_type);
 }
 
 // interprets the low 'bits' bits of raw as a two's-complement value. XOR-ing
@@ -75,13 +83,11 @@ static int64_t sign_extend(const uint64_t raw, const unsigned bits) {
     return ((int64_t) raw ^ sign_bit) - sign_bit;
 }
 
-int record_get_int(const ByteView payload,
-        const RecordColumn* columns, const uint32_t column_count,
-        const uint32_t index, int64_t* value) {
-    if (index >= column_count) return 1;
+int record_get_int(const Record* record, const uint32_t index, int64_t* value) {
+    if (index >= record->count) return 1;
 
-    const RecordColumn* col = &columns[index];
-    Reader reader = reader_at(payload, col->value_offset);
+    const RecordColumn* col = &record->columns[index];
+    Reader reader = reader_at(record->payload, col->value_offset);
 
     switch (col->serial_type) {
         case SERIAL_ZERO: *value = 0; return 0;
@@ -131,16 +137,12 @@ int record_get_int(const ByteView payload,
     }
 }
 
-int record_text_view(const ByteView payload,
-        const RecordColumn* columns, const uint32_t column_count,
-        const uint32_t index, StringView* out) {
-    if (index >= column_count) return 1;
+int record_text_view(const Record* record, const uint32_t index, StringView* out) {
+    if (!record_is_text(record, index)) return 1;
 
-    const RecordColumn* col = &columns[index];
-    if (!serial_type_is_text(col->serial_type)) return 1;
-
+    const RecordColumn* col = &record->columns[index];
     ByteView bytes;
-    if (bv_slice(payload, col->value_offset, col->value_size, &bytes)) return 1;
+    if (bv_slice(record->payload, col->value_offset, col->value_size, &bytes)) return 1;
 
     *out = bv_as_text(bytes);
     return 0;
