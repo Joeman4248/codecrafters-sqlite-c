@@ -16,8 +16,9 @@ static const StringView TYPE_NAMES[SCHEMA_TYPE_COUNT] = {
 
 // maps a sqlite_schema type string to its enum value
 static enum SchemaType schema_type_from_text(const StringView text) {
-    const int32_t i = sv_find(TYPE_NAMES, SCHEMA_TYPE_COUNT, text);
-    return (i < 0) ? SCHEMA_TYPE_UNKNOWN : (enum SchemaType) i;
+    uint32_t i;
+    if (!sv_find(TYPE_NAMES, SCHEMA_TYPE_COUNT, text, &i)) return SCHEMA_TYPE_UNKNOWN;
+    return (enum SchemaType) i;
 }
 
 // copies a text column into a new heap string in *out, since schema entries

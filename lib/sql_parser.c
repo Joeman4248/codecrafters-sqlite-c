@@ -184,7 +184,8 @@ static int parse_column_definition(Parser* parser, TableColumns* columns) {
                 // a PRIMARY KEY inside parentheses belongs to something else
                 if (is_integer && paren_depth == 0 && 
                     token_is(previous, "primary") && token_is(parser->current, "key")) {
-                    columns->rowid_column = (int32_t) columns->names.count - 1;
+                    columns->has_rowid_alias = true;
+                    columns->rowid_column = columns->names.count - 1;
                 }
                 break;
             }
@@ -224,8 +225,7 @@ static int parse_table_columns_into(Parser* parser, TableColumns* columns) {
 // initialises *columns, then parses into it, freeing it again on failure so
 // the caller is left with nothing to free
 static int parse_create_table(Parser* parser, TableColumns* columns) {
-    // zero would mean column 0 is the rowid alias, so start from -1
-    *columns = (TableColumns) { .rowid_column = -1 };
+    *columns = (TableColumns) { 0 };
 
     if (parse_table_columns_into(parser, columns)) {
         free_token_list(&columns->names);
@@ -234,13 +234,16 @@ static int parse_create_table(Parser* parser, TableColumns* columns) {
     return 0;
 }
 
-int32_t find_column(const TableColumns* columns, const Token name) {
+bool find_column(const TableColumns* columns, const Token name, uint32_t* index) {
     // an empty name, such as the zeroed token of a missing WHERE, matches no
     // column: every column name has at least one character
     for (uint32_t i = 0; i < columns->names.count; i++) {
-        if (sv_equal_nocase(columns->names.items[i].text, name.text)) return (int32_t) i;
+        if (sv_equal_nocase(columns->names.items[i].text, name.text)) {
+            *index = i;
+            return true;
+        }
     }
-    return -1;
+    return false;
 }
 
 // the first token is only looked at, not consumed: each statement's parser

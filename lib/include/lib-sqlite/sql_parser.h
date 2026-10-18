@@ -18,8 +18,9 @@ typedef struct {
 // must outlive the TableColumns.
 typedef struct {
     Token     table;
-    TokenList names;        // in declaration order
-    int32_t   rowid_column; // index of the INTEGER PRIMARY KEY column, or -1
+    TokenList names;            // in declaration order
+    bool      has_rowid_alias;  // whether a column is the INTEGER PRIMARY KEY
+    uint32_t  rowid_column;     // its index, when has_rowid_alias
 } TableColumns;
 
 // a WHERE condition of the form column = 'text'
@@ -40,9 +41,10 @@ typedef struct {
     Condition where;        // only valid when has_where is true
 } SelectQuery;
 
-// returns the position of the column whose name matches the text of name
-// (compared ignoring case), or -1 if there is none
-int32_t find_column(const TableColumns* columns, Token name);
+// sets *index to the position of the column whose name matches the text of
+// name (compared ignoring case). Returns false, leaving *index alone, if there
+// is none.
+bool find_column(const TableColumns* columns, Token name, uint32_t* index);
 
 // which kind of statement a Statement holds
 enum StatementType {

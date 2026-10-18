@@ -45,8 +45,11 @@ static void skip_whitespace(Tokenizer* tokenizer) {
 // returns the keyword type for word, compared ignoring case against the
 // keyword entries of TOKEN_NAMES, or TOKEN_IDENTIFIER if it is not a keyword
 static enum TokenType lookup_keyword(const StringView word) {
-    const int32_t i = sv_find_nocase(&TOKEN_NAMES[TOKEN_KEYWORD_START], TOKEN_KEYWORD_COUNT, word);
-    return (i < 0) ? TOKEN_IDENTIFIER : (enum TokenType) (TOKEN_KEYWORD_START + i);
+    uint32_t i;
+    if (!sv_find_nocase(&TOKEN_NAMES[TOKEN_KEYWORD_START], TOKEN_KEYWORD_COUNT, word, &i)) {
+        return TOKEN_IDENTIFIER;
+    }
+    return (enum TokenType) (TOKEN_KEYWORD_START + i);
 }
 
 static void scan_quoted_word(Tokenizer* tokenizer, Token* token, const char quote) {
