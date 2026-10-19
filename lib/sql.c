@@ -25,7 +25,8 @@ int run_sql_command(const Database* db, const char* sql) {
             result = run_select_query(db, &statement.select);
             break;
         case STATEMENT_TYPE_CREATE_TABLE:
-            fprintf(stderr, "CREATE TABLE statements aren't supported yet\n");
+        case STATEMENT_TYPE_CREATE_INDEX:
+            fprintf(stderr, "CREATE statements aren't supported yet\n");
             break;
         case STATEMENT_TYPE_UNKNOWN:
             break;

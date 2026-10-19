@@ -104,3 +104,26 @@ int read_leaf_table_cell(const ByteView usable, const uint16_t cell_offset,
 
     return reader_take(&reader, payload_size, payload);
 }
+
+// reads the payload size and payload that every index cell ends with. As for
+// table leaves, a payload over the size an index cell keeps inline,
+// ((U - 12) * 64 / 255) - 23, spills onto overflow pages and is reported as
+// unsupported. Usable sizes are at least 480, so this can't wrap.
+static int read_index_payload(Reader* reader, const uint32_t usable_size, ByteView* payload) {
+    uint32_t payload_size;
+    if (read_varint32(reader, &payload_size)) return 1;
+    if (payload_size > (usable_size - 12) * 64 / 255 - 23) return 1;
+    return reader_take(reader, payload_size, payload);
+}
+
+int read_interior_index_cell(const ByteView usable, const uint16_t cell_offset,
+        uint32_t* left_child, ByteView* payload) {
+    Reader reader = reader_at(usable, cell_offset);
+    if (read_u32(&reader, left_child)) return 1;
+    return read_index_payload(&reader, usable.len, payload);
+}
+
+int read_leaf_index_cell(const ByteView usable, const uint16_t cell_offset, ByteView* payload) {
+    Reader reader = reader_at(usable, cell_offset);
+    return read_index_payload(&reader, usable.len, payload);
+}

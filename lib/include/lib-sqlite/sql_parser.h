@@ -23,6 +23,17 @@ typedef struct {
     uint32_t  rowid_column;     // its index, when has_rowid_alias
 } TableColumns;
 
+// the parts of a CREATE INDEX statement. Like TableColumns, the tokens point
+// into the SQL string, which must outlive the IndexColumns.
+typedef struct {
+    Token     name;
+    Token     table;
+    TokenList columns;      // the indexed column names, in index order
+    bool      is_plain;     // every column is a bare name in ascending order and
+                            // there is no WHERE, so the index holds an entry for
+                            // every row, sorted by the columns' values
+} IndexColumns;
+
 // a WHERE condition of the form column = 'text'
 typedef struct {
     Token column;   // TOKEN_IDENTIFIER: the column to compare
@@ -50,6 +61,7 @@ bool find_column(const TableColumns* columns, Token name, uint32_t* index);
 enum StatementType {
     STATEMENT_TYPE_SELECT,
     STATEMENT_TYPE_CREATE_TABLE,
+    STATEMENT_TYPE_CREATE_INDEX,
     STATEMENT_TYPE_COUNT,                               // number of real types
     STATEMENT_TYPE_UNKNOWN = STATEMENT_TYPE_COUNT,      // not a supported statement
 };
@@ -60,21 +72,30 @@ typedef struct {
     union {
         SelectQuery  select;
         TableColumns create_table;
+        IndexColumns create_index;
     };
 } Statement;
 
-// parses one SQL statement, choosing the parser by its first keyword. The
+// parses one SQL statement, choosing the parser by its first keywords. The
 // supported forms are:
 //
-//     SELECT column FROM table        (column may be *)
-//     SELECT COUNT(column) FROM table (column may be *)
+//     SELECT names FROM table [WHERE column = 'text']
+//     SELECT COUNT(column) FROM table [WHERE column = 'text']
 //     CREATE TABLE name (column type constraints..., ...)
+//     CREATE [UNIQUE] INDEX name ON table (column, ...)
 //
-// A SELECT must have nothing after the table name. A CREATE TABLE, such as
-// the sql column of a sqlite_schema row, is parsed for its column names only:
-// each column's type and constraints are skipped, including anything inside
-// nested parentheses such as varchar(255). Table-level constraints such as
-// PRIMARY KEY (a, b) are not recognised and would be read as columns.
+// In a SELECT, names is a comma-separated list of columns and *s, and the
+// column in COUNT may be *. Nothing may follow the table name but the WHERE.
+//
+// A CREATE TABLE, such as the sql column of a sqlite_schema row, is parsed for
+// its column names only: each column's type and constraints are skipped,
+// including anything inside nested parentheses such as varchar(255).
+// Table-level constraints such as PRIMARY KEY (a, b) are not recognised and
+// would be read as columns.
+//
+// A CREATE INDEX is parsed for its column names. Anything else after a name
+// (DESC, COLLATE, an expression) or after the column list (a WHERE) is
+// skipped and clears is_plain.
 //
 // On success fills in *statement, which the caller releases with
 // free_statement. On failure prints an error to stderr, leaves nothing to

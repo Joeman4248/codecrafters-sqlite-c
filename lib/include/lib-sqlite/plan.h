@@ -27,10 +27,17 @@ typedef struct {
     bool       has_where;
     uint32_t   where_column;    // has_where: the column to compare
     StringView where_value;     // has_where: the text it must equal
+
+    bool       use_index;       // read only the rows an index lists for where_value,
+                                // rather than scanning every row of the table
+    uint32_t   index_root;      // use_index: root page of the index's b-tree
+    uint32_t   index_record_columns; // use_index: values in each index entry, the rowid last
 } SelectPlan;
 
 // plans query against the schema of db: finds the table, reads its columns
-// from its CREATE TABLE, and resolves every column the query names.
+// from its CREATE TABLE, and resolves every column the query names. With a
+// WHERE, uses an index whose first column is the WHERE column if the table has
+// one (see IndexColumns.is_plain for which indexes qualify).
 // where_value points into the query's SQL text, so the plan must not outlive
 // it. On success the caller releases the plan with free_plan. On failure
 // prints an error to stderr, leaves nothing to free and returns nonzero.

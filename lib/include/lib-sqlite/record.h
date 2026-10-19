@@ -60,6 +60,9 @@ bool record_is_null(const Record* record, uint32_t index);
 // true if column index holds TEXT
 bool record_is_text(const Record* record, uint32_t index);
 
+// true if column index holds a BLOB
+bool record_is_blob(const Record* record, uint32_t index);
+
 // reads an INTEGER column (serial types 1-6, 8 and 9) into value as a signed
 // 64-bit integer. Returns nonzero if the column is not an integer or its bytes
 // run past the end of the record.

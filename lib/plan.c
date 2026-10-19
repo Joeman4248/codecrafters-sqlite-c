@@ -43,9 +43,46 @@ static int select_columns(const SelectQuery* query, const TableColumns* columns,
     return 0;
 }
 
+// true if the index's sorted order can find rows by column: its first column
+// is that column, and it's plain, so every row has an entry in that order
+static bool index_covers(const IndexColumns* index, const TableColumns* columns,
+        const uint32_t column) {
+    uint32_t first;
+    return index->is_plain && find_column(columns, index->columns.items[0], &first) &&
+           first == column;
+}
+
+// sets plan->use_index if the table has an index that can find the rows whose
+// where_column equals where_value
+static void plan_index(const Database* db, const SelectQuery* query, const TableColumns* columns,
+        SelectPlan* plan) {
+    for (uint32_t i = 0; i < db->schema_count && !plan->use_index; i++) {
+        const SchemaEntry* entry = &db->schema[i];
+
+        // automatic indexes, made for UNIQUE and PRIMARY KEY constraints, have no sql
+        if (entry->type != SCHEMA_TYPE_INDEX || entry->sql == NULL ||
+            !sv_equal_nocase(sv_from_cstr(entry->tbl_name), query->table.text)) {
+            continue;
+        }
+
+        // an index whose sql can't be parsed is just not used
+        Statement statement;
+        if (parse_statement(entry->sql, &statement)) continue;
+
+        if (statement.type == STATEMENT_TYPE_CREATE_INDEX &&
+            index_covers(&statement.create_index, columns, plan->where_column)) {
+            plan->use_index = true;
+            plan->index_root = entry->rootpage;
+            plan->index_record_columns = statement.create_index.columns.count + 1;
+        }
+        free_statement(&statement);
+    }
+}
+
 // fills in everything the plan takes from the query and the table's columns.
 // On failure plan->selected may be allocated; the caller frees it.
-static int plan_columns(const SelectQuery* query, const TableColumns* columns, SelectPlan* plan) {
+static int plan_columns(const Database* db, const SelectQuery* query, const TableColumns* columns,
+        SelectPlan* plan) {
     plan->column_count = columns->names.count;
     plan->has_rowid_alias = columns->has_rowid_alias;
     plan->rowid_column = columns->rowid_column;
@@ -67,6 +104,7 @@ static int plan_columns(const SelectQuery* query, const TableColumns* columns, S
     if (query->has_where) {
         plan->where_value = query->where.value.text;
         if (resolve_column(columns, query->where.column, &plan->where_column)) return 1;
+        plan_index(db, query, columns, plan);
     }
     return 0;
 }
@@ -89,7 +127,7 @@ int plan_select(const Database* db, const SelectQuery* query, SelectPlan* plan) 
         fprintf(stderr, "schema sql for %s is not a CREATE TABLE\n", table->name);
         result = 1;
     }
-    if (result == 0) result = plan_columns(query, &create_statement.create_table, plan);
+    if (result == 0) result = plan_columns(db, query, &create_statement.create_table, plan);
 
     // the plan holds positions, not names, so the table's columns aren't needed after this
     free_statement(&create_statement);

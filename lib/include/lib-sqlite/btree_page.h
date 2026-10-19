@@ -59,4 +59,16 @@ int read_interior_table_cell(ByteView page, uint16_t cell_offset,
 int read_leaf_table_cell(ByteView usable, uint16_t cell_offset,
         ByteView* payload, int64_t* rowid);
 
+// decodes an index b-tree interior cell: left_child is the page holding every
+// entry that sorts before this cell's own entry, whose record payload views.
+// An index record holds the indexed values, then the rowid of the row they
+// came from. usable is as for read_leaf_table_cell. Returns nonzero if the
+// payload overflows onto overflow pages or on error.
+int read_interior_index_cell(ByteView usable, uint16_t cell_offset,
+        uint32_t* left_child, ByteView* payload);
+
+// decodes an index b-tree leaf cell, which is just an entry's record; see
+// read_interior_index_cell
+int read_leaf_index_cell(ByteView usable, uint16_t cell_offset, ByteView* payload);
+
 #endif // CODECRAFTERS_SQLITE_BTREE_PAGE_H

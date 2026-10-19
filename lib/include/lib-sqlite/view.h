@@ -58,6 +58,16 @@ static inline bool sv_equal_nocase(const StringView a, const StringView b) {
     return a.len == b.len && (a.len == 0 || strncasecmp(a.data, b.data, a.len) == 0);
 }
 
+// orders a and b byte by byte, with a string before any longer one it starts.
+// Returns < 0, 0 or > 0. This is SQLite's default (BINARY) order for text.
+static inline int sv_compare(const StringView a, const StringView b) {
+    const uint32_t shorter = a.len < b.len ? a.len : b.len;
+    // memcmp must not be given NULL, even for a length of 0
+    const int order = (shorter == 0) ? 0 : memcmp(a.data, b.data, shorter);
+    if (order != 0) return order;
+    return (a.len > b.len) - (a.len < b.len);
+}
+
 // points *out at the len bytes of bytes starting at offset. Returns nonzero,
 // leaving *out alone, if they run past the end.
 static inline int bv_slice(const ByteView bytes, const uint32_t offset, const uint32_t len,

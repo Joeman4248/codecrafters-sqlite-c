@@ -18,7 +18,9 @@ enum TokenType {
     TOKEN_TABLE,
     TOKEN_COUNT,                            // the token 'COUNT', not the number of token types
     TOKEN_WHERE,
-    
+    TOKEN_INDEX,
+    TOKEN_ON,
+
     TOKEN_IDENTIFIER,                       // table or column name
     TOKEN_STRING,                           // 'text' without the quotes
 

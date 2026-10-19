@@ -4,13 +4,21 @@
 
 #include "include/lib-sqlite/execute.h"
 #include "include/lib-sqlite/btree_cursor.h"
+#include "include/lib-sqlite/btree_search.h"
 #include "include/lib-sqlite/record.h"
 
-// a pass over every row of the plan's table
+// a pass over the rows of the plan's table: every row through the cursor, or
+// with plan->use_index, just the rows the index listed
 typedef struct {
+    const Database*   db;
     const SelectPlan* plan;
-    TableCursor       cursor;
     RecordColumn*     storage;      // room for plan->column_count entries, reused for every row
+
+    TableCursor       cursor;       // !use_index
+
+    RowidList         rowids;       // use_index: the rows to read, in index order
+    uint32_t          next_rowid;   // use_index: position of the next one in rowids
+    uint8_t*          buf;          // use_index: holds the page the current row is on
 } TableScan;
 
 // one row as read by next_row. Its record points into the cursor's page and
@@ -20,12 +28,28 @@ typedef struct {
     Record  record;
 } Row;
 
-// reads the cursor's next row into *row, with its record parsed into
+// looks up the next rowid the index listed in the table. Returns the same as
+// cursor_next, with the payload in scan->buf.
+static enum CursorStatus next_indexed_row(TableScan* scan, ByteView* payload, int64_t* rowid) {
+    if (scan->next_rowid == scan->rowids.count) return CURSOR_DONE;
+    *rowid = scan->rowids.items[scan->next_rowid++];
+
+    bool found;
+    if (table_find_row(scan->db, scan->plan->table_root, *rowid, scan->buf, payload, &found)) {
+        return CURSOR_ERROR;
+    }
+    // a row the index lists but the table doesn't have means the file is corrupt
+    return found ? CURSOR_ROW : CURSOR_ERROR;
+}
+
+// reads the scan's next row into *row, with its record parsed into
 // scan->storage. Returns CURSOR_ROW, CURSOR_DONE once there are no more rows,
 // or CURSOR_ERROR.
 static enum CursorStatus next_row(TableScan* scan, Row* row) {
     ByteView payload;
-    const enum CursorStatus status = cursor_next(&scan->cursor, &payload, &row->rowid);
+    const enum CursorStatus status = scan->plan->use_index
+            ? next_indexed_row(scan, &payload, &row->rowid)
+            : cursor_next(&scan->cursor, &payload, &row->rowid);
     if (status != CURSOR_ROW) return status;
 
     if (parse_record(payload, scan->storage, scan->plan->column_count, &row->record)) {
@@ -131,19 +155,34 @@ static int count_values(TableScan* scan) {
     return 0;
 }
 
+// gets the scan ready to produce rows: a cursor at the table's first row, or
+// the list of rowids the index has for the WHERE value
+static int open_rows(TableScan* scan) {
+    const SelectPlan* plan = scan->plan;
+    if (!plan->use_index) return cursor_open(&scan->cursor, scan->db, plan->table_root);
+
+    scan->buf = malloc(scan->db->file_header.page_size);
+    if (scan->buf == NULL) return 1;
+    return index_find_rowids(scan->db, plan->index_root, plan->index_record_columns,
+                             plan->where_value, &scan->rowids);
+}
+
 int execute_select(const Database* db, const SelectPlan* plan) {
-    // the cursor is zeroed so cursor_close is safe even if cursor_open is never reached
+    // the members not named are zeroed, so the cleanup below is safe whichever
+    // way the rows were read, and however far open_rows got
     TableScan scan = {
+        .db = db,
         .plan = plan,
-        .cursor = { 0 },
         .storage = malloc(plan->column_count * sizeof(RecordColumn)),
     };
 
     int result = (scan.storage == NULL) ? 1 : 0;
-    if (result == 0) result = cursor_open(&scan.cursor, db, plan->table_root);
+    if (result == 0) result = open_rows(&scan);
     if (result == 0) result = plan->is_count ? count_values(&scan) : print_rows(&scan);
 
     cursor_close(&scan.cursor);
+    free_rowid_list(&scan.rowids);
+    free(scan.buf);
     free(scan.storage);
     return result;
 }

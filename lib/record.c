@@ -75,6 +75,12 @@ bool record_is_text(const Record* record, const uint32_t index) {
     return index < record->count && serial_type_is_text(record->columns[index].serial_type);
 }
 
+bool record_is_blob(const Record* record, const uint32_t index) {
+    if (index >= record->count) return false;
+    const uint64_t serial_type = record->columns[index].serial_type;
+    return serial_type >= SERIAL_BLOB && !serial_type_is_text(serial_type);
+}
+
 // interprets the low 'bits' bits of raw as a two's-complement value. XOR-ing
 // the sign bit and subtracting it back maps e.g. 0xFF (8 bits) to -1 using
 // only well-defined arithmetic, since raw < 2^48 always fits in an int64_t.

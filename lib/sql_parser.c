@@ -199,12 +199,11 @@ static int parse_column_definition(Parser* parser, TableColumns* columns) {
     return 1;
 }
 
-// parses everything from CREATE onwards into *columns. On failure *columns
-// may be partly filled; the caller frees it.
+// parses everything after CREATE into *columns. On failure *columns may be
+// partly filled; the caller frees it.
 static int parse_table_columns_into(Parser* parser, TableColumns* columns) {
-    // parses: CREATE TABLE tbl_name (
-    if (expect(parser, TOKEN_CREATE, NULL) || 
-        expect(parser, TOKEN_TABLE, NULL) || 
+    // parses: TABLE tbl_name (
+    if (expect(parser, TOKEN_TABLE, NULL) ||
         expect(parser, TOKEN_IDENTIFIER, &columns->table) ||
         expect(parser, TOKEN_LPAREN, NULL)) {
         return 1;
@@ -234,6 +233,91 @@ static int parse_create_table(Parser* parser, TableColumns* columns) {
     return 0;
 }
 
+// reads whatever follows an index column's name, up to the comma or closing
+// parenthesis that ends the column, which is left as the current token.
+// Anything there but ASC, the default order, clears index->is_plain.
+static int parse_index_column_rest(Parser* parser, IndexColumns* index) {
+    uint32_t paren_depth = 0;
+
+    while (!check(parser, TOKEN_EOF)) {
+        switch (parser->current.type) {
+            case TOKEN_COMMA:
+                if (paren_depth == 0) return 0;
+                break;
+            case TOKEN_LPAREN:
+                paren_depth++;
+                break;
+            case TOKEN_RPAREN:
+                if (paren_depth == 0) return 0;
+                paren_depth--;
+                break;
+            default:
+                break;
+        }
+        if (!token_is(parser->current, "asc")) index->is_plain = false;
+        advance(parser);
+    }
+
+    fprintf(stderr, "Error: The sql statement ended before the list closed\n");
+    return 1;
+}
+
+// parses everything after CREATE into *index. On failure index->columns may
+// be partly filled; the caller frees it.
+static int parse_index_columns_into(Parser* parser, IndexColumns* index) {
+    // UNIQUE only stops duplicate entries being added; the entries are the same
+    if (token_is(parser->current, "unique")) advance(parser);
+
+    // parses: INDEX name ON tbl_name (
+    if (expect(parser, TOKEN_INDEX, NULL) ||
+        expect(parser, TOKEN_IDENTIFIER, &index->name) ||
+        expect(parser, TOKEN_ON, NULL) ||
+        expect(parser, TOKEN_IDENTIFIER, &index->table) ||
+        expect(parser, TOKEN_LPAREN, NULL)) {
+        return 1;
+    }
+
+    index->is_plain = true;
+    Token column_name;
+    do {
+        if (expect(parser, TOKEN_IDENTIFIER, &column_name) ||
+            token_list_add(&index->columns, column_name) ||
+            parse_index_column_rest(parser, index)) {
+            return 1;
+        }
+    } while (match(parser, TOKEN_COMMA, NULL));     // a comma means another column follows
+
+    if (expect(parser, TOKEN_RPAREN, NULL)) return 1;
+
+    // a partial index (WHERE ...) only has entries for some rows
+    if (!check(parser, TOKEN_EOF)) index->is_plain = false;
+    return 0;
+}
+
+// initialises *index, then parses into it, freeing it again on failure so the
+// caller is left with nothing to free
+static int parse_create_index(Parser* parser, IndexColumns* index) {
+    *index = (IndexColumns) { 0 };
+
+    if (parse_index_columns_into(parser, index)) {
+        free_token_list(&index->columns);
+        return 1;
+    }
+    return 0;
+}
+
+// parses a CREATE TABLE or CREATE INDEX, deciding which from the word after CREATE
+static int parse_create(Parser* parser, Statement* statement) {
+    if (expect(parser, TOKEN_CREATE, NULL)) return 1;
+
+    if (check(parser, TOKEN_TABLE)) {
+        statement->type = STATEMENT_TYPE_CREATE_TABLE;
+        return parse_create_table(parser, &statement->create_table);
+    }
+    statement->type = STATEMENT_TYPE_CREATE_INDEX;
+    return parse_create_index(parser, &statement->create_index);
+}
+
 bool find_column(const TableColumns* columns, const Token name, uint32_t* index) {
     // an empty name, such as the zeroed token of a missing WHERE, matches no
     // column: every column name has at least one character
@@ -257,8 +341,7 @@ int parse_statement(const char* sql, Statement* statement) {
             statement->type = STATEMENT_TYPE_SELECT;
             return parse_select(&parser, &statement->select);
         case TOKEN_CREATE:
-            statement->type = STATEMENT_TYPE_CREATE_TABLE;
-            return parse_create_table(&parser, &statement->create_table);
+            return parse_create(&parser, statement);
         default:
             statement->type = STATEMENT_TYPE_UNKNOWN;
             fprintf(stderr, "Unsupported statement: %s\n", sql);
@@ -270,6 +353,7 @@ void free_statement(Statement* statement) {
     switch (statement->type) {
         case STATEMENT_TYPE_SELECT:         free_token_list(&statement->select.names); break;
         case STATEMENT_TYPE_CREATE_TABLE:   free_token_list(&statement->create_table.names); break;
+        case STATEMENT_TYPE_CREATE_INDEX:   free_token_list(&statement->create_index.columns); break;
         case STATEMENT_TYPE_UNKNOWN:        break;
     }
 }
