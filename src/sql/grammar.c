@@ -1,27 +1,45 @@
 #include "sql/grammar.h"
 
+// records that token matched a rule tagged tag
+static void add_capture(Parser* parser, const enum CaptureTag tag, const Token token) {
+    parser->captures[parser->capture_count++] = (Capture) { tag, token };
+}
+
+// how far matching had got, so a failed attempt can go back to it. Holds only
+// what a failed attempt undoes.
+typedef struct {
+    uint32_t pos;
+    uint32_t capture_count;
+} Mark;
+
+static Mark save_mark(const Parser* parser) {
+    return (Mark) { parser->pos, parser->capture_count };
+}
+
+static void restore_mark(Parser* parser, const Mark mark) {
+    parser->pos = mark.pos;
+    parser->capture_count = mark.capture_count;
+}
+
 bool match_rule(Parser* parser, const Rule* rule) {
     bool match = false;
     switch (rule->type) {
         case RULE_TOKEN: {
-            // is the token at parser->pos of type rule->token?
-            // if so, move pos forward one and return true; otherwise return false
             const Token token = parser->tokens->items[parser->pos];
             match = token.type == rule->token_type;
-            if (match) parser->pos++;
+            if (match) {
+                parser->pos++;
+                if (rule->tag != TAG_NONE) add_capture(parser, rule->tag, token);
+            }
             break;
         }
         case RULE_SEQ: {
-            // remember where pos started
-            // call match_rule on each child, rule->children[0] up to rule->count
-            // if any child fails, put pos back to where it started and return false
-            // if they all match, return true
-            const uint32_t start = parser->pos;
+            const Mark start = save_mark(parser);
             match = true;
             for (uint32_t i = 0; match && i < rule->count; i++) {
                 match = match_rule(parser, rule->children[i]);
             }
-            if (!match) parser->pos = start;
+            if (!match) restore_mark(parser, start);
             break;
         }
         case RULE_CHOICE: {

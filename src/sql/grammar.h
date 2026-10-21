@@ -16,9 +16,20 @@ enum RuleType {
     RULE_CHOICE,        // the first child that matches:       a | b
 };
 
+// what a matched token means, so it can be found after matching. A grammar
+// tags the tokens that carry information (names, values) and leaves keywords
+// and punctuation untagged.
+enum CaptureTag {
+    TAG_NONE,           // 0, so every rule the macros make without a tag is untagged
+    TAG_COUNT,
+    TAG_COLUMN,
+    TAG_TABLE,
+};
+
 typedef struct Rule {
     enum RuleType             type;
     enum TokenType            token_type; // RULE_TOKEN: the token type it matches
+    enum CaptureTag           tag;        // RULE_TOKEN: if not TAG_NONE, a match is captured under it
     const struct Rule* const* children;   // RULE_SEQ, RULE_CHOICE: pointers to the child rules
     uint32_t                  count;      // RULE_SEQ, RULE_CHOICE: how many children
 } Rule;
@@ -42,20 +53,33 @@ typedef struct Rule {
 #define RULE_LIST_COUNT(...)    (sizeof(RULE_LIST(__VA_ARGS__)) / sizeof(const Rule*))
 
 #define TOK(t)      (&(const Rule) { .type = RULE_TOKEN, .token_type = (t) })
+#define TAGGED_TOK(t, g) \
+                    (&(const Rule) { .type = RULE_TOKEN, .token_type = (t), .tag = (g) })
 #define SEQ(...)    (&(const Rule) { .type = RULE_SEQ, \
                         .children = RULE_LIST(__VA_ARGS__), .count = RULE_LIST_COUNT(__VA_ARGS__) })
 #define CHOICE(...) (&(const Rule) { .type = RULE_CHOICE, \
                         .children = RULE_LIST(__VA_ARGS__), .count = RULE_LIST_COUNT(__VA_ARGS__) })
 
-// the tokens being matched, and how far matching has got
+// a token that matched a tagged rule, and the tag it matched under
 typedef struct {
-    const TokenList* tokens;    // as tokenize_all made them, ending with TOKEN_EOF
-    uint32_t         pos;       // index of the next token to match
+    enum CaptureTag tag;
+    Token           token;
+} Capture;
+
+// the tokens being matched, how far matching has got, and what it has captured
+typedef struct {
+    const TokenList* tokens;        // as tokenize_all made them, ending with TOKEN_EOF
+    uint32_t         pos;           // index of the next token to match
+    Capture*         captures;      // room for tokens->count entries, provided by the caller.
+                                    // A token is captured at most once, so it never fills up.
+    uint32_t         capture_count; // how many captures are filled in
 } Parser;
 
 // true if the tokens from parser->pos onwards start with a match for rule, in
-// which case parser->pos is moved past them. On no match, parser->pos is left
-// where it was, so the caller can try something else from the same token.
+// which case parser->pos is moved past them and a capture is appended for each
+// tagged token in the match, in order. On no match, parser->pos and
+// parser->capture_count are left where they were, so the caller can try
+// something else from the same token.
 bool match_rule(Parser* parser, const Rule* rule);
 
 #endif // CODECRAFTERS_SQLITE_GRAMMAR_H
