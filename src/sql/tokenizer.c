@@ -155,6 +155,7 @@ int tokenize_all(const char* sql, TokenList* tokens) {
 // constant amount per token rather than growing with the list
 int token_list_add(TokenList* list, const Token token) {
     if (list->count == list->capacity) {
+        if (list->capacity > UINT32_MAX / 2) return 1;      // doubling would wrap around
         const uint32_t capacity = (list->capacity == 0) ? 8 : list->capacity * 2;
         Token* grown = realloc(list->items, capacity * sizeof(Token));
         if (grown == NULL) return 1;    // the old array is still valid, caller frees it
