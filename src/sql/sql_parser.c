@@ -87,6 +87,44 @@ static int build_statement(Parser* parser, Statement* statement) {
     return 1;
 }
 
+// which statement the tokens start, from their first one or two keywords
+static enum StatementType statement_type_of(const TokenList* tokens) {
+    const enum TokenType first  = tokens->count >= 1 ? tokens->items[0].type : TOKEN_EOF;
+    const enum TokenType second = tokens->count >= 2 ? tokens->items[1].type : TOKEN_EOF;
+    switch (first) {
+        case TOKEN_SELECT: return STATEMENT_TYPE_SELECT;
+        case TOKEN_CREATE:
+            switch (second) {
+                case TOKEN_TABLE: return STATEMENT_TYPE_CREATE_TABLE;
+                case TOKEN_INDEX: return STATEMENT_TYPE_CREATE_INDEX;
+                default: break;
+            }
+            break;
+        default: break;
+    }
+    return STATEMENT_TYPE_UNKNOWN;
+}
+
+// matches the tokens against the grammar for statement->type and fills in the
+// statement from the captures. On failure, leaves nothing in the statement to free.
+static int match_statement(Parser* parser, const char* sql, Statement* statement) {
+    const Rule* rule = (statement->type == STATEMENT_TYPE_UNKNOWN) ? NULL
+                                                                   : STATEMENT_RULES[statement->type];
+    if (rule == NULL) {
+        fprintf(stderr, "Unsupported statement: %s\n", sql);
+        return 1;
+    }
+    if (!match_rule(parser, rule)) {
+        fprintf(stderr, "Syntax error: %s\n", sql);
+        return 1;
+    }
+
+    // a build that fails partway may have filled in some of the statement
+    const int result = build_statement(parser, statement);
+    if (result) free_statement(statement);
+    return result;
+}
+
 int parse_statement(const char* sql, Statement* statement) {
     // zeroed so free_statement finds nothing to free until the statement is filled in
     *statement = (Statement) { .type = STATEMENT_TYPE_UNKNOWN };
@@ -101,42 +139,11 @@ int parse_statement(const char* sql, Statement* statement) {
         captures = malloc(tokens.count * sizeof(Capture));
         if (captures == NULL) result = 1;
     }
-    Parser parser = { .pos = 0, .tokens = &tokens, .captures = captures };
 
-    // the first token says which statement this is, and so which rule to match
-    const enum TokenType first  = tokens.count >= 1 ? tokens.items[0].type : TOKEN_EOF;
-    const enum TokenType second = tokens.count >= 2 ? tokens.items[1].type : TOKEN_EOF;
-    
-    switch (first) {
-        case TOKEN_SELECT: statement->type = STATEMENT_TYPE_SELECT; break;
-        case TOKEN_CREATE: 
-            switch (second) {
-                case TOKEN_TABLE: statement->type = STATEMENT_TYPE_CREATE_TABLE; break;
-                case TOKEN_INDEX: statement->type = STATEMENT_TYPE_CREATE_INDEX; break;
-                default: break;
-            }
-            break;
-        default: break;
-    }
-
-    // only once tokenizing and the captures array have both succeeded
     if (result == 0) {
-        const Rule* rule = (statement->type == STATEMENT_TYPE_UNKNOWN) ? NULL
-                                                                       : STATEMENT_RULES[statement->type];
-        if (rule == NULL) {
-            fprintf(stderr, "Unsupported statement: %s\n", sql);
-            result = 1;
-        }
-        else if (!match_rule(&parser, rule)) {
-            fprintf(stderr, "Syntax error: %s\n", sql);
-            result = 1;
-        }
-        else {
-            result = build_statement(&parser, statement);
-            // a build that fails partway may have filled in some of the
-            // statement, and on failure the caller is left nothing to free
-            if (result) free_statement(statement);
-        }
+        Parser parser = { .pos = 0, .tokens = &tokens, .captures = captures };
+        statement->type = statement_type_of(&tokens);
+        result = match_statement(&parser, sql, statement);
     }
 
     free(captures);
