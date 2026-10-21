@@ -1,76 +1,90 @@
 [![progress-banner](https://backend.codecrafters.io/progress/sqlite/9c322c10-fb9a-47d1-8e55-7e420221ce37)](https://app.codecrafters.io/users/Joeman4248?r=2qF)
 
-This is a starting point for C solutions to the
-["Build Your Own SQLite" Challenge](https://codecrafters.io/challenges/sqlite).
+# SQLite in C
 
-In this challenge, you'll build a barebones SQLite implementation that supports
-basic SQL queries like `SELECT`. Along the way we'll learn about
-[SQLite's file format](https://www.sqlite.org/fileformat.html), how indexed data
-is
-[stored in B-trees](https://jvns.ca/blog/2014/10/02/how-does-sqlite-work-part-2-btrees/)
-and more.
-
-**Note**: If you're viewing this repo on GitHub, head over to
-[codecrafters.io](https://codecrafters.io) to try the challenge.
-
-# Passing the first stage
-
-The entry point for your SQLite implementation is in `src/main.c`. Study and
-uncomment the relevant code, and then run the command below to execute the tests
-on our servers:
+A small SQLite written from scratch in C, built through the
+["Build Your Own SQLite" challenge](https://codecrafters.io/challenges/sqlite)
+on CodeCrafters. It reads real `.db` files made by SQLite: it parses the file
+format by hand, walks the B-trees page by page, and answers simple SQL
+queries, with no SQLite library involved.
 
 ```sh
-codecrafters submit
+$ ./your_program.sh sample.db "SELECT name, color FROM apples"
+Granny Smith|Light Green
+Fuji|Red
+Honeycrisp|Blush Red
+Golden Delicious|Yellow
+
+$ ./your_program.sh companies.db "SELECT id, name FROM companies WHERE country = 'eritrea'"
+121311|unilink s.c.
+2102438|orange asmara it solutions
+5729848|zara mining share company
+6634629|asmara rental
 ```
 
-Time to move on to the next stage!
+## What it can do
 
-# Stage 2 & beyond
+| Command | Example |
+|---|---|
+| Database info | `.dbinfo` |
+| List tables | `.tables` |
+| Count rows | `SELECT COUNT(*) FROM apples` |
+| Read columns | `SELECT name, color FROM apples` |
+| Filter rows | `SELECT id, name FROM apples WHERE color = 'Yellow'` |
 
-Note: This section is for stages 2 and beyond.
+Tables can span many pages: the B-tree is walked through interior and leaf
+pages, so the multi-megabyte sample databases work the same as the tiny one.
+`WHERE` supports one `column = 'text'` comparison for now.
 
-1. Ensure you have `cmake` installed locally
-1. Run `./your_program.sh` to run your program, which is implemented in
-   `src/main.c`.
-1. Run `codecrafters submit` to submit your solution to CodeCrafters. Test
-   output will be streamed to your terminal.
+## How it works
 
-# Sample Databases
+A query goes through four stages, each in its own file under [lib/](lib/):
 
-To make it easy to test queries locally, we've added a sample database in the
-root of this repository: `sample.db`.
+1. **Tokenize** ([tokenizer.c](lib/tokenizer.c)): split the SQL text into
+   tokens such as `SELECT`, `apples` and `'Yellow'`.
+2. **Parse** ([sql_parser.c](lib/sql_parser.c)): turn the tokens into a
+   statement: which table, which columns, what filter.
+3. **Plan** ([plan.c](lib/plan.c)): look the table up in the schema, find the
+   page its B-tree starts on, and work out where each column sits in a row.
+4. **Execute** ([execute.c](lib/execute.c)): walk the table's rows with a
+   B-tree cursor and print the ones that match.
 
-This contains two tables: `apples` & `oranges`. You can use this to test your
-implementation for the first 6 stages.
+Underneath, these read the file itself:
 
-You can explore this database by running queries against it like this:
+- [file_header.c](lib/file_header.c) and [schema.c](lib/schema.c): the file
+  header and the `sqlite_schema` table that lists every table and index.
+- [btree_page.c](lib/btree_page.c) and [btree_cursor.c](lib/btree_cursor.c):
+  B-tree pages and a cursor that steps through a table's rows in order.
+- [record.c](lib/record.c) and [decode.c](lib/decode.c): SQLite's row format,
+  big-endian integers and variable-length integers (varints).
+
+## In progress
+
+- **A grammar-driven parser** (the `parser-overhaul` branch): the SQL grammar
+  is written as data, and one generic matcher checks queries against it,
+  instead of hand-writing a parsing function for every statement.
+- **Index lookups**: using an index such as `idx_companies_country` to jump
+  straight to matching rows instead of scanning the whole table.
+
+## Running it
+
+You need `cmake` and a C compiler. Then:
 
 ```sh
-$ sqlite3 sample.db "select id, name from apples"
-1|Granny Smith
-2|Fuji
-3|Honeycrisp
-4|Golden Delicious
+./your_program.sh <database> <command>
 ```
 
-There are two other databases that you can use:
-
-1. `superheroes.db`:
-   - This is a small version of the test database used in the table-scan stage.
-   - It contains one table: `superheroes`.
-   - It is ~1MB in size.
-1. `companies.db`:
-   - This is a small version of the test database used in the index-scan stage.
-   - It contains one table: `companies`, and one index: `idx_companies_country`
-   - It is ~7MB in size.
-
-These aren't included in the repository because they're large in size. You can
-download them by running this script:
+`sample.db` is in the repo. The two larger databases, `superheroes.db` (~1MB)
+and `companies.db` (~7MB), can be downloaded with:
 
 ```sh
 ./download_sample_databases.sh
 ```
 
-If the script doesn't work for some reason, you can download the databases
-directly from
+or directly from
 [codecrafters-io/sample-sqlite-databases](https://github.com/codecrafters-io/sample-sqlite-databases).
+To compare answers with the real thing, run the same query through `sqlite3`:
+
+```sh
+sqlite3 sample.db "SELECT name, color FROM apples"
+```
