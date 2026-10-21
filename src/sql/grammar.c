@@ -51,6 +51,17 @@ bool match_rule(Parser* parser, const Rule* rule) {
             }
             break;
         }
+        case RULE_REPEAT: {
+            // zero times is a match too, so this never fails. It also stops
+            // when a pass matches without consuming a token, which would
+            // otherwise repeat forever.
+            match = true;
+            while (true) {
+                const uint32_t before = parser->pos;
+                if (!match_rule(parser, rule->children[0]) || parser->pos == before) break;
+            }
+            break;
+        }
     }
     return match;
 }

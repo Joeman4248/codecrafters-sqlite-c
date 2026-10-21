@@ -67,18 +67,12 @@ typedef struct {
     };
 } Statement;
 
-// parses one SQL statement, choosing the parser by its first keyword. The
-// supported forms are:
+// parses one SQL statement, matching it against the grammar for the kind of
+// statement its first keywords name. The grammar is written out at the top of
+// sql_parser.c; so far only SELECT is supported:
 //
 //     SELECT column FROM table        (column may be *)
 //     SELECT COUNT(column) FROM table (column may be *)
-//     CREATE TABLE name (column type constraints..., ...)
-//
-// A SELECT must have nothing after the table name. A CREATE TABLE, such as
-// the sql column of a sqlite_schema row, is parsed for its column names only:
-// each column's type and constraints are skipped, including anything inside
-// nested parentheses such as varchar(255). Table-level constraints such as
-// PRIMARY KEY (a, b) are not recognised and would be read as columns.
 //
 // On success fills in *statement, which the caller releases with
 // free_statement. On failure prints an error to stderr, leaves nothing to
