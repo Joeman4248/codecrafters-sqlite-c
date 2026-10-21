@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "include/lib-sqlite/decode.h"
 
 // every other read goes through this one (or reader_take), so this is where
@@ -63,6 +65,22 @@ int read_u64(Reader* reader, uint64_t* value) {
     return reader->failed;
 }
 
+// raw already holds the two's-complement bits of the signed value; memcpy
+// reinterprets them without the implementation-defined conversion that a cast
+// of an unsigned value above INT64_MAX would be
+static int64_t as_signed(const uint64_t raw) {
+    int64_t value;
+    memcpy(&value, &raw, sizeof(value));
+    return value;
+}
+
+int read_i64(Reader* reader, int64_t* value) {
+    uint64_t raw;
+    read_u64(reader, &raw);
+    *value = as_signed(raw);
+    return reader->failed;
+}
+
 // bytes 1-8 each contribute their lower 7 bits and use the high bit as a
 // "more bytes follow" flag, so the loop stops at the first byte with it clear.
 // If all 8 have it set, the 9th byte contributes all 8 of its bits, for
@@ -70,9 +88,8 @@ int read_u64(Reader* reader, uint64_t* value) {
 //
 // a varint holds the bits of a 64-bit two's-complement integer, but the value
 // is built in a uint64_t because shifting bits into or past the sign bit of a
-// signed type is undefined behavior. Callers that need a signed value (e.g. a
-// rowid) convert the result themselves.
-int read_varint(Reader* reader, uint64_t* value) {
+// signed type is undefined behavior. read_varint_i64 makes it signed after.
+int read_varint_u64(Reader* reader, uint64_t* value) {
     uint64_t result = 0;
     uint8_t byte;
 
@@ -102,10 +119,17 @@ int read_varint(Reader* reader, uint64_t* value) {
     return 0;
 }
 
-// the same encoding as read_varint; only the range of the result is narrower
-int read_varint32(Reader* reader, uint32_t* value) {
+int read_varint_i64(Reader* reader, int64_t* value) {
+    uint64_t raw;
+    read_varint_u64(reader, &raw);
+    *value = as_signed(raw);
+    return reader->failed;
+}
+
+// the same encoding as read_varint_u64; only the range of the result is narrower
+int read_varint_u32(Reader* reader, uint32_t* value) {
     uint64_t wide;
-    if (read_varint(reader, &wide) || wide > UINT32_MAX) {
+    if (read_varint_u64(reader, &wide) || wide > UINT32_MAX) {
         reader->failed = true;
         *value = 0;
         return 1;

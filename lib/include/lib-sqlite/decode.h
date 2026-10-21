@@ -36,14 +36,21 @@ int read_u32(Reader* reader, uint32_t* value);
 int read_u48(Reader* reader, uint64_t* value);
 int read_u64(Reader* reader, uint64_t* value);
 
+// 8 bytes, big-endian, as a two's-complement signed integer
+int read_i64(Reader* reader, int64_t* value);
+
 // a varint is between 1 and 9 bytes long: the lower 7 bits of each of the
 // first 1-8 bytes (which all have the high bit set) plus all 8 bits of the
-// ninth byte (which never has the high bit set), big-endian.
-int read_varint(Reader* reader, uint64_t* value);
+// ninth byte (which never has the high bit set), big-endian. This reads its
+// 64 bits as they are, unsigned.
+int read_varint_u64(Reader* reader, uint64_t* value);
+
+// reads a varint holding a two's-complement signed integer, such as a rowid
+int read_varint_i64(Reader* reader, int64_t* value);
 
 // reads a varint that must fit in 32 bits, such as a size. A larger value
 // fails the same way as running out of bytes.
-int read_varint32(Reader* reader, uint32_t* value);
+int read_varint_u32(Reader* reader, uint32_t* value);
 
 // points *out at the next len bytes and moves past them
 int reader_take(Reader* reader, uint32_t len, ByteView* out);

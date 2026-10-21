@@ -1,5 +1,3 @@
-#include <string.h>
-
 #include "include/lib-sqlite/record.h"
 #include "include/lib-sqlite/decode.h"
 
@@ -34,7 +32,7 @@ int parse_record(const ByteView payload, RecordColumn* storage, const uint32_t m
     Reader reader = reader_at(payload, 0);
 
     uint32_t header_size = 0;
-    if (read_varint32(&reader, &header_size) ||
+    if (read_varint_u32(&reader, &header_size) ||
         header_size < reader.pos || header_size > payload.len) {
         return 1;
     }
@@ -50,7 +48,7 @@ int parse_record(const ByteView payload, RecordColumn* storage, const uint32_t m
         if (count >= max_columns) return 1;
 
         uint64_t serial_type = 0;
-        if (read_varint(&reader, &serial_type)) return 1;
+        if (read_varint_u64(&reader, &serial_type)) return 1;
 
         const uint32_t value_size = serial_type_size(serial_type);
         storage[count].serial_type = serial_type;
@@ -123,14 +121,8 @@ int record_get_int(const Record* record, const uint32_t index, int64_t* value) {
             *value = sign_extend(raw, 48);
             return 0;
         }
-        case SERIAL_INT64: {
-            // all 64 bits are already the two's-complement pattern; memcpy
-            // copies them without an implementation-defined conversion
-            uint64_t raw;
-            if (read_u64(&reader, &raw)) return 1;
-            memcpy(value, &raw, sizeof(*value));
-            return 0;
-        }
+        case SERIAL_INT64:
+            return read_i64(&reader, value);
 
         // NULL, float, text, or blob
         default: return 1;

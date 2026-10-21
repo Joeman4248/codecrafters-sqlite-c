@@ -1,5 +1,3 @@
-#include <string.h>
-
 #include "include/lib-sqlite/btree_page.h"
 
 // returns the offset within the page where the b-tree page header begins:
@@ -61,23 +59,16 @@ int read_cell_pointer(const ByteView page, const uint32_t page_number,
     if (index >= header->cell_count) return 1;
     Reader reader = reader_at(page, page_header_start(page_number) + 
                                     header->header_size + (index * 2u));
-    if (read_u16(&reader, cell_offset)) return 1;
-    return 0;
+    read_u16(&reader, cell_offset);
+    return reader.failed;
 }
 
 int read_interior_table_cell(const ByteView page, const uint16_t cell_offset,
         uint32_t* left_child, int64_t* key) {
     Reader reader = reader_at(page, cell_offset);
-
-    uint64_t raw_key;
     read_u32(&reader, left_child);
-    read_varint(&reader, &raw_key);
-    if (reader.failed) return 1;
-
-    // the varint holds the rowid's two's-complement bits; memcpy copies them
-    // without an implementation-defined unsigned-to-signed conversion
-    memcpy(key, &raw_key, sizeof(*key));
-    return 0;
+    read_varint_i64(&reader, key);
+    return reader.failed;
 }
 
 int read_leaf_table_cell(const ByteView usable, const uint16_t cell_offset,
@@ -87,14 +78,9 @@ int read_leaf_table_cell(const ByteView usable, const uint16_t cell_offset,
     // SQLite caps a value's length at 2^31 - 1 bytes, so a payload size always
     // fits in 32 bits
     uint32_t payload_size;
-    uint64_t raw_rowid;
-    read_varint32(&reader, &payload_size);
-    read_varint(&reader, &raw_rowid);
+    read_varint_u32(&reader, &payload_size);
+    read_varint_i64(&reader, rowid);
     if (reader.failed) return 1;
-
-    // the varint holds the rowid's two's-complement bits; memcpy copies them
-    // without an implementation-defined unsigned-to-signed conversion
-    memcpy(rowid, &raw_rowid, sizeof(*rowid));
 
     // max payload that can be stored inline on a table b-tree leaf page is
     // U - 35, where U is the usable page size. Larger payloads spill onto
