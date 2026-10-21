@@ -17,18 +17,22 @@ static int run_select_query(const Database* db, const SelectQuery* query) {
 
 int run_sql_command(const Database* db, const char* sql) {
     Statement statement;
-    if (parse_statement(sql, &statement)) return 1;
+    int result = parse_statement(sql, &statement);
 
-    int result = 1;
-    switch (statement.type) {
-        case STATEMENT_TYPE_SELECT:
-            result = run_select_query(db, &statement.select);
-            break;
-        case STATEMENT_TYPE_CREATE_TABLE:
-            fprintf(stderr, "CREATE TABLE statements aren't supported yet\n");
-            break;
-        case STATEMENT_TYPE_UNKNOWN:
-            break;
+    if (result == 0) {
+        switch (statement.type) {
+            case STATEMENT_TYPE_SELECT:
+                result = run_select_query(db, &statement.select);
+                break;
+            case STATEMENT_TYPE_CREATE_TABLE:
+                fprintf(stderr, "CREATE TABLE statements aren't supported yet\n");
+                break;
+            case STATEMENT_TYPE_CREATE_INDEX:
+                fprintf(stderr, "CREATE INDEX statements aren't supported yet\n");
+                break;
+            case STATEMENT_TYPE_UNKNOWN:
+                break;
+        }
     }
 
     free_statement(&statement);

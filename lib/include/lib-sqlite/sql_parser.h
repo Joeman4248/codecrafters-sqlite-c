@@ -6,13 +6,6 @@
 
 #include "tokenizer.h"
 
-// a heap-allocated list of tokens that grows as tokens are added. Freed by
-// free_statement along with the statement holding it.
-typedef struct {
-    Token*   items;
-    uint32_t count;
-} TokenList;
-
 // the column names from a CREATE TABLE statement. The names are tokens: they
 // are not copied or null-terminated, but point into the SQL string, which
 // must outlive the TableColumns.
@@ -22,6 +15,15 @@ typedef struct {
     bool      has_rowid_alias;  // whether a column is the INTEGER PRIMARY KEY
     uint32_t  rowid_column;     // its index, when has_rowid_alias
 } TableColumns;
+
+// the parts of a CREATE INDEX statement. Like TableColumns, the tokens point
+// into the SQL string, which must outlive the IndexColumns.
+typedef struct {
+    Token     table;        // the table it indexes
+    TokenList columns;      // the indexed column names, in index order
+    bool      has_where;    // a partial index (... WHERE ...), with entries for only some rows
+    Token     name;         // the index's name
+} IndexColumns;
 
 // a WHERE condition of the form column = 'text'
 typedef struct {
@@ -50,6 +52,7 @@ bool find_column(const TableColumns* columns, Token name, uint32_t* index);
 enum StatementType {
     STATEMENT_TYPE_SELECT,
     STATEMENT_TYPE_CREATE_TABLE,
+    STATEMENT_TYPE_CREATE_INDEX,
     STATEMENT_TYPE_COUNT,                               // number of real types
     STATEMENT_TYPE_UNKNOWN = STATEMENT_TYPE_COUNT,      // not a supported statement
 };
@@ -60,6 +63,7 @@ typedef struct {
     union {
         SelectQuery  select;
         TableColumns create_table;
+        IndexColumns create_index;
     };
 } Statement;
 

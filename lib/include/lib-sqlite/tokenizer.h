@@ -16,11 +16,13 @@ enum TokenType {
     TOKEN_FROM,
     TOKEN_CREATE,
     TOKEN_TABLE,
+    TOKEN_INDEX,
     TOKEN_COUNT,                            // the token 'COUNT', not the number of token types
     TOKEN_WHERE,
     
     TOKEN_IDENTIFIER,                       // table or column name
     TOKEN_STRING,                           // 'text' without the quotes
+    TOKEN_INTEGER,                          // digits, such as 42
 
     TOKEN_LPAREN,                           // (
     TOKEN_RPAREN,                           // )
@@ -45,16 +47,36 @@ typedef struct {
     StringView     text;
 } Token;
 
+// a heap-allocated list of tokens that grows as tokens are added
+typedef struct {
+    Token*   items;
+    uint32_t count;         // tokens in the list
+    uint32_t capacity;      // tokens items has room for
+} TokenList;
+
+// appends token to list, growing it as needed. Returns nonzero if the
+// allocation fails, leaving the list as it was.
+int token_list_add(TokenList* list, Token token);
+
+// frees the list's array. Safe to call on a zero-initialised TokenList.
+void free_token_list(TokenList* list);
+
 typedef struct {
     const char* pos;    // next character to read
 } Tokenizer;
 
-// starts tokenizing the null-terminated string sql
-void tokenizer_init(Tokenizer* tokenizer, const char* sql);
+// returns a tokenizer positioned at the start of the null-terminated string sql
+Tokenizer tokenizer_init(const char* sql);
 
 // returns the next token and moves past it. Returns TOKEN_EOF once the end of
 // the text is reached, and keeps returning it on later calls.
 Token next_token(Tokenizer* tokenizer);
+
+// reads every token of the null-terminated string sql into *tokens, in order,
+// ending with the TOKEN_EOF. *tokens starts empty (zero-initialised); the
+// caller frees it with free_token_list, even on failure. Returns nonzero if
+// an allocation fails.
+int tokenize_all(const char* sql, TokenList* tokens);
 
 // returns a printable name for a token type, such as "SELECT" or "IDENTIFIER"
 const char* token_type_name(enum TokenType type);

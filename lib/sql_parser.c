@@ -12,7 +12,7 @@ typedef struct {
 } Parser;
 
 static void parser_init(Parser* parser, const char* sql) {
-    tokenizer_init(&parser->tokenizer, sql);
+    parser->tokenizer = tokenizer_init(sql);
     parser->current = next_token(&parser->tokenizer);
 }
 
@@ -53,21 +53,6 @@ static int expect(Parser* parser, const enum TokenType type, Token* out) {
 // primary that the tokenizer reads as identifiers rather than keywords.
 static bool token_is(const Token token, const char* word) {
     return sv_equal_nocase(token.text, sv_from_cstr(word));
-}
-
-// appends token to list, growing the array by one
-static int token_list_add(TokenList* list, const Token token) {
-    Token* grown = realloc(list->items, (list->count + 1) * sizeof(Token));
-    if (grown == NULL) return 1;        // the old array is still valid, caller frees it
-    list->items = grown;
-    list->items[list->count++] = token;
-    return 0;
-}
-
-// frees the list's array. Safe to call on a zero-initialised TokenList.
-static void free_token_list(TokenList* list) {
-    free(list->items);
-    *list = (TokenList) { 0 };
 }
 
 // consumes a column name or * and stores it in *out. Otherwise prints what was
@@ -270,6 +255,7 @@ void free_statement(Statement* statement) {
     switch (statement->type) {
         case STATEMENT_TYPE_SELECT:         free_token_list(&statement->select.names); break;
         case STATEMENT_TYPE_CREATE_TABLE:   free_token_list(&statement->create_table.names); break;
+        case STATEMENT_TYPE_CREATE_INDEX:   free_token_list(&statement->create_index.columns); break;
         case STATEMENT_TYPE_UNKNOWN:        break;
     }
 }
