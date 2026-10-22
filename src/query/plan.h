@@ -4,10 +4,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "database.h"
-#include "sql_parser.h"
-#include "value.h"
-#include "view.h"
+#include "storage/database.h"
+#include "sql/sql_parser.h"
+#include "util/value.h"
+#include "util/view.h"
 
 // how to run a SELECT, with every name in the query resolved against the
 // table's schema: columns are positions in a record, and the table is its root

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "include/lib-sqlite/database.h"
+#include "storage/database.h"
 
 int read_page(const Database* db, const uint32_t page_number, uint8_t* page) {
     const uint32_t page_size = db->file_header.page_size;

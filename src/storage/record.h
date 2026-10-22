@@ -4,8 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "value.h"
-#include "view.h"
+#include "util/value.h"
+#include "util/view.h"
 
 // A record is a row's values, stored as a header followed by a body:
 //

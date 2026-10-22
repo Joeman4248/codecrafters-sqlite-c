@@ -1,7 +1,7 @@
 #ifndef CODECRAFTERS_SQLITE_COMMANDS_H
 #define CODECRAFTERS_SQLITE_COMMANDS_H
 
-#include "database.h"
+#include "storage/database.h"
 
 // dot-commands accepted on the command line (SQL text is handled separately)
 enum DotCommand {

@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#include "file_header.h"
+#include "storage/file_header.h"
 
 
 // the value stored in a sqlite_schema row's type column

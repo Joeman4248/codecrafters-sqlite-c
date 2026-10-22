@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-#include "database.h"
-#include "view.h"
+#include "storage/database.h"
+#include "util/view.h"
 
 // walks the sqlite_schema b-tree on page 1, parsing each leaf cell into a
 // SchemaEntry. Allocates db->schema on the heap and sets db->schema_count.

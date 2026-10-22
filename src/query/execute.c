@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "include/lib-sqlite/execute.h"
-#include "include/lib-sqlite/btree_cursor.h"
-#include "include/lib-sqlite/record.h"
+#include "query/execute.h"
+#include "storage/btree_cursor.h"
+#include "storage/record.h"
 
 // a pass over every row of the plan's table
 typedef struct {

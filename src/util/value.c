@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "include/lib-sqlite/value.h"
+#include "util/value.h"
 
 bool value_equal(const Value a, const Value b) {
     // an integer and a real are both numbers

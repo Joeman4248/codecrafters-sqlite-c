@@ -38,26 +38,35 @@ pages, so the multi-megabyte sample databases work the same as the tiny one.
 
 ## How it works
 
-A query goes through four stages, each in its own file under [lib/](lib/):
+The code under [src/](src/) is grouped by layer:
 
-1. **Tokenize** ([tokenizer.c](lib/tokenizer.c)): split the SQL text into
+| Folder | What it does |
+|---|---|
+| [sql/](src/sql/) | the SQL language: tokenizing and parsing |
+| [query/](src/query/) | running a statement: planning, executing, and the dot commands |
+| [storage/](src/storage/) | SQLite's file format, from raw bytes up to tables |
+| [util/](src/util/) | small shared types: string and byte views, and values |
+
+A query goes through four stages:
+
+1. **Tokenize** ([tokenizer.c](src/sql/tokenizer.c)): split the SQL text into
    tokens such as `SELECT`, `apples` and `'Yellow'`.
-2. **Parse** ([sql_parser.c](lib/sql_parser.c)): turn the tokens into a
+2. **Parse** ([sql_parser.c](src/sql/sql_parser.c)): turn the tokens into a
    statement: which table, which columns, what filter.
-3. **Plan** ([plan.c](lib/plan.c)): look the table up in the schema, find the
-   page its B-tree starts on, and work out where each column sits in a row.
-4. **Execute** ([execute.c](lib/execute.c)): walk the table's rows with a
+3. **Plan** ([plan.c](src/query/plan.c)): look the table up in the schema, find
+   the page its B-tree starts on, and work out where each column sits in a row.
+4. **Execute** ([execute.c](src/query/execute.c)): walk the table's rows with a
    B-tree cursor and print the ones that match.
 
 Underneath, these read the file itself:
 
-- [file_header.c](lib/file_header.c) and [schema.c](lib/schema.c): the file
-  header and the `sqlite_schema` table that lists every table and index.
-- [btree_page.c](lib/btree_page.c) and [btree_cursor.c](lib/btree_cursor.c):
+- [file_header.c](src/storage/file_header.c) and [schema.c](src/storage/schema.c):
+  the file header and the `sqlite_schema` table that lists every table and index.
+- [btree_page.c](src/storage/btree_page.c) and [btree_cursor.c](src/storage/btree_cursor.c):
   B-tree pages and a cursor that steps through a table's rows in order.
-- [record.c](lib/record.c) and [reader.c](lib/reader.c): SQLite's row format,
-  and a reader for its big-endian integers, floats and variable-length
-  integers (varints).
+- [record.c](src/storage/record.c) and [reader.c](src/storage/reader.c): SQLite's
+  row format, and a reader for its big-endian integers, floats and
+  variable-length integers (varints).
 
 ## In progress
 

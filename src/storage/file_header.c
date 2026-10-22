@@ -1,7 +1,7 @@
 #include <string.h>
 
-#include "include/lib-sqlite/file_header.h"
-#include "include/lib-sqlite/reader.h"
+#include "storage/file_header.h"
+#include "storage/reader.h"
 
 // resolves the page size field into the actual page size in bytes,
 // translating the marker value 1 into 65536

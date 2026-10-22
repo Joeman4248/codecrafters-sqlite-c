@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "view.h"
+#include "util/view.h"
 
 // reads values one after another from a run of bytes
 typedef struct {

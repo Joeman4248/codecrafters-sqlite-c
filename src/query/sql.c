@@ -1,9 +1,9 @@
 #include <stdio.h>
 
-#include "include/lib-sqlite/sql.h"
-#include "include/lib-sqlite/sql_parser.h"
-#include "include/lib-sqlite/plan.h"
-#include "include/lib-sqlite/execute.h"
+#include "query/sql.h"
+#include "sql/sql_parser.h"
+#include "query/plan.h"
+#include "query/execute.h"
 
 static int run_select_query(const Database* db, const SelectQuery* query) {
     SelectPlan plan;

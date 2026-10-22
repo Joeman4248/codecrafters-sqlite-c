@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "view.h"
+#include "util/view.h"
 
 // SQLite's five storage classes: every value in a database is one of these
 enum ValueType {

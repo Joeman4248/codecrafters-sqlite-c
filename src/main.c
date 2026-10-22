@@ -1,9 +1,9 @@
 #include <stdio.h>
 
-#include "lib-sqlite/database.h"
-#include "lib-sqlite/schema.h"
-#include "lib-sqlite/commands.h"
-#include "lib-sqlite/sql.h"
+#include "storage/database.h"
+#include "storage/schema.h"
+#include "query/commands.h"
+#include "query/sql.h"
 
 // positions of the command-line arguments in argv
 enum Arg { ARG_PROGRAM, ARG_DATABASE_PATH, ARG_COMMAND, ARG_COUNT, };

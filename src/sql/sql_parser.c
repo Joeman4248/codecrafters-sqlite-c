@@ -3,8 +3,8 @@
 #include <string.h>
 #include <strings.h>
 
-#include "include/lib-sqlite/sql_parser.h"
-#include "include/lib-sqlite/tokenizer.h"
+#include "sql/sql_parser.h"
+#include "sql/tokenizer.h"
 
 typedef struct {
     Tokenizer tokenizer;

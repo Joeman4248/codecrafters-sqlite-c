@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "include/lib-sqlite/reader.h"
+#include "storage/reader.h"
 
 // every other read goes through this one (or reader_take), so this is where
 // running out of bytes is detected and made sticky

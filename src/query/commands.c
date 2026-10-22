@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "include/lib-sqlite/commands.h"
+#include "query/commands.h"
 
 // command strings, indexed by their DotCommand value; DOT_COMMAND_COUNT keeps
 // this list in sync with the enum

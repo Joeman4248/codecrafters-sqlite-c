@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "include/lib-sqlite/tokenizer.h"
+#include "sql/tokenizer.h"
 
 // token type names, indexed by their TokenType value. The entries from
 // TOKEN_KEYWORD_START up to TOKEN_KEYWORD_END double as the keyword spellings.

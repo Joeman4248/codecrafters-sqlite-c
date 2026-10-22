@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "tokenizer.h"
+#include "sql/tokenizer.h"
 
 // the column names from a CREATE TABLE statement. The names are tokens: they
 // are not copied or null-terminated, but point into the SQL string, which

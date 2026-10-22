@@ -1,5 +1,5 @@
-#include "include/lib-sqlite/record.h"
-#include "include/lib-sqlite/reader.h"
+#include "storage/record.h"
+#include "storage/reader.h"
 
 // serial type codes for the record format
 enum SerialType {

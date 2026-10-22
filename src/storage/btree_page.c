@@ -1,4 +1,4 @@
-#include "include/lib-sqlite/btree_page.h"
+#include "storage/btree_page.h"
 
 // returns the offset within the page where the b-tree page header begins:
 // page 1 starts after the 100-byte database header, all other pages start at

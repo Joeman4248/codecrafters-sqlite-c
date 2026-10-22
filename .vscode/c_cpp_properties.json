@@ -6,7 +6,7 @@
             "intelliSenseMode": "windows-gcc-x64",
             "cStandard": "c23",
             "includePath": [
-                "${workspaceFolder}/lib/include"
+                "${workspaceFolder}/src"
             ]
         }
     ],

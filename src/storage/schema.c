@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "include/lib-sqlite/schema.h"
-#include "include/lib-sqlite/btree_page.h"
-#include "include/lib-sqlite/record.h"
+#include "storage/schema.h"
+#include "storage/btree_page.h"
+#include "storage/record.h"
 
 // type strings, indexed by their SchemaType value; SCHEMA_TYPE_COUNT keeps
 // this list in sync with the enum

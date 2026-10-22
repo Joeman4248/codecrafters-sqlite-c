@@ -1,6 +1,6 @@
 #include <stdlib.h>
 
-#include "include/lib-sqlite/btree_cursor.h"
+#include "storage/btree_cursor.h"
 
 // the frame's page as a view, for the read functions
 static ByteView frame_page(const TableCursor* cursor, const CursorFrame* frame) {
