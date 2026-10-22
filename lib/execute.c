@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "include/lib-sqlite/execute.h"
 #include "include/lib-sqlite/btree_cursor.h"
@@ -34,15 +35,14 @@ static enum CursorStatus next_row(TableScan* scan, Row* row) {
     return CURSOR_ROW;
 }
 
-static bool is_rowid_alias(const SelectPlan* plan, const uint32_t index) {
-    return plan->has_rowid_alias && index == plan->rowid_column;
-}
-
-// true if column index of the row is NULL, including when a short record
-// doesn't have that column at all. The rowid alias is never NULL.
-static bool is_null(const SelectPlan* plan, const Row* row, const uint32_t index) {
-    if (is_rowid_alias(plan, index)) return false;
-    return record_is_null(&row->record, index);
+// column index of the row as a Value. The record holds NULL in place of the
+// rowid alias, so that column comes from the cell's rowid instead.
+static int row_get_value(const SelectPlan* plan, const Row* row, const uint32_t index, Value* out) {
+    if (plan->has_rowid_alias && index == plan->rowid_column) {
+        *out = (Value) { .type = VALUE_INTEGER, .integer = row->rowid };
+        return 0;
+    }
+    return record_get_value(&row->record, index, out);
 }
 
 // sets *matches to whether the row passes the plan's WHERE condition. Every
@@ -55,39 +55,45 @@ static int row_matches(const SelectPlan* plan, const Row* row, bool* matches) {
         return 0;
     }
 
-    // NULL never equals anything, and only text is compared so far
-    if (!record_is_text(&row->record, plan->where_column)) return 0;
+    Value value;
+    if (row_get_value(plan, row, plan->where_column, &value)) return 1;
 
-    StringView text;
-    if (record_text_view(&row->record, plan->where_column, &text)) return 1;
-    *matches = sv_equal(text, plan->where_value);
+    // NULL never equals anything, and only text is compared so far
+    *matches = value.type == VALUE_TEXT && sv_equal(value.text, plan->where_value);
     return 0;
+}
+
+// prints a REAL the way sqlite3 does: up to 15 significant digits, and always
+// with a decimal point, which %g leaves out of whole numbers ("3", "1e+100"
+// rather than "3.0", "1.0e+100")
+static void print_real(const double real) {
+    char text[32];
+    snprintf(text, sizeof(text), "%.15g", real);
+
+    // already has a point, or is inf or nan
+    if (strchr(text, '.') != NULL || strchr(text, 'n') != NULL) {
+        printf("%s", text);
+        return;
+    }
+
+    const char* exponent = strchr(text, 'e');
+    if (exponent == NULL) printf("%s.0", text);
+    else printf("%.*s.0%s", (int) (exponent - text), text, exponent);
 }
 
 // prints column index of the row without a newline. NULL prints nothing.
 static int print_value(const SelectPlan* plan, const Row* row, const uint32_t index) {
-    // the record holds NULL in place of the rowid alias
-    if (is_rowid_alias(plan, index)) {
-        printf("%lld", (long long) row->rowid);
-        return 0;
-    }
-    if (is_null(plan, row, index)) return 0;
+    Value value;
+    if (row_get_value(plan, row, index, &value)) return 1;
 
-    // printed straight from the page, without copying
-    if (record_is_text(&row->record, index)) {
-        StringView text;
-        if (record_text_view(&row->record, index, &text)) return 1;
-        printf(SV_FMT, SV_ARG(text));
-        return 0;
+    // text and blobs are printed straight from the page, without copying
+    switch (value.type) {
+        case VALUE_NULL:    break;
+        case VALUE_INTEGER: printf("%lld", (long long) value.integer); break;
+        case VALUE_REAL:    print_real(value.real); break;
+        case VALUE_TEXT:    printf(SV_FMT, SV_ARG(value.text)); break;
+        case VALUE_BLOB:    fwrite(value.blob.data, 1, value.blob.len, stdout); break;
     }
-
-    int64_t value;
-    if (record_get_int(&row->record, index, &value)) {
-        fprintf(stderr, "only text and integer values can be printed so far\n");
-        return 1;
-    }
-
-    printf("%lld", (long long) value);
     return 0;
 }
 
@@ -123,7 +129,14 @@ static int count_values(TableScan* scan) {
         if (row_matches(plan, &row, &matches)) return 1;
         if (!matches) continue;
 
-        if (plan->count_rows || !is_null(plan, &row, plan->count_column)) count++;
+        if (plan->count_rows) {
+            count++;
+            continue;
+        }
+
+        Value value;
+        if (row_get_value(plan, &row, plan->count_column, &value)) return 1;
+        if (value.type != VALUE_NULL) count++;
     }
     if (status == CURSOR_ERROR) return 1;
 

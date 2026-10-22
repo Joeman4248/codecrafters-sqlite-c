@@ -172,7 +172,7 @@ int record_get_value(const Record* record, const uint32_t index, Value* out) {
         case SERIAL_ZERO: *out = (Value) { .type = VALUE_INTEGER, .integer = 0 }; return 0;
         case SERIAL_ONE:  *out = (Value) { .type = VALUE_INTEGER, .integer = 1 }; return 0;
 
-        case SERIAL_INT8: case SERIAL_INT16: case SERIAL_INT24:
+        case SERIAL_INT8:  case SERIAL_INT16: case SERIAL_INT24:
         case SERIAL_INT32: case SERIAL_INT48: case SERIAL_INT64:
             out->type = VALUE_INTEGER;
             return read_int(&reader, col->serial_type, &out->integer);
