@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "value.h"
 #include "view.h"
 
 // A record is a row's values, stored as a header followed by a body:
@@ -48,6 +49,12 @@ typedef struct {
 // is malformed, a value runs past the end of the body, or it has more columns
 // than capacity.
 int parse_record(ByteView payload, Record* record);
+
+// decodes column index into *out, whatever its storage class. A column past the
+// end of a short record (a row written before its table gained that column) is
+// NULL. Text and blobs view the body without copying, so they are valid while
+// the body is. Returns nonzero if the value runs past the end of the record.
+int record_get_value(const Record* record, uint32_t index, Value* out);
 
 // true if column index is NULL, including when the record is too short to
 // have it at all (a row written before its table gained that column)

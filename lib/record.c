@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "include/lib-sqlite/record.h"
 #include "include/lib-sqlite/decode.h"
 
@@ -109,61 +111,99 @@ static int64_t sign_extend(const uint64_t raw, const unsigned bits) {
     return ((int64_t) raw ^ sign_bit) - sign_bit;
 }
 
-int record_get_int(const Record* record, const uint32_t index, int64_t* value) {
-    if (index >= record->header.count) return 1;
-
-    const RecordColumn* col = &record->header.columns[index];
-    Reader reader = reader_at(record->body, col->value_offset);
-
-    switch (col->serial_type) {
-        case SERIAL_ZERO: *value = 0; return 0;
-        case SERIAL_ONE:  *value = 1; return 0;
-
+// reads an integer of serial type 1-6 at reader into *value
+static int read_int(Reader* reader, const uint64_t serial_type, int64_t* value) {
+    switch (serial_type) {
         case SERIAL_INT8: {
             uint8_t raw;
-            if (read_u8(&reader, &raw)) return 1;
+            if (read_u8(reader, &raw)) return 1;
             *value = sign_extend(raw, 8);
             return 0;
         }
         case SERIAL_INT16: {
             uint16_t raw;
-            if (read_u16(&reader, &raw)) return 1;
+            if (read_u16(reader, &raw)) return 1;
             *value = sign_extend(raw, 16);
             return 0;
         }
         case SERIAL_INT24: {
             uint32_t raw;
-            if (read_u24(&reader, &raw)) return 1;
+            if (read_u24(reader, &raw)) return 1;
             *value = sign_extend(raw, 24);
             return 0;
         }
         case SERIAL_INT32: {
             uint32_t raw;
-            if (read_u32(&reader, &raw)) return 1;
+            if (read_u32(reader, &raw)) return 1;
             *value = sign_extend(raw, 32);
             return 0;
         }
         case SERIAL_INT48: {
             uint64_t raw;
-            if (read_u48(&reader, &raw)) return 1;
+            if (read_u48(reader, &raw)) return 1;
             *value = sign_extend(raw, 48);
             return 0;
         }
-        case SERIAL_INT64:
-            return read_i64(&reader, value);
-
-        // NULL, float, text, or blob
-        default: return 1;
+        default:
+            return read_i64(reader, value);
     }
 }
 
-int record_text_view(const Record* record, const uint32_t index, StringView* out) {
-    if (!record_is_text(record, index)) return 1;
+// reads a big-endian IEEE 754 double at reader into *value. memcpy reinterprets
+// the 64 bits as a double without breaking C's aliasing rules.
+static int read_real(Reader* reader, double* value) {
+    uint64_t raw;
+    if (read_u64(reader, &raw)) return 1;
+    memcpy(value, &raw, sizeof(*value));
+    return 0;
+}
+
+int record_get_value(const Record* record, const uint32_t index, Value* out) {
+    if (index >= record->header.count) {
+        *out = (Value) { .type = VALUE_NULL };
+        return 0;
+    }
 
     const RecordColumn* col = &record->header.columns[index];
-    ByteView bytes;
-    if (bv_slice(record->body, col->value_offset, col->value_size, &bytes)) return 1;
+    Reader reader = reader_at(record->body, col->value_offset);
 
-    *out = bv_as_text(bytes);
+    switch (col->serial_type) {
+        case SERIAL_NULL: *out = (Value) { .type = VALUE_NULL }; return 0;
+        case SERIAL_ZERO: *out = (Value) { .type = VALUE_INTEGER, .integer = 0 }; return 0;
+        case SERIAL_ONE:  *out = (Value) { .type = VALUE_INTEGER, .integer = 1 }; return 0;
+
+        case SERIAL_INT8: case SERIAL_INT16: case SERIAL_INT24:
+        case SERIAL_INT32: case SERIAL_INT48: case SERIAL_INT64:
+            out->type = VALUE_INTEGER;
+            return read_int(&reader, col->serial_type, &out->integer);
+
+        case SERIAL_FLOAT:
+            out->type = VALUE_REAL;
+            return read_real(&reader, &out->real);
+
+        default: {
+            // text or blob: the length is folded into the serial type, and
+            // parse_record has already checked it fits in the body
+            ByteView bytes;
+            if (reader_take(&reader, col->value_size, &bytes)) return 1;
+            *out = serial_type_is_text(col->serial_type)
+                ? (Value) { .type = VALUE_TEXT, .text = bv_as_text(bytes) }
+                : (Value) { .type = VALUE_BLOB, .blob = bytes };
+            return 0;
+        }
+    }
+}
+
+int record_get_int(const Record* record, const uint32_t index, int64_t* value) {
+    Value v;
+    if (record_get_value(record, index, &v) || v.type != VALUE_INTEGER) return 1;
+    *value = v.integer;
+    return 0;
+}
+
+int record_text_view(const Record* record, const uint32_t index, StringView* out) {
+    Value v;
+    if (record_get_value(record, index, &v) || v.type != VALUE_TEXT) return 1;
+    *out = v.text;
     return 0;
 }
