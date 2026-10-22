@@ -35,8 +35,8 @@ static enum CursorStatus next_row(TableScan* scan, Row* row) {
     return CURSOR_ROW;
 }
 
-// column index of the row as a Value. The record holds NULL in place of the
-// rowid alias, so that column comes from the cell's rowid instead.
+// sets *out to the value of column index in the row. The rowid alias column is
+// stored as NULL in the record, so its value is the row's rowid instead.
 static int row_get_value(const SelectPlan* plan, const Row* row, const uint32_t index, Value* out) {
     if (plan->has_rowid_alias && index == plan->rowid_column) {
         *out = (Value) { .type = VALUE_INTEGER, .integer = row->rowid };
@@ -48,12 +48,8 @@ static int row_get_value(const SelectPlan* plan, const Row* row, const uint32_t 
 // sets *matches to whether the row passes the plan's WHERE condition. Every
 // row passes when there is no WHERE.
 static int row_matches(const SelectPlan* plan, const Row* row, bool* matches) {
-    *matches = false;
-
-    if (!plan->has_where) {
-        *matches = true;
-        return 0;
-    }
+    *matches = !plan->has_where;
+    if (*matches) return 0;
 
     Value value;
     if (row_get_value(plan, row, plan->where_column, &value)) return 1;
