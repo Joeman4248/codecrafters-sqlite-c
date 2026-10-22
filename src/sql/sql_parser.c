@@ -126,8 +126,8 @@ static int build_statement(Parser* parser, Statement* statement) {
 
 // which statement the tokens start, from their first one or two keywords
 static enum StatementType statement_type_of(const TokenList* tokens) {
-    const enum TokenType first  = tokens->count >= 1 ? tokens->items[0].type : TOKEN_EOF;
-    const enum TokenType second = tokens->count >= 2 ? tokens->items[1].type : TOKEN_EOF;
+    const enum TokenType first  = tokens->count > 0 ? tokens->items[0].type : TOKEN_EOF;
+    const enum TokenType second = tokens->count > 1 ? tokens->items[1].type : TOKEN_EOF;
     switch (first) {
         case TOKEN_SELECT: return STATEMENT_TYPE_SELECT;
         case TOKEN_CREATE:
