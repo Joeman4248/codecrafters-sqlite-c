@@ -13,6 +13,35 @@ static int resolve_column(const TableColumns* columns, const Token name, uint32_
     return 0;
 }
 
+// sets *out to the value a literal in the query stands for: a string is TEXT
+// and a run of digits an INTEGER. Prints an error if it's neither, or the
+// integer doesn't fit in 64 bits.
+static int literal_value(const Token literal, Value* out) {
+    switch (literal.type) {
+        case TOKEN_STRING:
+            *out = (Value) { .type = VALUE_TEXT, .text = literal.text };
+            return 0;
+
+        case TOKEN_INTEGER: {
+            int64_t integer = 0;
+            for (uint32_t i = 0; i < literal.text.len; i++) {
+                const int digit = literal.text.data[i] - '0';
+                if (integer > (INT64_MAX - digit) / 10) {
+                    fprintf(stderr, "integer too large: " SV_FMT "\n", SV_ARG(literal.text));
+                    return 1;
+                }
+                integer = integer * 10 + digit;
+            }
+            *out = (Value) { .type = VALUE_INTEGER, .integer = integer };
+            return 0;
+        }
+
+        default:
+            fprintf(stderr, "expected a string or number, got: " SV_FMT "\n", SV_ARG(literal.text));
+            return 1;
+    }
+}
+
 // returns how many column positions the query's names expand to: every column
 // for each *, and one for each name
 static uint32_t count_selected(const SelectQuery* query, const TableColumns* columns) {
@@ -65,8 +94,10 @@ static int plan_columns(const SelectQuery* query, const TableColumns* columns, S
 
     plan->has_where = query->has_where;
     if (query->has_where) {
-        plan->where_value = query->where.value.text;
-        if (resolve_column(columns, query->where.column, &plan->where_column)) return 1;
+        if (literal_value(query->where.value, &plan->where_value) ||
+            resolve_column(columns, query->where.column, &plan->where_column)) {
+            return 1;
+        }
     }
     return 0;
 }

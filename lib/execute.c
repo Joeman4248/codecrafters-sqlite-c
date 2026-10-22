@@ -58,8 +58,7 @@ static int row_matches(const SelectPlan* plan, const Row* row, bool* matches) {
     Value value;
     if (row_get_value(plan, row, plan->where_column, &value)) return 1;
 
-    // NULL never equals anything, and only text is compared so far
-    *matches = value.type == VALUE_TEXT && sv_equal(value.text, plan->where_value);
+    *matches = value_equal(value, plan->where_value);
     return 0;
 }
 

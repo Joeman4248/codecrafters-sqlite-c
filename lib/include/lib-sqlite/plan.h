@@ -6,6 +6,7 @@
 
 #include "database.h"
 #include "sql_parser.h"
+#include "value.h"
 #include "view.h"
 
 // how to run a SELECT, with every name in the query resolved against the
@@ -26,11 +27,11 @@ typedef struct {
 
     bool       has_where;
     uint32_t   where_column;    // has_where: the column to compare
-    StringView where_value;     // has_where: the text it must equal
+    Value      where_value;     // has_where: the value it must equal
 } SelectPlan;
 
 // plans query against the schema of db: finds the table, reads its columns
-// from its CREATE TABLE, and resolves every column the query names.
+// from its CREATE TABLE, and resolves every column the query names. A text
 // where_value points into the query's SQL text, so the plan must not outlive
 // it. On success the caller releases the plan with free_plan. On failure
 // prints an error to stderr, leaves nothing to free and returns nonzero.

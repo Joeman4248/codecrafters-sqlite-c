@@ -1,6 +1,7 @@
 #ifndef CODECRAFTERS_SQLITE_VALUE_H
 #define CODECRAFTERS_SQLITE_VALUE_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "view.h"
@@ -26,5 +27,11 @@ typedef struct {
         ByteView   blob;        // VALUE_BLOB
     };
 } Value;
+
+// true if a and b are equal values, the way SQL's = compares them: integers
+// and reals compare as numbers, text and blobs byte for byte, and values of
+// any other two different types are never equal. NULL equals nothing, not even
+// NULL.
+bool value_equal(Value a, Value b);
 
 #endif // CODECRAFTERS_SQLITE_VALUE_H
