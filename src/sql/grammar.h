@@ -2,6 +2,7 @@
 #define CODECRAFTERS_SQLITE_GRAMMAR_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "sql/tokenizer.h"
@@ -32,8 +33,8 @@ typedef struct Rule {
     enum RuleType             type;
     enum TokenType            token_type; // RULE_TOKEN: the token type it matches
     enum CaptureTag           tag;        // RULE_TOKEN: if not TAG_NONE, a match is captured under it
-    const struct Rule* const* children;   // RULE_SEQ, RULE_CHOICE, RULE_REPEAT: pointers to the child rules
-    uint32_t                  count;      // RULE_SEQ, RULE_CHOICE, RULE_REPEAT: how many children (1 for REPEAT)
+    const struct Rule* const* children;   // RULE_SEQ, RULE_CHOICE, RULE_REPEAT: pointers to the child
+                                          // rules, ending with NULL (one child for REPEAT)
 } Rule;
 
 // Each macro makes an unnamed Rule with a compound literal and gives its
@@ -50,18 +51,17 @@ typedef struct Rule {
 // At file scope, those unnamed Rules last for the whole program, so a grammar
 // needs no allocation and nothing to free.
 
-// a list of rules, as an unnamed array, and how many it holds
-#define RULE_LIST(...)          ((const Rule* const[]) { __VA_ARGS__ })
-#define RULE_LIST_COUNT(...)    (sizeof(RULE_LIST(__VA_ARGS__)) / sizeof(const Rule*))
+// a list of rules, as an unnamed array ending with NULL. The arguments are
+// written out only once: a macro that repeated them (to count them, say)
+// would double the expanded text at every level of nesting.
+#define RULE_LIST(...)  ((const Rule* const[]) { __VA_ARGS__, NULL })
 
 #define TOK(t)      (&(const Rule) { .type = RULE_TOKEN, .token_type = (t) })
 #define TAGGED_TOK(t, g) \
                     (&(const Rule) { .type = RULE_TOKEN, .token_type = (t), .tag = (g) })
-#define SEQ(...)    (&(const Rule) { .type = RULE_SEQ, \
-                        .children = RULE_LIST(__VA_ARGS__), .count = RULE_LIST_COUNT(__VA_ARGS__) })
-#define CHOICE(...) (&(const Rule) { .type = RULE_CHOICE, \
-                        .children = RULE_LIST(__VA_ARGS__), .count = RULE_LIST_COUNT(__VA_ARGS__) })
-#define REPEAT(r)   (&(const Rule) { .type = RULE_REPEAT, .children = RULE_LIST(r), .count = 1 })
+#define SEQ(...)    (&(const Rule) { .type = RULE_SEQ,    .children = RULE_LIST(__VA_ARGS__) })
+#define CHOICE(...) (&(const Rule) { .type = RULE_CHOICE, .children = RULE_LIST(__VA_ARGS__) })
+#define REPEAT(r)   (&(const Rule) { .type = RULE_REPEAT, .children = RULE_LIST(r) })
 
 // a token that matched a tagged rule, and the tag it matched under
 typedef struct {

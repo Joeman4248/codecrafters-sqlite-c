@@ -78,6 +78,10 @@ Token next_token(Tokenizer* tokenizer);
 // an allocation fails.
 int tokenize_all(const char* sql, TokenList* tokens);
 
+// true if token's text is word, ignoring case. For words like integer and
+// primary that the tokenizer reads as identifiers rather than keywords.
+bool token_is(Token token, const char* word);
+
 // returns a printable name for a token type, such as "SELECT" or "IDENTIFIER"
 const char* token_type_name(enum TokenType type);
 

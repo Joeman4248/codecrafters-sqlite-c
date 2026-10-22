@@ -36,7 +36,7 @@ bool match_rule(Parser* parser, const Rule* rule) {
         case RULE_SEQ: {
             const Mark start = save_mark(parser);
             match = true;
-            for (uint32_t i = 0; match && i < rule->count; i++) {
+            for (uint32_t i = 0; match && rule->children[i] != NULL; i++) {
                 match = match_rule(parser, rule->children[i]);
             }
             if (!match) restore_mark(parser, start);
@@ -46,7 +46,7 @@ bool match_rule(Parser* parser, const Rule* rule) {
             // call match_rule on each child in turn
             // return true at the first one that matches
             // if none match, return false (each failed child already put pos back)
-            for (uint32_t i = 0; !match && i < rule->count; i++) {
+            for (uint32_t i = 0; !match && rule->children[i] != NULL; i++) {
                 match = match_rule(parser, rule->children[i]);
             }
             break;
