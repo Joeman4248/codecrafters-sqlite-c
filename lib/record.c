@@ -93,16 +93,6 @@ int parse_record(const ByteView payload, Record* record) {
     return 0;
 }
 
-bool record_is_null(const Record* record, const uint32_t index) {
-    return index >= record->header.count ||
-           record->header.columns[index].serial_type == SERIAL_NULL;
-}
-
-bool record_is_text(const Record* record, const uint32_t index) {
-    return index < record->header.count &&
-           serial_type_is_text(record->header.columns[index].serial_type);
-}
-
 // interprets the low 'bits' bits of raw as a two's-complement value. XOR-ing
 // the sign bit and subtracting it back maps e.g. 0xFF (8 bits) to -1 using
 // only well-defined arithmetic, since raw < 2^48 always fits in an int64_t.
@@ -192,18 +182,4 @@ int record_get_value(const Record* record, const uint32_t index, Value* out) {
             return 0;
         }
     }
-}
-
-int record_get_int(const Record* record, const uint32_t index, int64_t* value) {
-    Value v;
-    if (record_get_value(record, index, &v) || v.type != VALUE_INTEGER) return 1;
-    *value = v.integer;
-    return 0;
-}
-
-int record_text_view(const Record* record, const uint32_t index, StringView* out) {
-    Value v;
-    if (record_get_value(record, index, &v) || v.type != VALUE_TEXT) return 1;
-    *out = v.text;
-    return 0;
 }

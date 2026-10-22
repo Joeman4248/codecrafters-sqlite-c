@@ -56,22 +56,4 @@ int parse_record(ByteView payload, Record* record);
 // the body is. Returns nonzero if the value runs past the end of the record.
 int record_get_value(const Record* record, uint32_t index, Value* out);
 
-// true if column index is NULL, including when the record is too short to
-// have it at all (a row written before its table gained that column)
-bool record_is_null(const Record* record, uint32_t index);
-
-// true if column index holds TEXT
-bool record_is_text(const Record* record, uint32_t index);
-
-// reads an INTEGER column into value as a signed 64-bit integer. Returns
-// nonzero if the column is not an integer or its bytes run past the end of the
-// record.
-int record_get_int(const Record* record, uint32_t index, int64_t* value);
-
-// points *out at a TEXT column without copying it: the view is into the body,
-// so it is valid while the body is. Use sv_to_cstr for a copy that outlives
-// it. Returns nonzero if the column is not text or runs past the end of the
-// record.
-int record_text_view(const Record* record, uint32_t index, StringView* out);
-
 #endif // CODECRAFTERS_SQLITE_RECORD_H

@@ -25,12 +25,12 @@ static enum SchemaType schema_type_from_text(const StringView text) {
 // outlive the page they're read from. Leaves *out NULL for a NULL column (sql
 // is NULL for automatic indexes).
 static int alloc_column_text(const Record* record, const uint32_t index, char** out) {
-    if (record_is_null(record, index)) return 0;
+    Value value;
+    if (record_get_value(record, index, &value)) return 1;
+    if (value.type == VALUE_NULL) return 0;
+    if (value.type != VALUE_TEXT) return 1;
 
-    StringView text;
-    if (record_text_view(record, index, &text)) return 1;
-
-    *out = sv_to_cstr(text);
+    *out = sv_to_cstr(value.text);
     return *out == NULL;
 }
 
@@ -78,20 +78,19 @@ static int parse_schema_page(Database* db, const ByteView page) {
 
         // compared where it sits in the page. A type that isn't text stays
         // empty, and so unknown, rather than failing the whole schema.
-        StringView type = { 0 };
-        if (record_is_text(&record, SCHEMA_COL_TYPE) &&
-            record_text_view(&record, SCHEMA_COL_TYPE, &type)) {
-            return 1;
-        }
-        entry->type = schema_type_from_text(type);
+        Value type;
+        if (record_get_value(&record, SCHEMA_COL_TYPE, &type)) return 1;
+        entry->type = (type.type == VALUE_TEXT) ? schema_type_from_text(type.text)
+                                                : SCHEMA_TYPE_UNKNOWN;
 
         // page numbers are positive and fit in 32 bits; views and triggers use 0
-        int64_t rootpage = 0;
-        if (record_get_int(&record, SCHEMA_COL_ROOTPAGE, &rootpage) ||
-            rootpage < 0 || rootpage > UINT32_MAX) {
+        Value rootpage;
+        if (record_get_value(&record, SCHEMA_COL_ROOTPAGE, &rootpage) ||
+            rootpage.type != VALUE_INTEGER ||
+            rootpage.integer < 0 || rootpage.integer > UINT32_MAX) {
             return 1;
         }
-        entry->rootpage = (uint32_t) rootpage;
+        entry->rootpage = (uint32_t) rootpage.integer;
 
         // allocate schema entry text fields as null-terminated c-strings
         // schema entries may outlive the heap-allocated pages they are read from
