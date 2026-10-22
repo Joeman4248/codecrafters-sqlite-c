@@ -69,10 +69,15 @@ typedef struct {
 
 // parses one SQL statement, matching it against the grammar for the kind of
 // statement its first keywords name. The grammar is written out in
-// sql_grammar.c; so far only SELECT is supported:
+// sql_grammar.c; so far it supports:
 //
 //     SELECT column FROM table        (column may be *)
 //     SELECT COUNT(column) FROM table (column may be *)
+//     CREATE TABLE name (column type constraints..., ...)
+//
+// A CREATE TABLE, such as the sql column of a sqlite_schema row, is read for
+// its column names and which column, if any, is the INTEGER PRIMARY KEY. The
+// rest of each column's type and constraints isn't interpreted.
 //
 // On success fills in *statement, which the caller releases with
 // free_statement. On failure prints an error to stderr, leaves nothing to
