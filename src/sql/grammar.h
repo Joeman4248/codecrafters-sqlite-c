@@ -50,6 +50,9 @@ typedef struct Rule {
 //
 // At file scope, those unnamed Rules last for the whole program, so a grammar
 // needs no allocation and nothing to free.
+//
+// The last rule in a SEQ or CHOICE can't be followed by a comma: the NULL that
+// RULE_LIST adds after it would leave an empty entry, which doesn't compile.
 
 // a list of rules, as an unnamed array ending with NULL. The arguments are
 // written out only once: a macro that repeated them (to count them, say)

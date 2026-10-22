@@ -51,7 +51,7 @@ static int build_create_table(Parser* parser, TableColumns* create_table) {
                 }
                 break;
             }
-            case TAG_TYPE_WORD: break;
+            case TAG_TYPE_WORD: break;      // already read by is_rowid_alias
             default: return 1;
         }
     }
