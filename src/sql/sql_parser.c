@@ -131,11 +131,8 @@ int parse_statement(const char* sql, Statement* statement) {
 
     // a token is captured at most once, so one capture per token is always enough.
     // There's always at least the EOF token, so this never asks for 0 bytes.
-    Capture* captures = NULL;
-    if (result == 0) {
-        captures = malloc(tokens.count * sizeof(Capture));
-        if (captures == NULL) result = 1;
-    }
+    Capture* captures = (result) ? NULL : malloc(tokens.count * sizeof(Capture));
+    if (captures == NULL) result = 1;
 
     if (result == 0) {
         Parser parser = { .pos = 0, .tokens = &tokens, .captures = captures };
