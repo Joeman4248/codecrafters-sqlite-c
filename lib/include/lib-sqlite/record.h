@@ -6,52 +6,48 @@
 
 #include "view.h"
 
-// serial type codes for the record format
-enum SerialType {
-    SERIAL_NULL,
-    SERIAL_INT8,
-    SERIAL_INT16,
-    SERIAL_INT24,
-    SERIAL_INT32,
-    SERIAL_INT48,
-    SERIAL_INT64,
-    SERIAL_FLOAT,
-    SERIAL_ZERO,
-    SERIAL_ONE,
+// A record is a row's values, stored as a header followed by a body:
+//
+//     [header size] [serial type 0] [serial type 1] ... | [value 0] [value 1] ...
+//      └──────────────────── header ──────────────────┘   └─────── body ───────┘
+//
+// The header says what kind of value each column holds and so how many bytes
+// it takes; the body holds the values back to back, in column order. How
+// values are encoded is private to record.c: other code asks about them
+// through the record_ functions below.
 
-    // the smallest BLOB and TEXT codes. Every larger even code is also a BLOB
-    // and every larger odd code is also TEXT, with the length folded in.
-    SERIAL_BLOB = 12,
-    SERIAL_TEXT = 13,
-};
-
+// one column's entry in the record header: what kind of value it holds, and
+// where that value sits in the body. Callers only make room for these (see
+// RecordHeader); parse_record fills them in and the record_ functions read them.
 typedef struct {
     uint64_t serial_type;     // serial type code for this column
-    uint32_t value_offset;    // byte offset of the column value within the record
-    uint32_t value_size;      // size of the column value in bytes
+    uint32_t value_offset;    // byte offset of the value from the start of the body
+    uint32_t value_size;      // size of the value in bytes
 } RecordColumn;
 
-// a record's payload together with its parsed header, which says where each
-// column's value sits in the payload. Neither is copied: payload points into a
-// page and columns into storage the caller owns, both of which must outlive it.
+// a record header, parsed: one entry per column. The caller provides the
+// storage by setting columns and capacity; parse_record fills it and sets count.
 typedef struct {
-    ByteView      payload;
-    RecordColumn* columns;
+    RecordColumn* columns;  // storage the caller owns
+    uint32_t      capacity; // entries columns has room for
     uint32_t      count;    // columns in this record, which can be fewer than its table has
+} RecordHeader;
+
+// a record split into its header and body. Nothing is copied: body points into
+// a page and the header's columns into storage the caller owns, both of which
+// must outlive the Record.
+typedef struct {
+    RecordHeader header;    // what each column holds and where
+    ByteView     body;      // the values, back to back
 } Record;
 
-// returns the byte size of the value described by a serial type code
-// (0 for NULL and for serial types 8 and 9)
-uint32_t serial_type_size(uint64_t serial_type);
-
-// true if a serial type code holds a TEXT value (odd, 13 and up)
-bool serial_type_is_text(uint64_t serial_type);
-
-// parses a record's header: reads the header-size varint and the per-column
-// serial type varints from payload into storage, which must hold at least
-// max_columns entries, and points *out at both. Returns nonzero if the record
-// is malformed or has more than max_columns columns.
-int parse_record(ByteView payload, RecordColumn* storage, uint32_t max_columns, Record* out);
+// splits payload, a whole record, into record's header and body. The header's
+// serial types are parsed into record->header.columns, which the caller has
+// already pointed at storage for record->header.capacity entries; count is set
+// to how many there are, and body to the values. Returns nonzero if the record
+// is malformed, a value runs past the end of the body, or it has more columns
+// than capacity.
+int parse_record(ByteView payload, Record* record);
 
 // true if column index is NULL, including when the record is too short to
 // have it at all (a row written before its table gained that column)
@@ -60,15 +56,15 @@ bool record_is_null(const Record* record, uint32_t index);
 // true if column index holds TEXT
 bool record_is_text(const Record* record, uint32_t index);
 
-// reads an INTEGER column (serial types 1-6, 8 and 9) into value as a signed
-// 64-bit integer. Returns nonzero if the column is not an integer or its bytes
-// run past the end of the record.
+// reads an INTEGER column into value as a signed 64-bit integer. Returns
+// nonzero if the column is not an integer or its bytes run past the end of the
+// record.
 int record_get_int(const Record* record, uint32_t index, int64_t* value);
 
-// points *out at a TEXT column (odd serial type >= 13) without copying it: the
-// view is into the payload, so it is valid while the payload is. Use
-// sv_to_cstr for a copy that outlives it. Returns nonzero if the column is not
-// text or runs past the end of the record.
+// points *out at a TEXT column without copying it: the view is into the body,
+// so it is valid while the body is. Use sv_to_cstr for a copy that outlives
+// it. Returns nonzero if the column is not text or runs past the end of the
+// record.
 int record_text_view(const Record* record, uint32_t index, StringView* out);
 
 #endif // CODECRAFTERS_SQLITE_RECORD_H

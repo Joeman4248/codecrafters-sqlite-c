@@ -28,9 +28,8 @@ static enum CursorStatus next_row(TableScan* scan, Row* row) {
     const enum CursorStatus status = cursor_next(&scan->cursor, &payload, &row->rowid);
     if (status != CURSOR_ROW) return status;
 
-    if (parse_record(payload, scan->storage, scan->plan->column_count, &row->record)) {
-        return CURSOR_ERROR;
-    }
+    row->record.header = (RecordHeader) { .columns = scan->storage, .capacity = scan->plan->column_count };
+    if (parse_record(payload, &row->record)) return CURSOR_ERROR;
     return CURSOR_ROW;
 }
 

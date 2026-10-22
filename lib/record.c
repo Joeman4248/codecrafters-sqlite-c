@@ -1,18 +1,41 @@
 #include "include/lib-sqlite/record.h"
 #include "include/lib-sqlite/decode.h"
 
-uint32_t serial_type_size(uint64_t serial_type) {
+// serial type codes for the record format
+enum SerialType {
+    SERIAL_NULL,
+    SERIAL_INT8, SERIAL_INT16, SERIAL_INT24, 
+    SERIAL_INT32, SERIAL_INT48, SERIAL_INT64,
+    SERIAL_FLOAT, SERIAL_ZERO, SERIAL_ONE,
+
+    // serial type codes 10, 11 never appear in a well-formed database file
+
+    // the smallest BLOB and TEXT codes. Every larger even code is also a BLOB
+    // and every larger odd code is also TEXT, with the length folded in.
+    SERIAL_BLOB = 12, SERIAL_TEXT = 13,
+};
+
+// true if a serial type code holds a TEXT value (odd, 13 and up)
+static bool serial_type_is_text(const uint64_t serial_type) {
+    return serial_type >= SERIAL_TEXT && serial_type % 2 == 1;
+}
+
+// the byte size of the value described by a serial type code (0 for NULL and
+// for serial types 8 and 9, whose value is the code itself)
+static uint32_t serial_type_size(const uint64_t serial_type) {
     switch (serial_type) {
         case SERIAL_NULL: case SERIAL_ZERO: case SERIAL_ONE: 
             return 0;
+
+        case SERIAL_INT8:   return 1;
+        case SERIAL_INT16:  return 2;
+        case SERIAL_INT24:  return 3;
+        case SERIAL_INT32:  return 4;
+        case SERIAL_INT48:  return 6;
+
         case SERIAL_INT64: case SERIAL_FLOAT:
             return 8;
-        case SERIAL_INT8:  return 1;
-        case SERIAL_INT16: return 2;
-        case SERIAL_INT24: return 3;
-        case SERIAL_INT32: return 4;
-        case SERIAL_INT48: return 6;
-        // serial type codes 10, 11 never appear in a well-formed database file
+
         default:
             // even serial types >= 12: BLOB of (serial_type - 12) / 2 bytes in length
             // odd serial types >= 13: string of (serial_type - 13) / 2 bytes in length
@@ -23,54 +46,59 @@ uint32_t serial_type_size(uint64_t serial_type) {
     }
 }
 
-bool serial_type_is_text(const uint64_t serial_type) {
-    return serial_type >= SERIAL_TEXT && serial_type % 2 == 1;
+// reads the header's serial types into header->columns, one per column, and
+// sets header->count. reader covers only the header, positioned just after its
+// size varint, so a malformed serial type can't run on into the values. Each
+// value's offset counts from the start of the body, and one that would run past
+// body_len is an error.
+static int parse_record_header(Reader* reader, const uint32_t body_len, RecordHeader* header) {
+    uint32_t count = 0;
+    uint32_t offset = 0;    // where the next value starts in the body
+
+    while (reader->pos < reader->bytes.len) {
+        if (count >= header->capacity) return 1;
+
+        uint64_t serial_type = 0;
+        if (read_varint_u64(reader, &serial_type)) return 1;
+
+        const uint32_t value_size = serial_type_size(serial_type);
+        if (value_size > body_len - offset) return 1;
+
+        header->columns[count++] = (RecordColumn) { serial_type, offset, value_size };
+        offset += value_size;
+    }
+
+    header->count = count;
+    return 0;
 }
 
-int parse_record(const ByteView payload, RecordColumn* storage, const uint32_t max_columns,
-        Record* out) {
+int parse_record(const ByteView payload, Record* record) {
     Reader reader = reader_at(payload, 0);
 
+    // the header size counts the varint holding it, so it can't be smaller than that
     uint32_t header_size = 0;
     if (read_varint_u32(&reader, &header_size) ||
         header_size < reader.pos || header_size > payload.len) {
         return 1;
     }
 
-    // the serial types are read from the header only, so a malformed one
-    // can't run on into the values
+    // the header is the first header_size bytes, and the body everything after
     reader.bytes = bv_prefix(payload, header_size);
+    const ByteView body = { payload.data + header_size, payload.len - header_size };
+    if (parse_record_header(&reader, body.len, &record->header)) return 1;
 
-    uint32_t count = 0;
-    uint32_t body_size = 0;
-
-    while (reader.pos < reader.bytes.len) {
-        if (count >= max_columns) return 1;
-
-        uint64_t serial_type = 0;
-        if (read_varint_u64(&reader, &serial_type)) return 1;
-
-        const uint32_t value_size = serial_type_size(serial_type);
-        storage[count].serial_type = serial_type;
-        storage[count].value_size = value_size;
-        storage[count].value_offset = header_size + body_size;
-
-        body_size += value_size;
-        count++;
-    }
-
-    if (body_size > payload.len || header_size > payload.len - body_size) return 1;
-
-    *out = (Record) { payload, storage, count };
+    record->body = body;
     return 0;
 }
 
 bool record_is_null(const Record* record, const uint32_t index) {
-    return index >= record->count || record->columns[index].serial_type == SERIAL_NULL;
+    return index >= record->header.count ||
+           record->header.columns[index].serial_type == SERIAL_NULL;
 }
 
 bool record_is_text(const Record* record, const uint32_t index) {
-    return index < record->count && serial_type_is_text(record->columns[index].serial_type);
+    return index < record->header.count &&
+           serial_type_is_text(record->header.columns[index].serial_type);
 }
 
 // interprets the low 'bits' bits of raw as a two's-complement value. XOR-ing
@@ -82,10 +110,10 @@ static int64_t sign_extend(const uint64_t raw, const unsigned bits) {
 }
 
 int record_get_int(const Record* record, const uint32_t index, int64_t* value) {
-    if (index >= record->count) return 1;
+    if (index >= record->header.count) return 1;
 
-    const RecordColumn* col = &record->columns[index];
-    Reader reader = reader_at(record->payload, col->value_offset);
+    const RecordColumn* col = &record->header.columns[index];
+    Reader reader = reader_at(record->body, col->value_offset);
 
     switch (col->serial_type) {
         case SERIAL_ZERO: *value = 0; return 0;
@@ -132,9 +160,9 @@ int record_get_int(const Record* record, const uint32_t index, int64_t* value) {
 int record_text_view(const Record* record, const uint32_t index, StringView* out) {
     if (!record_is_text(record, index)) return 1;
 
-    const RecordColumn* col = &record->columns[index];
+    const RecordColumn* col = &record->header.columns[index];
     ByteView bytes;
-    if (bv_slice(record->payload, col->value_offset, col->value_size, &bytes)) return 1;
+    if (bv_slice(record->body, col->value_offset, col->value_size, &bytes)) return 1;
 
     *out = bv_as_text(bytes);
     return 0;

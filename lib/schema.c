@@ -71,9 +71,8 @@ static int parse_schema_page(Database* db, const ByteView page) {
         }
 
         RecordColumn columns[SCHEMA_COL_COUNT];
-        Record record;
-        if (parse_record(payload, columns, SCHEMA_COL_COUNT, &record) ||
-            record.count != SCHEMA_COL_COUNT) {
+        Record record = { .header = { .columns = columns, .capacity = SCHEMA_COL_COUNT } };
+        if (parse_record(payload, &record) || record.header.count != SCHEMA_COL_COUNT) {
             return 1;
         }
 
@@ -97,6 +96,8 @@ static int parse_schema_page(Database* db, const ByteView page) {
         }
         entry->rootpage = (uint32_t) rootpage;
 
+        // allocate schema entry text fields as null-terminated c-strings
+        // schema entries may outlive the heap-allocated pages they are read from
         if (alloc_column_text(&record, SCHEMA_COL_NAME, &entry->name) ||
             alloc_column_text(&record, SCHEMA_COL_TBL_NAME, &entry->tbl_name) ||
             alloc_column_text(&record, SCHEMA_COL_SQL, &entry->sql)) {
