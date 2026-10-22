@@ -172,6 +172,10 @@ void free_token_list(TokenList* list) {
     *list = (TokenList) { 0 };
 }
 
+bool token_is(const Token token, const char* word) {
+    return sv_equal_nocase(token.text, sv_from_cstr(word));
+}
+
 // safe to hand out as a C string: every TOKEN_NAMES entry is an SV_LIT of a
 // string literal, which is null-terminated
 const char* token_type_name(const enum TokenType type) {

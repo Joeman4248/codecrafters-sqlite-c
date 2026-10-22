@@ -68,8 +68,8 @@ typedef struct {
 } Statement;
 
 // parses one SQL statement, matching it against the grammar for the kind of
-// statement its first keywords name. The grammar is written out at the top of
-// sql_parser.c; so far only SELECT is supported:
+// statement its first keywords name. The grammar is written out in
+// sql_grammar.c; so far only SELECT is supported:
 //
 //     SELECT column FROM table        (column may be *)
 //     SELECT COUNT(column) FROM table (column may be *)
