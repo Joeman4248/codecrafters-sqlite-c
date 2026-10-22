@@ -6,9 +6,9 @@
 // serial type codes for the record format
 enum SerialType {
     SERIAL_NULL,
-    SERIAL_INT8, SERIAL_INT16, SERIAL_INT24, 
+    SERIAL_INT8,  SERIAL_INT16, SERIAL_INT24, 
     SERIAL_INT32, SERIAL_INT48, SERIAL_INT64,
-    SERIAL_FLOAT, SERIAL_ZERO, SERIAL_ONE,
+    SERIAL_FLOAT, SERIAL_ZERO,  SERIAL_ONE,
 
     // serial type codes 10, 11 never appear in a well-formed database file
 
