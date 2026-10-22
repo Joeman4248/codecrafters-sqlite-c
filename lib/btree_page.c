@@ -64,22 +64,21 @@ int read_cell_pointer(const ByteView page, const uint32_t page_number,
 }
 
 int read_interior_table_cell(const ByteView page, const uint16_t cell_offset,
-        uint32_t* left_child, int64_t* key) {
+        TableInteriorCell* cell) {
     Reader reader = reader_at(page, cell_offset);
-    read_u32(&reader, left_child);
-    read_varint_i64(&reader, key);
+    read_u32(&reader, &cell->left_child);
+    read_varint_i64(&reader, &cell->key);
     return reader.failed;
 }
 
-int read_leaf_table_cell(const ByteView usable, const uint16_t cell_offset,
-        ByteView* payload, int64_t* rowid) {
+int read_leaf_table_cell(const ByteView usable, const uint16_t cell_offset, TableLeafCell* cell) {
     Reader reader = reader_at(usable, cell_offset);
 
     // SQLite caps a value's length at 2^31 - 1 bytes, so a payload size always
     // fits in 32 bits
     uint32_t payload_size;
     read_varint_u32(&reader, &payload_size);
-    read_varint_i64(&reader, rowid);
+    read_varint_i64(&reader, &cell->rowid);
     if (reader.failed) return 1;
 
     // max payload that can be stored inline on a table b-tree leaf page is
@@ -88,5 +87,5 @@ int read_leaf_table_cell(const ByteView usable, const uint16_t cell_offset,
     // incorrectly. Usable sizes are at least 480, so this can't wrap.
     if (payload_size > usable.len - 35) return 1;
 
-    return reader_take(&reader, payload_size, payload);
+    return reader_take(&reader, payload_size, &cell->payload);
 }

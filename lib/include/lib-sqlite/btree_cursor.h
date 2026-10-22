@@ -30,7 +30,7 @@ typedef struct {
 
 // what cursor_next found
 enum CursorStatus {
-    CURSOR_ROW,                 // *payload and *rowid hold the next row
+    CURSOR_ROW,                 // *cell holds the next row
     CURSOR_DONE,                // every row has been visited
     CURSOR_ERROR,               // the file is malformed or a read failed
 };
@@ -40,10 +40,10 @@ enum CursorStatus {
 // before the last row. On failure there is nothing to close.
 int cursor_open(TableCursor* cursor, const Database* db, uint32_t rootpage);
 
-// moves to the next row. On CURSOR_ROW, *payload views the row's record and
-// *rowid is its rowid. The payload points into the cursor's current page, so
-// it is only valid until the next cursor_next or cursor_close.
-enum CursorStatus cursor_next(TableCursor* cursor, ByteView* payload, int64_t* rowid);
+// moves to the next row. On CURSOR_ROW, *cell holds the row's rowid and a view
+// of its record. The record points into the cursor's current page, so it is
+// only valid until the next cursor_next or cursor_close.
+enum CursorStatus cursor_next(TableCursor* cursor, TableLeafCell* cell);
 
 // frees the cursor's pages. Safe to call more than once.
 void cursor_close(TableCursor* cursor);

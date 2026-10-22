@@ -78,21 +78,26 @@ static int frame_child(const CursorFrame* frame, const uint16_t index, uint32_t*
         return 0;
     }
 
+    // the cell's key separates the children; only lookups need it, not full scans
     uint16_t offset;
-    int64_t key;    // separates the children; only needed for lookups, not full scans
-    return read_cell_pointer(frame->page, frame->page_number, &frame->header, index, &offset) ||
-           read_interior_table_cell(frame->page, offset, child, &key);
+    TableInteriorCell cell;
+    if (read_cell_pointer(frame->page, frame->page_number, &frame->header, index, &offset) ||
+        read_interior_table_cell(frame->page, offset, &cell)) {
+        return 1;
+    }
+    *child = cell.left_child;
+    return 0;
 }
 
 // reads the row in entry index of a leaf frame
 static int frame_row(const TableCursor* cursor, const CursorFrame* frame, const uint16_t index,
-        ByteView* payload, int64_t* rowid) {
+        TableLeafCell* cell) {
     // cells never reach into the reserved bytes at the end of the page
     const ByteView usable = bv_prefix(frame->page, cursor->db->file_header.usable_size);
 
     uint16_t offset;
     return read_cell_pointer(frame->page, frame->page_number, &frame->header, index, &offset) ||
-           read_leaf_table_cell(usable, offset, payload, rowid);
+           read_leaf_table_cell(usable, offset, cell);
 }
 
 int cursor_open(TableCursor* cursor, const Database* db, const uint32_t rootpage) {
@@ -100,7 +105,7 @@ int cursor_open(TableCursor* cursor, const Database* db, const uint32_t rootpage
     return push_page(cursor, rootpage);
 }
 
-enum CursorStatus cursor_next(TableCursor* cursor, ByteView* payload, int64_t* rowid) {
+enum CursorStatus cursor_next(TableCursor* cursor, TableLeafCell* cell) {
     while (cursor->depth > 0) {
         CursorFrame* frame = cursor_top(cursor);
         
@@ -113,7 +118,7 @@ enum CursorStatus cursor_next(TableCursor* cursor, ByteView* payload, int64_t* r
         const uint16_t index = frame->next_entry++;
         
         if (frame->header.page_type == PAGE_TYPE_LEAF_TABLE) {
-            return frame_row(cursor, frame, index, payload, rowid) ? CURSOR_ERROR : CURSOR_ROW;
+            return frame_row(cursor, frame, index, cell) ? CURSOR_ERROR : CURSOR_ROW;
         }
 
         uint32_t child;

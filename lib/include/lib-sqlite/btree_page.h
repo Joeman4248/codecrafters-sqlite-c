@@ -46,17 +46,25 @@ int read_cell_pointers(ByteView page, uint32_t page_number,
 int read_cell_pointer(ByteView page, uint32_t page_number,
         const PageHeader* header, uint16_t index, uint16_t* cell_offset);
 
-// decodes a table b-tree interior cell: left_child is the page holding every
-// rowid up to and including key
-int read_interior_table_cell(ByteView page, uint16_t cell_offset,
-        uint32_t* left_child, int64_t* key);
+// a table b-tree interior cell: one child page and the key that bounds it
+typedef struct {
+    uint32_t left_child;    // the page holding every rowid up to and including key
+    int64_t  key;
+} TableInteriorCell;
 
-// decodes a table b-tree leaf cell. usable is the page cut to its usable size
-// (see bv_prefix), since cells never extend into the reserved bytes at the
-// end. payload is set to view the payload inside the page (no copy), and
-// rowid receives the cell's signed rowid. Returns nonzero if the payload
-// overflows onto overflow pages or on error.
-int read_leaf_table_cell(ByteView usable, uint16_t cell_offset,
-        ByteView* payload, int64_t* rowid);
+// a table b-tree leaf cell: one row
+typedef struct {
+    int64_t  rowid;
+    ByteView payload;       // the row's record, viewed inside the page (not copied)
+} TableLeafCell;
+
+// decodes the table b-tree interior cell at cell_offset into *cell
+int read_interior_table_cell(ByteView page, uint16_t cell_offset, TableInteriorCell* cell);
+
+// decodes the table b-tree leaf cell at cell_offset into *cell. usable is the
+// page cut to its usable size (see bv_prefix), since cells never extend into
+// the reserved bytes at the end. Returns nonzero if the payload overflows onto
+// overflow pages or on error.
+int read_leaf_table_cell(ByteView usable, uint16_t cell_offset, TableLeafCell* cell);
 
 #endif // CODECRAFTERS_SQLITE_BTREE_PAGE_H

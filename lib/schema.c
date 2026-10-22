@@ -62,17 +62,14 @@ static int parse_schema_page(Database* db, const ByteView page) {
     db->schema_count = schema_count;
 
     const ByteView usable = bv_prefix(page, db->file_header.usable_size);
-    ByteView payload;
-    int64_t rowid = 0;
 
     for (uint32_t i = 0; i < schema_count; i++) {
-        if (read_leaf_table_cell(usable, cell_offsets[i], &payload, &rowid)) {
-            return 1;
-        }
+        TableLeafCell cell;
+        if (read_leaf_table_cell(usable, cell_offsets[i], &cell)) return 1;
 
         RecordColumn columns[SCHEMA_COL_COUNT];
         Record record = { .header = { .columns = columns, .capacity = SCHEMA_COL_COUNT } };
-        if (parse_record(payload, &record) || record.header.count != SCHEMA_COL_COUNT) {
+        if (parse_record(cell.payload, &record) || record.header.count != SCHEMA_COL_COUNT) {
             return 1;
         }
 

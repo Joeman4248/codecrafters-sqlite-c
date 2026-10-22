@@ -24,12 +24,13 @@ typedef struct {
 // scan->storage. Returns CURSOR_ROW, CURSOR_DONE once there are no more rows,
 // or CURSOR_ERROR.
 static enum CursorStatus next_row(TableScan* scan, Row* row) {
-    ByteView payload;
-    const enum CursorStatus status = cursor_next(&scan->cursor, &payload, &row->rowid);
+    TableLeafCell cell;
+    const enum CursorStatus status = cursor_next(&scan->cursor, &cell);
     if (status != CURSOR_ROW) return status;
 
+    row->rowid = cell.rowid;
     row->record.header = (RecordHeader) { .columns = scan->storage, .capacity = scan->plan->column_count };
-    if (parse_record(payload, &row->record)) return CURSOR_ERROR;
+    if (parse_record(cell.payload, &row->record)) return CURSOR_ERROR;
     return CURSOR_ROW;
 }
 
