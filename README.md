@@ -29,12 +29,24 @@ $ ./your_program.sh companies.db "SELECT id, name FROM companies WHERE country =
 | Database info | `.dbinfo` |
 | List tables | `.tables` |
 | Count rows | `SELECT COUNT(*) FROM apples` |
-| Read columns | `SELECT name, color FROM apples` |
+| Count non-NULL values | `SELECT COUNT(color) FROM apples` |
+| Read columns | `SELECT name, color FROM apples` or `SELECT * FROM apples` |
 | Filter rows | `SELECT id, name FROM apples WHERE color = 'Yellow'` |
 
 Tables can span many pages: the B-tree is walked through interior and leaf
 pages, so the multi-megabyte sample databases work the same as the tiny one.
-`WHERE` supports one `column = 'text'` comparison for now.
+Values of every SQLite type are read and printed: integers, floats, text,
+blobs and NULL, plus the `INTEGER PRIMARY KEY` column, which SQLite stores as
+the row's rowid rather than in the row itself.
+
+Not supported yet:
+
+- `WHERE` takes one `column = 'text'` comparison. Comparing against numbers
+  works underneath, but the parser only reads text after `WHERE` so far.
+- A whole-number float in a `REAL` column prints as `3` where `sqlite3` prints
+  `3.0`: SQLite stores it as an integer and only its column's declared type
+  turns it back into a float, which isn't tracked yet.
+- Rows too big for one page (overflow pages), and indexes.
 
 ## How it works
 
@@ -56,7 +68,7 @@ A query goes through four stages:
 3. **Plan** ([plan.c](src/query/plan.c)): look the table up in the schema, find
    the page its B-tree starts on, and work out where each column sits in a row.
 4. **Execute** ([execute.c](src/query/execute.c)): walk the table's rows with a
-   B-tree cursor and print the ones that match.
+   B-tree cursor, read each column as a value, and print the rows that match.
 
 Underneath, these read the file itself:
 
@@ -65,14 +77,21 @@ Underneath, these read the file itself:
 - [btree_page.c](src/storage/btree_page.c) and [btree_cursor.c](src/storage/btree_cursor.c):
   B-tree pages and a cursor that steps through a table's rows in order.
 - [record.c](src/storage/record.c) and [reader.c](src/storage/reader.c): SQLite's
-  row format, and a reader for its big-endian integers, floats and
-  variable-length integers (varints).
+  row format (a header saying each column's type, then the values), and a
+  reader for its big-endian integers, floats and variable-length integers
+  (varints).
+- [value.c](src/util/value.c): a `Value` holds one value of any of SQLite's five
+  types, tagged with which one it is. Records produce them, and printing and
+  `WHERE` work on them, so neither needs to know how values are stored.
 
 ## In progress
 
 - **A grammar-driven parser** (the `parser-overhaul` branch): the SQL grammar
   is written as data, and one generic matcher checks queries against it,
-  instead of hand-writing a parsing function for every statement.
+  instead of hand-writing a parsing function for every statement. It handles
+  `CREATE TABLE` and single-column `SELECT` and `COUNT` so far; multiple
+  columns, `WHERE` and `CREATE INDEX` come next, and then it replaces the
+  current parser.
 - **Index lookups**: using an index such as `idx_companies_country` to jump
   straight to matching rows instead of scanning the whole table.
 
