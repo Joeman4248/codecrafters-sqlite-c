@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "include/lib-sqlite/decode.h"
+#include "include/lib-sqlite/reader.h"
 
 // every other read goes through this one (or reader_take), so this is where
 // running out of bytes is detected and made sticky
@@ -78,6 +78,14 @@ int read_i64(Reader* reader, int64_t* value) {
     uint64_t raw;
     read_u64(reader, &raw);
     *value = as_signed(raw);
+    return reader->failed;
+}
+
+// memcpy reinterprets the 64 bits as a double without breaking C's aliasing rules
+int read_f64(Reader* reader, double* value) {
+    uint64_t raw;
+    read_u64(reader, &raw);
+    memcpy(value, &raw, sizeof(*value));
     return reader->failed;
 }
 

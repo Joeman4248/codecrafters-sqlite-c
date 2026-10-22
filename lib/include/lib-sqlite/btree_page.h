@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 #include "database.h"
-#include "decode.h"
+#include "reader.h"
 
 #define SCHEMA_ROOT_PAGE 1            // root page of the sqlite_schema b-tree
 

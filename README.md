@@ -55,8 +55,9 @@ Underneath, these read the file itself:
   header and the `sqlite_schema` table that lists every table and index.
 - [btree_page.c](lib/btree_page.c) and [btree_cursor.c](lib/btree_cursor.c):
   B-tree pages and a cursor that steps through a table's rows in order.
-- [record.c](lib/record.c) and [decode.c](lib/decode.c): SQLite's row format,
-  big-endian integers and variable-length integers (varints).
+- [record.c](lib/record.c) and [reader.c](lib/reader.c): SQLite's row format,
+  and a reader for its big-endian integers, floats and variable-length
+  integers (varints).
 
 ## In progress
 

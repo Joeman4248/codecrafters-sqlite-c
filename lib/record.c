@@ -1,7 +1,5 @@
-#include <string.h>
-
 #include "include/lib-sqlite/record.h"
-#include "include/lib-sqlite/decode.h"
+#include "include/lib-sqlite/reader.h"
 
 // serial type codes for the record format
 enum SerialType {
@@ -139,15 +137,6 @@ static int read_int(Reader* reader, const uint64_t serial_type, int64_t* value) 
     }
 }
 
-// reads a big-endian IEEE 754 double at reader into *value. memcpy reinterprets
-// the 64 bits as a double without breaking C's aliasing rules.
-static int read_real(Reader* reader, double* value) {
-    uint64_t raw;
-    if (read_u64(reader, &raw)) return 1;
-    memcpy(value, &raw, sizeof(*value));
-    return 0;
-}
-
 int record_get_value(const Record* record, const uint32_t index, Value* out) {
     if (index >= record->header.count) {
         *out = (Value) { .type = VALUE_NULL };
@@ -169,7 +158,7 @@ int record_get_value(const Record* record, const uint32_t index, Value* out) {
 
         case SERIAL_FLOAT:
             out->type = VALUE_REAL;
-            return read_real(&reader, &out->real);
+            return read_f64(&reader, &out->real);
 
         default: {
             // text or blob: the length is folded into the serial type, and
