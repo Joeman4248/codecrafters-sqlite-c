@@ -86,7 +86,7 @@ static int parse_schema_page(Database* db, const Page* page) {
         entry->rootpage = (uint32_t) rootpage.integer;
 
         // allocate schema entry text fields as null-terminated c-strings
-        // schema entries may outlive the heap-allocated pages they are read from
+        // schema entries may out-live the heap-allocated pages they are read from
         if (alloc_column_text(&record, SCHEMA_COL_NAME, &entry->name) ||
             alloc_column_text(&record, SCHEMA_COL_TBL_NAME, &entry->tbl_name) ||
             alloc_column_text(&record, SCHEMA_COL_SQL, &entry->sql)) {
