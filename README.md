@@ -43,9 +43,6 @@ Not supported yet:
 
 - `WHERE` takes one `column = 'text'` comparison. Comparing against numbers
   works underneath, but the parser only reads text after `WHERE` so far.
-- A whole-number float in a `REAL` column prints as `3` where `sqlite3` prints
-  `3.0`: SQLite stores it as an integer and only its column's declared type
-  turns it back into a float, which isn't tracked yet.
 - Rows too big for one page (overflow pages), and indexes.
 
 ## How it works
