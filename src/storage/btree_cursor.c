@@ -2,17 +2,12 @@
 
 #include "storage/btree_cursor.h"
 
-// the frame's page as a view, for the read functions
-static ByteView frame_page(const TableCursor* cursor, const CursorFrame* frame) {
-    return (ByteView) { frame->buf, cursor->db->file_header.page_size };
-}
-
-// reads page_number into the frame's buffer and decodes its header. Returns
+// reads page number into the frame's buffer and decodes its header. Returns
 // nonzero if the read fails or the page isn't a table b-tree page; the
 // caller frees the buffer either way.
-static int load_frame(const TableCursor* cursor, CursorFrame* frame, const uint32_t page_number) {
-    if (read_page(cursor->db, page_number, frame->buf)) return 1;
-    if (read_btree_header(frame->page, page_number, &frame->header)) return 1;
+static int load_frame(const TableCursor* cursor, CursorFrame* frame, const uint32_t number) {
+    if (read_page(cursor->db, number, frame->buf, &frame->page)) return 1;
+    if (read_btree_header(frame->page, &frame->header)) return 1;
 
     switch (frame->header.page_type) {
         case PAGE_TYPE_INTERIOR_TABLE:
@@ -23,13 +18,13 @@ static int load_frame(const TableCursor* cursor, CursorFrame* frame, const uint3
     }
 }
 
-// reads page_number into a new frame on top of the stack. Fails, leaving the
+// reads page number into a new frame on top of the stack. Fails, leaving the
 // stack as it was, if the page number is out of range, the tree is deeper
 // than BTREE_MAX_DEPTH, or the page isn't a table b-tree page.
-static int push_page(TableCursor* cursor, const uint32_t page_number) {
+static int push_page(TableCursor* cursor, const uint32_t number) {
     // pages are numbered from 1; 0 means "no page"
     const uint32_t max_page = cursor->db->file_header.db_size_in_pages;
-    if (page_number == 0 || page_number > max_page || cursor->depth == BTREE_MAX_DEPTH) {
+    if (number == 0 || number > max_page || cursor->depth == BTREE_MAX_DEPTH) {
         return 1;
     }
 
@@ -37,12 +32,10 @@ static int push_page(TableCursor* cursor, const uint32_t page_number) {
     frame->buf = malloc(cursor->db->file_header.page_size);
     if (frame->buf == NULL) return 1;
 
-    frame->page = frame_page(cursor, frame);
-    frame->page_number = page_number;
     frame->next_entry = 0;
 
     // the buffer is freed here on any failure, so the stack is left as it was
-    if (load_frame(cursor, frame, page_number)) {
+    if (load_frame(cursor, frame, number)) {
         free(frame->buf);
         frame->buf = NULL;
         return 1;
@@ -81,7 +74,7 @@ static int frame_child(const CursorFrame* frame, const uint16_t index, uint32_t*
     // the cell's key separates the children; only lookups need it, not full scans
     uint16_t offset;
     TableInteriorCell cell;
-    if (read_cell_pointer(frame->page, frame->page_number, &frame->header, index, &offset) ||
+    if (read_cell_pointer(frame->page, &frame->header, index, &offset) ||
         read_interior_table_cell(frame->page, offset, &cell)) {
         return 1;
     }
@@ -90,14 +83,10 @@ static int frame_child(const CursorFrame* frame, const uint16_t index, uint32_t*
 }
 
 // reads the row in entry index of a leaf frame
-static int frame_row(const TableCursor* cursor, const CursorFrame* frame, const uint16_t index,
-        TableLeafCell* cell) {
-    // cells never reach into the reserved bytes at the end of the page
-    const ByteView usable = bv_prefix(frame->page, cursor->db->file_header.usable_size);
-
+static int frame_row(const CursorFrame* frame, const uint16_t index, TableLeafCell* cell) {
     uint16_t offset;
-    return read_cell_pointer(frame->page, frame->page_number, &frame->header, index, &offset) ||
-           read_leaf_table_cell(usable, offset, cell);
+    return read_cell_pointer(frame->page, &frame->header, index, &offset) ||
+           read_leaf_table_cell(frame->page, offset, cell);
 }
 
 int cursor_open(TableCursor* cursor, const Database* db, const uint32_t rootpage) {
@@ -118,7 +107,7 @@ enum CursorStatus cursor_next(TableCursor* cursor, TableLeafCell* cell) {
         const uint16_t index = frame->next_entry++;
         
         if (frame->header.page_type == PAGE_TYPE_LEAF_TABLE) {
-            return frame_row(cursor, frame, index, cell) ? CURSOR_ERROR : CURSOR_ROW;
+            return frame_row(frame, index, cell) ? CURSOR_ERROR : CURSOR_ROW;
         }
 
         uint32_t child;

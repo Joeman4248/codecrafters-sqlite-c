@@ -35,9 +35,9 @@ static int alloc_column_text(const Record* record, const uint32_t index, char** 
 }
 
 // fills db->schema from the in-memory schema root page
-static int parse_schema_page(Database* db, const ByteView page) {
+static int parse_schema_page(Database* db, const Page page) {
     PageHeader schema_page;
-    if (read_btree_header(page, SCHEMA_ROOT_PAGE, &schema_page)) {
+    if (read_btree_header(page, &schema_page)) {
         return 1;
     }
 
@@ -53,7 +53,7 @@ static int parse_schema_page(Database* db, const ByteView page) {
     if (schema_count == 0) return 0;
 
     uint16_t cell_offsets[schema_count];
-    if (read_cell_pointers(page, SCHEMA_ROOT_PAGE, &schema_page, cell_offsets)) {
+    if (read_cell_pointers(page, &schema_page, cell_offsets)) {
         return 1;
     }
 
@@ -61,11 +61,9 @@ static int parse_schema_page(Database* db, const ByteView page) {
     if (db->schema == NULL) return 1;
     db->schema_count = schema_count;
 
-    const ByteView usable = bv_prefix(page, db->file_header.usable_size);
-
     for (uint32_t i = 0; i < schema_count; i++) {
         TableLeafCell cell;
-        if (read_leaf_table_cell(usable, cell_offsets[i], &cell)) return 1;
+        if (read_leaf_table_cell(page, cell_offsets[i], &cell)) return 1;
 
         RecordColumn columns[SCHEMA_COL_COUNT];
         Record record = { .header = { .columns = columns, .capacity = SCHEMA_COL_COUNT } };
@@ -105,16 +103,14 @@ static int parse_schema_page(Database* db, const ByteView page) {
 }
 
 int read_schema(Database* db) {
-    const uint32_t page_size = db->file_header.page_size;
-    uint8_t* page = malloc(page_size);
-    if (page == NULL) return 1;
+    uint8_t* buf = malloc(db->file_header.page_size);
+    if (buf == NULL) return 1;
 
-    int result = read_page(db, SCHEMA_ROOT_PAGE, page);
-    if (result == 0) {
-        result = parse_schema_page(db, (ByteView) { page, page_size });
-    }
+    Page page;
+    int result = read_page(db, SCHEMA_ROOT_PAGE, buf, &page);
+    if (result == 0) result = parse_schema_page(db, page);
 
-    free(page);
+    free(buf);
     return result;
 }
 

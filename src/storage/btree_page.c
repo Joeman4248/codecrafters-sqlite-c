@@ -3,12 +3,12 @@
 // returns the offset within the page where the b-tree page header begins:
 // page 1 starts after the 100-byte database header, all other pages start at
 // the beginning of the page
-static uint32_t page_header_start(const uint32_t page_number) {
-    return page_number == SCHEMA_ROOT_PAGE ? FILE_HEADER_SZ : 0;
+static uint32_t page_header_start(const Page page) {
+    return page.number == SCHEMA_ROOT_PAGE ? FILE_HEADER_SZ : 0;
 }
 
-int read_btree_header(const ByteView page, const uint32_t page_number, PageHeader* header) {
-    Reader reader = reader_at(page, page_header_start(page_number));
+int read_btree_header(const Page page, PageHeader* header) {
+    Reader reader = reader_at(page.bytes, page_header_start(page));
 
     read_u8(&reader, &header->page_type);
     read_u16(&reader, &header->freeblock_offset);
@@ -43,36 +43,34 @@ int read_btree_header(const ByteView page, const uint32_t page_number, PageHeade
     return 0;
 }
 
-int read_cell_pointers(const ByteView page, const uint32_t page_number,
-        const PageHeader* header, uint16_t* cell_offsets) {
+int read_cell_pointers(const Page page, const PageHeader* header, uint16_t* cell_offsets) {
     // the cell pointer array immediately follows the b-tree page header,
     // not the end of the page
-    Reader reader = reader_at(page, page_header_start(page_number) + header->header_size);
+    Reader reader = reader_at(page.bytes, page_header_start(page) + header->header_size);
     for (uint32_t i = 0; i < header->cell_count; i++) {
         if (read_u16(&reader, &cell_offsets[i])) return 1;
     }
     return 0;
 }
 
-int read_cell_pointer(const ByteView page, const uint32_t page_number,
-        const PageHeader* header, const uint16_t index, uint16_t* cell_offset) {
+int read_cell_pointer(const Page page, const PageHeader* header, const uint16_t index,
+        uint16_t* cell_offset) {
     if (index >= header->cell_count) return 1;
-    Reader reader = reader_at(page, page_header_start(page_number) + 
-                                    header->header_size + (index * 2u));
+    Reader reader = reader_at(page.bytes, page_header_start(page) +
+                                          header->header_size + (index * 2u));
     read_u16(&reader, cell_offset);
     return reader.failed;
 }
 
-int read_interior_table_cell(const ByteView page, const uint16_t cell_offset,
-        TableInteriorCell* cell) {
-    Reader reader = reader_at(page, cell_offset);
+int read_interior_table_cell(const Page page, const uint16_t cell_offset, TableInteriorCell* cell) {
+    Reader reader = reader_at(page.bytes, cell_offset);
     read_u32(&reader, &cell->left_child);
     read_varint_i64(&reader, &cell->key);
     return reader.failed;
 }
 
-int read_leaf_table_cell(const ByteView usable, const uint16_t cell_offset, TableLeafCell* cell) {
-    Reader reader = reader_at(usable, cell_offset);
+int read_leaf_table_cell(const Page page, const uint16_t cell_offset, TableLeafCell* cell) {
+    Reader reader = reader_at(page.bytes, cell_offset);
 
     // SQLite caps a value's length at 2^31 - 1 bytes, so a payload size always
     // fits in 32 bits
@@ -82,10 +80,11 @@ int read_leaf_table_cell(const ByteView usable, const uint16_t cell_offset, Tabl
     if (reader.failed) return 1;
 
     // max payload that can be stored inline on a table b-tree leaf page is
-    // U - 35, where U is the usable page size. Larger payloads spill onto
-    // overflow pages, so they are reported as unsupported rather than read
-    // incorrectly. Usable sizes are at least 480, so this can't wrap.
-    if (payload_size > usable.len - 35) return 1;
+    // U - 35, where U is the usable page size (the length of page.bytes).
+    // Larger payloads spill onto overflow pages, so they are reported as
+    // unsupported rather than read incorrectly. Usable sizes are at least 480,
+    // so this can't wrap.
+    if (payload_size > page.bytes.len - 35) return 1;
 
     return reader_take(&reader, payload_size, &cell->payload);
 }

@@ -32,19 +32,18 @@ typedef struct {
     uint8_t header_size;    // 8 bytes in size for leaf pages and 12 bytes for interior pages
 } PageHeader;
 
-// decodes the b-tree page header of an in-memory page
-int read_btree_header(ByteView page, uint32_t page_number, PageHeader* header);
+// decodes the page's b-tree header, which on page 1 comes after the 100-byte
+// file header
+int read_btree_header(Page page, PageHeader* header);
 
 // decodes the array of K 2-byte cell offsets (which immediately follows the
 // b-tree page header) into cell_offsets, which must hold at least
 // header->cell_count entries
-int read_cell_pointers(ByteView page, uint32_t page_number,
-        const PageHeader* header, uint16_t* cell_offsets);
+int read_cell_pointers(Page page, const PageHeader* header, uint16_t* cell_offsets);
 
 // decodes entry index of the cell pointer array into *cell_offset, without
 // reading the rest of the array
-int read_cell_pointer(ByteView page, uint32_t page_number,
-        const PageHeader* header, uint16_t index, uint16_t* cell_offset);
+int read_cell_pointer(Page page, const PageHeader* header, uint16_t index, uint16_t* cell_offset);
 
 // a table b-tree interior cell: one child page and the key that bounds it
 typedef struct {
@@ -58,13 +57,11 @@ typedef struct {
     ByteView payload;       // the row's record, viewed inside the page (not copied)
 } TableLeafCell;
 
-// decodes the table b-tree interior cell at cell_offset into *cell
-int read_interior_table_cell(ByteView page, uint16_t cell_offset, TableInteriorCell* cell);
+// decodes the table b-tree interior cell at cell_offset in the page into *cell
+int read_interior_table_cell(Page page, uint16_t cell_offset, TableInteriorCell* cell);
 
-// decodes the table b-tree leaf cell at cell_offset into *cell. usable is the
-// page cut to its usable size (see bv_prefix), since cells never extend into
-// the reserved bytes at the end. Returns nonzero if the payload overflows onto
-// overflow pages or on error.
-int read_leaf_table_cell(ByteView usable, uint16_t cell_offset, TableLeafCell* cell);
+// decodes the table b-tree leaf cell at cell_offset in the page into *cell.
+// Returns nonzero if the payload overflows onto overflow pages or on error.
+int read_leaf_table_cell(Page page, uint16_t cell_offset, TableLeafCell* cell);
 
 #endif // CODECRAFTERS_SQLITE_BTREE_PAGE_H

@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include "storage/file_header.h"
+#include "util/view.h"
 
 
 // the value stored in a sqlite_schema row's type column
@@ -44,9 +45,18 @@ typedef struct {
     uint32_t    schema_count;     // number of objects in the schema
 } Database;
 
-// reads the whole of page page_number from the database file into buf, which
-// must hold at least the database's page size in bytes
-int read_page(const Database* db, uint32_t page_number, uint8_t* page);
+// one page of the database, read into memory: its bytes, and which page it is.
+// The bytes stop at the usable size, leaving out the reserved space at the end
+// of the page, which no b-tree structure uses.
+typedef struct {
+    ByteView bytes;
+    uint32_t number;    // pages are numbered from 1
+} Page;
+
+// reads page number of the database file into buf, which must hold at least
+// the database's page size in bytes, and points *page at it. Returns nonzero
+// if the page can't be read.
+int read_page(const Database* db, uint32_t number, uint8_t* buf, Page* page);
 
 // closes the database file and frees the schema. Safe to call on a
 // zero-initialised or already-closed Database.

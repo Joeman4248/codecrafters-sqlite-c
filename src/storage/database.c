@@ -3,18 +3,19 @@
 
 #include "storage/database.h"
 
-int read_page(const Database* db, const uint32_t page_number, uint8_t* page) {
+int read_page(const Database* db, const uint32_t number, uint8_t* buf, Page* page) {
     const uint32_t page_size = db->file_header.page_size;
 
-    if (fseek(db->file, (long) (page_number - 1) * page_size, SEEK_SET)) {
+    if (fseek(db->file, (long) (number - 1) * page_size, SEEK_SET)) {
         fprintf(stderr, "Error seeking to start of page\n");
         return 1;
     }
 
-    if (fread(page, 1, page_size, db->file) != page_size) {
+    if (fread(buf, 1, page_size, db->file) != page_size) {
         return 1;
     }
 
+    *page = (Page) { { buf, db->file_header.usable_size }, number };
     return 0;
 }
 
