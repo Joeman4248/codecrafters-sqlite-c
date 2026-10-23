@@ -4,65 +4,51 @@
 
 // every other read goes through this one (or reader_take), so this is where
 // running out of bytes is detected and made sticky
-int read_u8(Reader* reader, uint8_t* value) {
+uint8_t read_u8(Reader* reader) {
     if (reader->failed || reader->pos >= reader->bytes.len) {
         reader->failed = true;
-        *value = 0;
-        return 1;
+        return 0;
     }
-    *value = reader->bytes.data[reader->pos++];
-    return 0;
+    return reader->bytes.data[reader->pos++];
 }
 
 // The wider reads below read every part even after a failure, since a failed
-// read just stores 0, then store 0 overall if anything failed rather than a
+// read just returns 0, then return 0 overall if anything failed rather than a
 // half-built value.
 
 // 2 bytes, big-endian, as an upper and lower uint8
-int read_u16(Reader* reader, uint16_t* value) {
-    uint8_t upper, lower;
-    read_u8(reader, &upper);
-    read_u8(reader, &lower);
-    *value = reader->failed ? 0 : ((uint16_t)upper << 8) | lower;
-    return reader->failed;
+uint16_t read_u16(Reader* reader) {
+    const uint16_t upper = read_u8(reader);
+    const uint16_t lower = read_u8(reader);
+    return reader->failed ? 0 : (uint16_t) ((upper << 8) | lower);
 }
 
 // 3 bytes, big-endian, as an upper uint16 and lower uint8
-int read_u24(Reader* reader, uint32_t* value) {
-    uint16_t upper;
-    uint8_t  lower;
-    read_u16(reader, &upper);
-    read_u8(reader, &lower);
-    *value = reader->failed ? 0 : ((uint32_t)upper << 8) | lower;
-    return reader->failed;
+uint32_t read_u24(Reader* reader) {
+    const uint32_t upper = read_u16(reader);
+    const uint32_t lower = read_u8(reader);
+    return reader->failed ? 0 : (upper << 8) | lower;
 }
 
 // 4 bytes, big-endian, as an upper and lower uint16
-int read_u32(Reader* reader, uint32_t* value) {
-    uint16_t upper, lower;
-    read_u16(reader, &upper);
-    read_u16(reader, &lower);
-    *value = reader->failed ? 0 : ((uint32_t)upper << 16) | lower;
-    return reader->failed;
+uint32_t read_u32(Reader* reader) {
+    const uint32_t upper = read_u16(reader);
+    const uint32_t lower = read_u16(reader);
+    return reader->failed ? 0 : (upper << 16) | lower;
 }
 
 // 6 bytes, big-endian, as an upper uint32 and lower uint16
-int read_u48(Reader* reader, uint64_t* value) {
-    uint32_t upper;
-    uint16_t lower;
-    read_u32(reader, &upper);
-    read_u16(reader, &lower);
-    *value = reader->failed ? 0 : ((uint64_t)upper << 16) | lower;
-    return reader->failed;
+uint64_t read_u48(Reader* reader) {
+    const uint64_t upper = read_u32(reader);
+    const uint64_t lower = read_u16(reader);
+    return reader->failed ? 0 : (upper << 16) | lower;
 }
 
 // 8 bytes, big-endian, as an upper and lower uint32
-int read_u64(Reader* reader, uint64_t* value) {
-    uint32_t upper, lower;
-    read_u32(reader, &upper);
-    read_u32(reader, &lower);
-    *value = reader->failed ? 0 : ((uint64_t)upper << 32) | lower;
-    return reader->failed;
+uint64_t read_u64(Reader* reader) {
+    const uint64_t upper = read_u32(reader);
+    const uint64_t lower = read_u32(reader);
+    return reader->failed ? 0 : (upper << 32) | lower;
 }
 
 // raw already holds the two's-complement bits of the signed value; memcpy
@@ -74,19 +60,16 @@ static int64_t as_signed(const uint64_t raw) {
     return value;
 }
 
-int read_i64(Reader* reader, int64_t* value) {
-    uint64_t raw;
-    read_u64(reader, &raw);
-    *value = as_signed(raw);
-    return reader->failed;
+int64_t read_i64(Reader* reader) {
+    return as_signed(read_u64(reader));
 }
 
 // memcpy reinterprets the 64 bits as a double without breaking C's aliasing rules
-int read_f64(Reader* reader, double* value) {
-    uint64_t raw;
-    read_u64(reader, &raw);
-    memcpy(value, &raw, sizeof(*value));
-    return reader->failed;
+double read_f64(Reader* reader) {
+    const uint64_t raw = read_u64(reader);
+    double value;
+    memcpy(&value, &raw, sizeof(value));
+    return value;
 }
 
 // bytes 1-8 each contribute their lower 7 bits and use the high bit as a
@@ -97,66 +80,50 @@ int read_f64(Reader* reader, double* value) {
 // a varint holds the bits of a 64-bit two's-complement integer, but the value
 // is built in a uint64_t because shifting bits into or past the sign bit of a
 // signed type is undefined behavior. read_varint_i64 makes it signed after.
-int read_varint_u64(Reader* reader, uint64_t* value) {
+uint64_t read_varint_u64(Reader* reader) {
     uint64_t result = 0;
-    uint8_t byte;
 
-    // the first 1-8 bytes
+    // the first 1-8 bytes. A failed read returns 0, whose high bit is clear,
+    // so the loop stops there too.
     for (uint8_t i = 1; i <= 8; i++) {
-        if (read_u8(reader, &byte)) {
-            *value = 0;
-            return 1;
-        }
+        const uint8_t byte = read_u8(reader);
 
         // copy the 7 lower bits
         result = (result << 7) | (byte & 0x7F);
 
         // final byte never has 8th-most bit set
-        if ((byte & 0x80) == 0) {
-            *value = result;
-            return 0;
-        }
+        if ((byte & 0x80) == 0) return reader->failed ? 0 : result;
     }
 
     // the entire 9th byte
-    if (read_u8(reader, &byte)) {
-        *value = 0;
-        return 1;
-    }
-    *value = (result << 8) | byte;
-    return 0;
+    const uint8_t byte = read_u8(reader);
+    return reader->failed ? 0 : (result << 8) | byte;
 }
 
-int read_varint_i64(Reader* reader, int64_t* value) {
-    uint64_t raw;
-    read_varint_u64(reader, &raw);
-    *value = as_signed(raw);
-    return reader->failed;
+int64_t read_varint_i64(Reader* reader) {
+    return as_signed(read_varint_u64(reader));
 }
 
 // the same encoding as read_varint_u64; only the range of the result is narrower
-int read_varint_u32(Reader* reader, uint32_t* value) {
-    uint64_t wide;
-    if (read_varint_u64(reader, &wide) || wide > UINT32_MAX) {
-        reader->failed = true;
-        *value = 0;
-        return 1;
+uint32_t read_varint_u32(Reader* reader) {
+    const uint64_t wide = read_varint_u64(reader);
+    if (wide > UINT32_MAX) {
+        reader_fail(reader);
+        return 0;
     }
-    *value = (uint32_t) wide;
-    return 0;
+    return (uint32_t) wide;
 }
 
-int reader_take(Reader* reader, const uint32_t len, ByteView* out) {
-    if (reader->failed || bv_slice(reader->bytes, reader->pos, len, out)) {
+ByteView reader_take(Reader* reader, const uint32_t len) {
+    ByteView out;
+    if (reader->failed || bv_slice(reader->bytes, reader->pos, len, &out)) {
         reader->failed = true;
-        *out = (ByteView) { 0 };
-        return 1;
+        return (ByteView) { 0 };
     }
     reader->pos += len;
-    return 0;
+    return out;
 }
 
-int reader_skip(Reader* reader, const uint32_t len) {
-    ByteView skipped;
-    return reader_take(reader, len, &skipped);
+void reader_skip(Reader* reader, const uint32_t len) {
+    reader_take(reader, len);
 }

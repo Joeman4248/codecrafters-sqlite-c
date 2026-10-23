@@ -15,36 +15,18 @@ enum PageType {
     PAGE_TYPE_LEAF_TABLE = 0x0d
 };
 
-enum PageHeaderSize {
-    PAGE_HEADER_SZ_LEAF = 8,          // 8 bytes on leaf pages
-    PAGE_HEADER_SZ_INTERIOR = 12,     // 12 bytes on interior pages
-};
-
+// a b-tree page header, in the order its fields appear in the page
 typedef struct {
-    uint8_t page_type;          // offset 0
-    uint8_t num_free_bytes;     // offset 7
-
+    uint8_t  page_type;         // offset 0
     uint16_t freeblock_offset;  // offset 1
     uint16_t cell_count;        // offset 3
     uint16_t cell_area_start;   // offset 5
-    uint32_t rightmost_ptr;     // offset 8, only exists on interior pages
+    uint8_t  num_free_bytes;    // offset 7
+    uint32_t rightmost_ptr;     // offset 8, only on interior pages (0 on leaves)
 
-    uint8_t header_size;    // 8 bytes in size for leaf pages and 12 bytes for interior pages
+    uint32_t cell_pointers;     // not stored: where in the page the cell pointer
+                                // array starts, right after this header
 } PageHeader;
-
-// decodes the page's b-tree header, which on page 1 comes after the 100-byte
-// file header
-int read_btree_header(const Page* page, PageHeader* header);
-
-// decodes the array of K 2-byte cell offsets (which immediately follows the
-// b-tree page header) into cell_offsets, which must hold at least
-// header->cell_count entries
-int read_cell_pointers(const Page* page, const PageHeader* header, uint16_t* cell_offsets);
-
-// decodes entry index of the cell pointer array into *cell_offset, without
-// reading the rest of the array
-int read_cell_pointer(const Page* page, const PageHeader* header, uint16_t index,
-        uint16_t* cell_offset);
 
 // a table b-tree interior cell: one child page and the key that bounds it
 typedef struct {
@@ -58,11 +40,30 @@ typedef struct {
     ByteView payload;       // the row's record, viewed inside the page (not copied)
 } TableLeafCell;
 
-// decodes the table b-tree interior cell at cell_offset in the page into *cell
-int read_interior_table_cell(const Page* page, uint16_t cell_offset, TableInteriorCell* cell);
+// The functions below read through a Reader over the whole page, as
+// btree_header_reader gives, and report errors through its sticky failed flag:
+// a read past the end of the page, or bytes that make no sense, both fail it.
+// So a caller can make several of these calls and check reader.failed once.
 
-// decodes the table b-tree leaf cell at cell_offset in the page into *cell.
-// Returns nonzero if the payload overflows onto overflow pages or on error.
-int read_leaf_table_cell(const Page* page, uint16_t cell_offset, TableLeafCell* cell);
+// a reader over the page, positioned at its b-tree header, which on page 1
+// comes after the 100-byte file header
+Reader btree_header_reader(const Page* page);
+
+// reads the b-tree page header at the reader's position, leaving the reader at
+// the cell pointer array that follows it. Fails the reader if the page type
+// isn't one of the four b-tree page types.
+PageHeader read_btree_header(Reader* reader);
+
+// moves the reader to the start of cell index of the page. Fails the reader if
+// there is no such cell.
+void seek_cell(Reader* reader, const PageHeader* header, uint16_t index);
+
+// reads a table b-tree interior cell at the reader's position
+TableInteriorCell read_interior_table_cell(Reader* reader);
+
+// reads a table b-tree leaf cell at the reader's position. Fails the reader if
+// the payload is too big for one page, meaning the rest of it is on overflow
+// pages, which aren't supported.
+TableLeafCell read_leaf_table_cell(Reader* reader);
 
 #endif // CODECRAFTERS_SQLITE_BTREE_PAGE_H

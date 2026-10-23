@@ -49,43 +49,47 @@ static uint32_t serial_type_size(const uint64_t serial_type) {
 // reads the header's serial types into header->columns, one per column, and
 // sets header->count. reader covers only the header, positioned just after its
 // size varint, so a malformed serial type can't run on into the values. Each
-// value's offset counts from the start of the body, and one that would run past
-// body_len is an error.
-static int parse_record_header(Reader* reader, const uint32_t body_len, RecordHeader* header) {
+// value's offset counts from the start of the body. Fails the reader if a value
+// would run past body_len or there are more columns than header->capacity.
+static void parse_record_header(Reader* reader, const uint32_t body_len, RecordHeader* header) {
     uint32_t count = 0;
     uint32_t offset = 0;    // where the next value starts in the body
 
-    while (reader->pos < reader->bytes.len) {
-        if (count >= header->capacity) return 1;
+    while (!reader->failed && reader->pos < reader->bytes.len) {
+        if (count >= header->capacity) {
+            reader_fail(reader);
+            break;
+        }
 
-        uint64_t serial_type = 0;
-        if (read_varint_u64(reader, &serial_type)) return 1;
+        // checked before its size is used to place the value
+        const uint64_t serial_type = read_varint_u64(reader);
+        if (reader->failed) break;
 
         const uint32_t value_size = serial_type_size(serial_type);
-        if (value_size > body_len - offset) return 1;
+        if (value_size > body_len - offset) {
+            reader_fail(reader);
+            break;
+        }
 
         header->columns[count++] = (RecordColumn) { serial_type, offset, value_size };
         offset += value_size;
     }
 
     header->count = count;
-    return 0;
 }
 
 int parse_record(const ByteView payload, Record* record) {
     Reader reader = reader_at(payload, 0);
 
     // the header size counts the varint holding it, so it can't be smaller than that
-    uint32_t header_size = 0;
-    if (read_varint_u32(&reader, &header_size) ||
-        header_size < reader.pos || header_size > payload.len) {
-        return 1;
-    }
+    const uint32_t header_size = read_varint_u32(&reader);
+    if (reader.failed || header_size < reader.pos || header_size > payload.len) return 1;
 
     // the header is the first header_size bytes, and the body everything after
     reader.bytes = bv_prefix(payload, header_size);
     const ByteView body = { payload.data + header_size, payload.len - header_size };
-    if (parse_record_header(&reader, body.len, &record->header)) return 1;
+    parse_record_header(&reader, body.len, &record->header);
+    if (reader.failed) return 1;
 
     record->body = body;
     return 0;
@@ -99,41 +103,15 @@ static int64_t sign_extend(const uint64_t raw, const unsigned bits) {
     return ((int64_t) raw ^ sign_bit) - sign_bit;
 }
 
-// reads an integer of serial type 1-6 at reader into *value
-static int read_int(Reader* reader, const uint64_t serial_type, int64_t* value) {
+// reads an integer of serial type 1-6 at the reader's position
+static int64_t read_int(Reader* reader, const uint64_t serial_type) {
     switch (serial_type) {
-        case SERIAL_INT8: {
-            uint8_t raw;
-            if (read_u8(reader, &raw)) return 1;
-            *value = sign_extend(raw, 8);
-            return 0;
-        }
-        case SERIAL_INT16: {
-            uint16_t raw;
-            if (read_u16(reader, &raw)) return 1;
-            *value = sign_extend(raw, 16);
-            return 0;
-        }
-        case SERIAL_INT24: {
-            uint32_t raw;
-            if (read_u24(reader, &raw)) return 1;
-            *value = sign_extend(raw, 24);
-            return 0;
-        }
-        case SERIAL_INT32: {
-            uint32_t raw;
-            if (read_u32(reader, &raw)) return 1;
-            *value = sign_extend(raw, 32);
-            return 0;
-        }
-        case SERIAL_INT48: {
-            uint64_t raw;
-            if (read_u48(reader, &raw)) return 1;
-            *value = sign_extend(raw, 48);
-            return 0;
-        }
-        default:
-            return read_i64(reader, value);
+        case SERIAL_INT8:  return sign_extend(read_u8(reader), 8);
+        case SERIAL_INT16: return sign_extend(read_u16(reader), 16);
+        case SERIAL_INT24: return sign_extend(read_u24(reader), 24);
+        case SERIAL_INT32: return sign_extend(read_u32(reader), 32);
+        case SERIAL_INT48: return sign_extend(read_u48(reader), 48);
+        default:           return read_i64(reader);
     }
 }
 
@@ -153,22 +131,22 @@ int record_get_value(const Record* record, const uint32_t index, Value* out) {
 
         case SERIAL_INT8:  case SERIAL_INT16: case SERIAL_INT24:
         case SERIAL_INT32: case SERIAL_INT48: case SERIAL_INT64:
-            out->type = VALUE_INTEGER;
-            return read_int(&reader, col->serial_type, &out->integer);
+            *out = (Value) { .type = VALUE_INTEGER, .integer = read_int(&reader, col->serial_type) };
+            break;
 
         case SERIAL_FLOAT:
-            out->type = VALUE_REAL;
-            return read_f64(&reader, &out->real);
+            *out = (Value) { .type = VALUE_REAL, .real = read_f64(&reader) };
+            break;
 
         default: {
             // text or blob: the length is folded into the serial type, and
             // parse_record has already checked it fits in the body
-            ByteView bytes;
-            if (reader_take(&reader, col->value_size, &bytes)) return 1;
+            const ByteView bytes = reader_take(&reader, col->value_size);
             *out = serial_type_is_text(col->serial_type)
                 ? (Value) { .type = VALUE_TEXT, .text = bv_as_text(bytes) }
                 : (Value) { .type = VALUE_BLOB, .blob = bytes };
-            return 0;
+            break;
         }
     }
+    return reader.failed;
 }

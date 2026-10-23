@@ -97,32 +97,31 @@ int read_file_header(FILE* file, FileHeader* header) {
     memcpy(header->header_string, buf, sizeof(header->header_string));
     Reader reader = reader_at((ByteView) { buf, sizeof(buf) }, sizeof(header->header_string));
 
-    uint16_t page_size;
-    read_u16(&reader, &page_size);
+    const uint16_t page_size = read_u16(&reader);
 
-    read_u8(&reader, &header->write_version);
-    read_u8(&reader, &header->read_version);
-    read_u8(&reader, &header->reserved_space);
-    read_u8(&reader, &header->max_embedded_payload_fraction);
-    read_u8(&reader, &header->min_embedded_payload_fraction);
-    read_u8(&reader, &header->leaf_payload_fraction);
+    header->write_version                 = read_u8(&reader);
+    header->read_version                  = read_u8(&reader);
+    header->reserved_space                = read_u8(&reader);
+    header->max_embedded_payload_fraction = read_u8(&reader);
+    header->min_embedded_payload_fraction = read_u8(&reader);
+    header->leaf_payload_fraction         = read_u8(&reader);
 
-    read_u32(&reader, &header->file_change_counter);
-    read_u32(&reader, &header->db_size_in_pages);
-    read_u32(&reader, &header->first_freelist_trunk_page);
-    read_u32(&reader, &header->freelist_page_count);
-    read_u32(&reader, &header->schema_cookie);
-    read_u32(&reader, &header->schema_format);
-    read_u32(&reader, &header->default_page_cache_size);
-    read_u32(&reader, &header->largest_root_btree_page);
-    read_u32(&reader, &header->text_encoding);
-    read_u32(&reader, &header->user_version);
-    read_u32(&reader, &header->incremental_vacuum_enabled);
-    read_u32(&reader, &header->application_id);
+    header->file_change_counter        = read_u32(&reader);
+    header->db_size_in_pages           = read_u32(&reader);
+    header->first_freelist_trunk_page  = read_u32(&reader);
+    header->freelist_page_count        = read_u32(&reader);
+    header->schema_cookie              = read_u32(&reader);
+    header->schema_format              = read_u32(&reader);
+    header->default_page_cache_size    = read_u32(&reader);
+    header->largest_root_btree_page    = read_u32(&reader);
+    header->text_encoding              = read_u32(&reader);
+    header->user_version               = read_u32(&reader);
+    header->incremental_vacuum_enabled = read_u32(&reader);
+    header->application_id             = read_u32(&reader);
 
     reader_skip(&reader, FILE_HEADER_RESV_SZ);     // reserved, always zero
-    read_u32(&reader, &header->version_valid_for);
-    read_u32(&reader, &header->sqlite_version_number);
+    header->version_valid_for     = read_u32(&reader);
+    header->sqlite_version_number = read_u32(&reader);
 
     // one check covers every read above: none of the values is used until here
     if (reader.failed) return 1;

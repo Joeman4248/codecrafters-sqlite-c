@@ -36,10 +36,9 @@ static int alloc_column_text(const Record* record, const uint32_t index, char** 
 
 // fills db->schema from the in-memory schema root page
 static int parse_schema_page(Database* db, const Page* page) {
-    PageHeader schema_page;
-    if (read_btree_header(page, &schema_page)) {
-        return 1;
-    }
+    Reader reader = btree_header_reader(page);
+    const PageHeader schema_page = read_btree_header(&reader);
+    if (reader.failed) return 1;
 
     if (schema_page.page_type != PAGE_TYPE_LEAF_TABLE) {
         fprintf(stderr, "multi-page schema not supported yet\n");
@@ -47,23 +46,19 @@ static int parse_schema_page(Database* db, const Page* page) {
     }
 
     // a new database has an empty schema. Returning here leaves db->schema
-    // NULL and db->schema_count 0, and keeps the arrays below from having a
-    // length of 0, which is undefined for a variable-length array.
+    // NULL and db->schema_count 0, and keeps calloc from being asked for 0
+    // entries, which may return NULL and look like running out of memory.
     const uint16_t schema_count = schema_page.cell_count;
     if (schema_count == 0) return 0;
-
-    uint16_t cell_offsets[schema_count];
-    if (read_cell_pointers(page, &schema_page, cell_offsets)) {
-        return 1;
-    }
 
     db->schema = calloc(schema_count, sizeof(SchemaEntry));
     if (db->schema == NULL) return 1;
     db->schema_count = schema_count;
 
-    for (uint32_t i = 0; i < schema_count; i++) {
-        TableLeafCell cell;
-        if (read_leaf_table_cell(page, cell_offsets[i], &cell)) return 1;
+    for (uint16_t i = 0; i < schema_count; i++) {
+        seek_cell(&reader, &schema_page, i);
+        const TableLeafCell cell = read_leaf_table_cell(&reader);
+        if (reader.failed) return 1;
 
         RecordColumn columns[SCHEMA_COL_COUNT];
         Record record = { .header = { .columns = columns, .capacity = SCHEMA_COL_COUNT } };

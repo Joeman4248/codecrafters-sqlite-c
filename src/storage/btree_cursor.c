@@ -5,7 +5,10 @@
 // frame's page either way.
 static int load_frame(const TableCursor* cursor, CursorFrame* frame, const uint32_t number) {
     if (read_page(cursor->db, number, &frame->page)) return 1;
-    if (read_btree_header(&frame->page, &frame->header)) return 1;
+
+    Reader reader = btree_header_reader(&frame->page);
+    frame->header = read_btree_header(&reader);
+    if (reader.failed) return 1;
 
     switch (frame->header.page_type) {
         case PAGE_TYPE_INTERIOR_TABLE:
@@ -65,21 +68,18 @@ static int frame_child(const CursorFrame* frame, const uint16_t index, uint32_t*
     }
 
     // the cell's key separates the children; only lookups need it, not full scans
-    uint16_t offset;
-    TableInteriorCell cell;
-    if (read_cell_pointer(&frame->page, &frame->header, index, &offset) ||
-        read_interior_table_cell(&frame->page, offset, &cell)) {
-        return 1;
-    }
-    *child = cell.left_child;
-    return 0;
+    Reader reader = btree_header_reader(&frame->page);
+    seek_cell(&reader, &frame->header, index);
+    *child = read_interior_table_cell(&reader).left_child;
+    return reader.failed;
 }
 
 // reads the row in entry index of a leaf frame
 static int frame_row(const CursorFrame* frame, const uint16_t index, TableLeafCell* cell) {
-    uint16_t offset;
-    return read_cell_pointer(&frame->page, &frame->header, index, &offset) ||
-           read_leaf_table_cell(&frame->page, offset, cell);
+    Reader reader = btree_header_reader(&frame->page);
+    seek_cell(&reader, &frame->header, index);
+    *cell = read_leaf_table_cell(&reader);
+    return reader.failed;
 }
 
 int cursor_open(TableCursor* cursor, const Database* db, const uint32_t rootpage) {
