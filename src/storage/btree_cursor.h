@@ -13,8 +13,7 @@
 
 // one level of the path from the root to the current leaf
 typedef struct {
-    uint8_t*   buf;             // this level's page, owned by the frame
-    Page       page;            // buf as a page, for reading
+    Page       page;            // this level's page, owned by the frame
     PageHeader header;
     uint16_t   next_entry;      // next row (leaf) or child (interior) to visit; the
                                 // page is finished when it reaches the frame's entry count

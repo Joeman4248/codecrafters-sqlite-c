@@ -45,18 +45,27 @@ typedef struct {
     uint32_t    schema_count;     // number of objects in the schema
 } Database;
 
-// one page of the database, read into memory: its bytes, and which page it is.
-// The bytes stop at the usable size, leaving out the reserved space at the end
-// of the page, which no b-tree structure uses.
+// one page of the database, read into memory it owns, and which page it is
 typedef struct {
-    ByteView bytes;
+    uint8_t* data;      // the page's bytes, freed with free_page
+    uint32_t size;      // bytes to read from data: the usable size, which leaves
+                        // out the reserved space at the end that no b-tree uses
     uint32_t number;    // pages are numbered from 1
 } Page;
 
-// reads page number of the database file into buf, which must hold at least
-// the database's page size in bytes, and points *page at it. Returns nonzero
-// if the page can't be read.
-int read_page(const Database* db, uint32_t number, uint8_t* buf, Page* page);
+// the page's bytes as a read-only view, for reading through a Reader
+static inline ByteView page_bytes(const Page* page) {
+    return (ByteView) { page->data, page->size };
+}
+
+// reads page number of the database file into newly allocated memory in
+// *page. On success the caller releases it with free_page. On failure
+// returns nonzero and leaves nothing to free.
+int read_page(const Database* db, uint32_t number, Page* page);
+
+// frees the page's memory. Safe to call on a zero-initialised or already
+// freed Page.
+void free_page(Page* page);
 
 // closes the database file and frees the schema. Safe to call on a
 // zero-initialised or already-closed Database.

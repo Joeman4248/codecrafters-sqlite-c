@@ -1,13 +1,11 @@
-#include <stdlib.h>
-
 #include "storage/btree_cursor.h"
 
-// reads page number into the frame's buffer and decodes its header. Returns
-// nonzero if the read fails or the page isn't a table b-tree page; the
-// caller frees the buffer either way.
+// reads page number into the frame and decodes its header. Returns nonzero if
+// the read fails or the page isn't a table b-tree page; the caller frees the
+// frame's page either way.
 static int load_frame(const TableCursor* cursor, CursorFrame* frame, const uint32_t number) {
-    if (read_page(cursor->db, number, frame->buf, &frame->page)) return 1;
-    if (read_btree_header(frame->page, &frame->header)) return 1;
+    if (read_page(cursor->db, number, &frame->page)) return 1;
+    if (read_btree_header(&frame->page, &frame->header)) return 1;
 
     switch (frame->header.page_type) {
         case PAGE_TYPE_INTERIOR_TABLE:
@@ -29,15 +27,11 @@ static int push_page(TableCursor* cursor, const uint32_t number) {
     }
 
     CursorFrame* frame = &cursor->frames[cursor->depth];
-    frame->buf = malloc(cursor->db->file_header.page_size);
-    if (frame->buf == NULL) return 1;
-
     frame->next_entry = 0;
 
-    // the buffer is freed here on any failure, so the stack is left as it was
+    // the page is freed here on any failure, so the stack is left as it was
     if (load_frame(cursor, frame, number)) {
-        free(frame->buf);
-        frame->buf = NULL;
+        free_page(&frame->page);
         return 1;
     }
 
@@ -47,8 +41,7 @@ static int push_page(TableCursor* cursor, const uint32_t number) {
 
 // frees the top frame's page and removes it from the stack
 static void pop_page(TableCursor* cursor) {
-    free(cursor->frames[--cursor->depth].buf);
-    cursor->frames[cursor->depth].buf = NULL;
+    free_page(&cursor->frames[--cursor->depth].page);
 }
 
 // cursor->depth is assumed to be > 0
@@ -74,8 +67,8 @@ static int frame_child(const CursorFrame* frame, const uint16_t index, uint32_t*
     // the cell's key separates the children; only lookups need it, not full scans
     uint16_t offset;
     TableInteriorCell cell;
-    if (read_cell_pointer(frame->page, &frame->header, index, &offset) ||
-        read_interior_table_cell(frame->page, offset, &cell)) {
+    if (read_cell_pointer(&frame->page, &frame->header, index, &offset) ||
+        read_interior_table_cell(&frame->page, offset, &cell)) {
         return 1;
     }
     *child = cell.left_child;
@@ -85,8 +78,8 @@ static int frame_child(const CursorFrame* frame, const uint16_t index, uint32_t*
 // reads the row in entry index of a leaf frame
 static int frame_row(const CursorFrame* frame, const uint16_t index, TableLeafCell* cell) {
     uint16_t offset;
-    return read_cell_pointer(frame->page, &frame->header, index, &offset) ||
-           read_leaf_table_cell(frame->page, offset, cell);
+    return read_cell_pointer(&frame->page, &frame->header, index, &offset) ||
+           read_leaf_table_cell(&frame->page, offset, cell);
 }
 
 int cursor_open(TableCursor* cursor, const Database* db, const uint32_t rootpage) {
