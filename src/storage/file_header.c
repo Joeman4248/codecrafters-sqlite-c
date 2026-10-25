@@ -97,7 +97,7 @@ int read_file_header(FILE* file, FileHeader* header) {
     memcpy(header->header_string, buf, sizeof(header->header_string));
     Reader reader = reader_at((ByteView) { buf, sizeof(buf) }, sizeof(header->header_string));
 
-    const uint16_t page_size = read_u16(&reader);
+    header->page_size = page_size_bytes(read_u16(&reader));
 
     header->write_version                 = read_u8(&reader);
     header->read_version                  = read_u8(&reader);
@@ -126,10 +126,7 @@ int read_file_header(FILE* file, FileHeader* header) {
     // one check covers every read above: none of the values is used until here
     if (reader.failed) return 1;
 
-    header->page_size = page_size_bytes(page_size);
-    if (validate_file_header(header)) {
-        return 1;
-    }
+    if (validate_file_header(header)) return 1;
 
     // computed only after validation guarantees page_size >= reserved_space + 480,
     // so the subtraction can't wrap

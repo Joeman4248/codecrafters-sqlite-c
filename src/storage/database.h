@@ -61,7 +61,7 @@ static inline ByteView page_bytes(const Page* page) {
 // reads page number of the database file into newly allocated memory in
 // *page. On success the caller releases it with free_page. On failure
 // returns nonzero and leaves nothing to free.
-int read_page(const Database* db, uint32_t number, Page* page);
+int read_page(const Database* db, const uint32_t number, Page* page);
 
 // frees the page's memory. Safe to call on a zero-initialised or already
 // freed Page.

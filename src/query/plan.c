@@ -75,9 +75,9 @@ static int select_columns(const SelectQuery* query, const TableColumns* columns,
 // fills in everything the plan takes from the query and the table's columns.
 // On failure plan->selected may be allocated; the caller frees it.
 static int plan_columns(const SelectQuery* query, const TableColumns* columns, SelectPlan* plan) {
-    plan->column_count = columns->names.count;
+    plan->column_count    = columns->names.count;
     plan->has_rowid_alias = columns->has_rowid_alias;
-    plan->rowid_column = columns->rowid_column;
+    plan->rowid_column    = columns->rowid_column;
 
     plan->is_count = query->is_count;
     if (query->is_count) {
