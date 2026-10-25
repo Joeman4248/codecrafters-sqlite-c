@@ -88,8 +88,9 @@ Underneath, these read the file itself:
 ## In progress
 
 - **Index lookups**: using an index such as `idx_companies_country` to jump
-  straight to matching rows instead of scanning the whole table. This starts
-  with teaching the grammar `CREATE INDEX`.
+  straight to matching rows instead of scanning the whole table. The parser
+  already reads `CREATE INDEX` statements, so the next step is finding an
+  index in the schema that fits a query.
 - **Full `WHERE` expressions**: `AND`, `OR`, `NOT`, parentheses and the other
   comparison operators, parsed into an expression tree.
 

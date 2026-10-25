@@ -27,6 +27,7 @@ enum CaptureTag {
     TAG_COUNT,
     TAG_COLUMN,
     TAG_TABLE,
+    TAG_INDEX,          // the name of the index a CREATE INDEX makes
     TAG_TYPE_WORD,      // a word of a column's type or constraints, such as integer or key
     TAG_WHERE_COLUMN,   // the column a WHERE compares
     TAG_WHERE_VALUE,    // the literal a WHERE compares it with

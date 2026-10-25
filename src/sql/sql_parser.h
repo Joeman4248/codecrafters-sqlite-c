@@ -75,6 +75,7 @@ typedef struct {
 //     SELECT column, ... FROM table [WHERE column = value]
 //     SELECT COUNT(column) FROM table [WHERE column = value]
 //     CREATE TABLE name (column type constraints..., ...)
+//     CREATE INDEX name ON table (column, ...) [WHERE column = value]
 //
 // A SELECT column may be *, and so may COUNT's. A WHERE value is a 'string'
 // or an integer.
@@ -82,6 +83,10 @@ typedef struct {
 // A CREATE TABLE, such as the sql column of a sqlite_schema row, is read for
 // its column names and which column, if any, is the INTEGER PRIMARY KEY. The
 // rest of each column's type and constraints isn't interpreted.
+//
+// A CREATE INDEX is read for its name, its table and its column names. Words
+// after a column name, such as DESC, aren't interpreted, and of a partial
+// index's WHERE only its presence is kept.
 //
 // On success fills in *statement, which the caller releases with
 // free_statement. On failure prints an error to stderr, leaves nothing to

@@ -58,6 +58,21 @@ static int build_create_table(Parser* parser, TableColumns* create_table) {
     return 0;
 }
 
+static int build_create_index(Parser* parser, IndexColumns* create_index) {
+    for (uint32_t i = 0; i < parser->capture_count; i++) {
+        const Capture capture = parser->captures[i];
+        switch (capture.tag) {
+            case TAG_INDEX:  create_index->name = capture.token; break;
+            case TAG_TABLE:  create_index->table = capture.token; break;
+            case TAG_COLUMN: if (token_list_add(&create_index->columns, capture.token)) return 1; break;
+            case TAG_WHERE_COLUMN: create_index->has_where = true; break;
+            case TAG_WHERE_VALUE:  break;   // which rows a partial index covers isn't needed yet
+            default: return 1;
+        }
+    }
+    return 0;
+}
+
 static int build_select_statement(Parser* parser, SelectQuery* query) {
     for (uint32_t i = 0; i < parser->capture_count; i++) {
         const Capture capture = parser->captures[i];
@@ -83,6 +98,7 @@ static int build_statement(Parser* parser, Statement* statement) {
         case STATEMENT_TYPE_CREATE_TABLE:
             return build_create_table(parser, &statement->create_table);
         case STATEMENT_TYPE_CREATE_INDEX:
+            return build_create_index(parser, &statement->create_index);
         case STATEMENT_TYPE_UNKNOWN:
             break;
     }

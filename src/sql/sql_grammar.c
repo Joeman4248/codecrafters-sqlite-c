@@ -15,11 +15,20 @@
 //     column_def        ::= IDENTIFIER { type_word | "(" { type_word | "," } ")" }
 //     type_word         ::= IDENTIFIER | INTEGER | STRING
 //
+//     create_index_stmt ::= CREATE INDEX IDENTIFIER ON IDENTIFIER
+//                           "(" indexed_column { "," indexed_column } ")" [ where_clause ] EOF
+//     indexed_column    ::= IDENTIFIER { IDENTIFIER }
+//
 // A column_def is a column's name followed by its type and constraints, such
 // as "integer primary key autoincrement" or "varchar(255) not null". Those
 // are read as a run of words, with one level of parentheses allowed, and not
 // interpreted. Table constraints such as PRIMARY KEY (a, b) have the same
 // shape, so they'd be read as a column named PRIMARY.
+//
+// An indexed_column is a column name, then words such as COLLATE NOCASE or
+// DESC, which aren't interpreted. CREATE UNIQUE INDEX and IF NOT EXISTS aren't
+// supported yet, and a partial index's WHERE takes only the one comparison a
+// SELECT's does.
 
 // result_column ::= IDENTIFIER | "*"
 // both are captured as columns; the planner tells * apart by its token type
@@ -74,8 +83,27 @@ static const Rule* const CREATE_TABLE_STMT = SEQ(
     TOK(TOKEN_EOF)
 );
 
+// indexed_column ::= IDENTIFIER { IDENTIFIER }
+// only the name is captured; the words after it, such as DESC, aren't needed
+#define INDEXED_COLUMN  SEQ(TAGGED_TOK(TOKEN_IDENTIFIER, TAG_COLUMN), REPEAT(TOK(TOKEN_IDENTIFIER)))
+
+// create_index_stmt ::= CREATE INDEX IDENTIFIER ON IDENTIFIER
+//                       "(" indexed_column { "," indexed_column } ")" [ where_clause ] EOF
+static const Rule* const CREATE_INDEX_STMT = SEQ(
+    TOK(TOKEN_CREATE),
+    TOK(TOKEN_INDEX),
+    TAGGED_TOK(TOKEN_IDENTIFIER, TAG_INDEX),
+    TOK(TOKEN_ON),
+    TAGGED_TOK(TOKEN_IDENTIFIER, TAG_TABLE),
+    TOK(TOKEN_LPAREN),
+    INDEXED_COLUMN, REPEAT(SEQ(TOK(TOKEN_COMMA), INDEXED_COLUMN)),
+    TOK(TOKEN_RPAREN),
+    OPTIONAL(WHERE_CLAUSE),
+    TOK(TOKEN_EOF)
+);
+
 const Rule* const STATEMENT_RULES[STATEMENT_TYPE_COUNT] = {
     [STATEMENT_TYPE_SELECT]       = SELECT_STMT,
     [STATEMENT_TYPE_CREATE_TABLE] = CREATE_TABLE_STMT,
-    [STATEMENT_TYPE_CREATE_INDEX] = NULL,
+    [STATEMENT_TYPE_CREATE_INDEX] = CREATE_INDEX_STMT,
 };

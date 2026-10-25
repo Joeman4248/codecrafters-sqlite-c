@@ -17,6 +17,7 @@ static const StringView TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_INDEX]       = SV_LIT("INDEX"),
     [TOKEN_COUNT]       = SV_LIT("COUNT"),
     [TOKEN_WHERE]       = SV_LIT("WHERE"),
+    [TOKEN_ON]          = SV_LIT("ON"),
 
     [TOKEN_IDENTIFIER]  = SV_LIT("IDENTIFIER"),
     [TOKEN_STRING]      = SV_LIT("STRING"),
