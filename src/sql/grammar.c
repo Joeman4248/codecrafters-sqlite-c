@@ -62,6 +62,13 @@ bool match_rule(Parser* parser, const Rule* rule) {
             }
             break;
         }
+        case RULE_OPTIONAL: {
+            // matching nothing is a match too, so this never fails. A failed
+            // child has already put pos and the captures back.
+            match_rule(parser, rule->children[0]);
+            match = true;
+            break;
+        }
     }
     return match;
 }

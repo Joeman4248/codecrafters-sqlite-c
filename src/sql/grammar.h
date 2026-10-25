@@ -16,6 +16,7 @@ enum RuleType {
     RULE_SEQ,           // every child, one after another:     a b c
     RULE_CHOICE,        // the first child that matches:       a | b
     RULE_REPEAT,        // its one child, zero or more times:  { a }
+    RULE_OPTIONAL,      // its one child, zero or one time:    [ a ]
 };
 
 // what a matched token means, so it can be found after matching. A grammar
@@ -33,8 +34,9 @@ typedef struct Rule {
     enum RuleType             type;
     enum TokenType            token_type; // RULE_TOKEN: the token type it matches
     enum CaptureTag           tag;        // RULE_TOKEN: if not TAG_NONE, a match is captured under it
-    const struct Rule* const* children;   // RULE_SEQ, RULE_CHOICE, RULE_REPEAT: pointers to the child
-                                          // rules, ending with NULL (one child for REPEAT)
+    const struct Rule* const* children;   // RULE_SEQ, RULE_CHOICE, RULE_REPEAT, RULE_OPTIONAL: pointers
+                                          // to the child rules, ending with NULL (one child for
+                                          // REPEAT and OPTIONAL)
 } Rule;
 
 // Each macro makes an unnamed Rule with a compound literal and gives its
@@ -65,6 +67,7 @@ typedef struct Rule {
 #define SEQ(...)    (&(const Rule) { .type = RULE_SEQ,    .children = RULE_LIST(__VA_ARGS__) })
 #define CHOICE(...) (&(const Rule) { .type = RULE_CHOICE, .children = RULE_LIST(__VA_ARGS__) })
 #define REPEAT(r)   (&(const Rule) { .type = RULE_REPEAT, .children = RULE_LIST(r) })
+#define OPTIONAL(r) (&(const Rule) { .type = RULE_OPTIONAL, .children = RULE_LIST(r) })
 
 // a token that matched a tagged rule, and the tag it matched under
 typedef struct {
