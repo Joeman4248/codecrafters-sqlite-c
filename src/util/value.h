@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "util/view.h"
 
@@ -33,5 +34,10 @@ typedef struct {
 // any other two different types are never equal. NULL equals nothing, not even
 // NULL.
 bool value_equal(Value a, Value b);
+
+// writes value to out without a newline, the way sqlite3 prints it: nothing
+// for NULL, floats always with a decimal point, and text and blobs as their
+// raw bytes
+void value_print(Value value, FILE* out);
 
 #endif // CODECRAFTERS_SQLITE_VALUE_H
