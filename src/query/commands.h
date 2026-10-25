@@ -11,7 +11,8 @@ enum DotCommand {
     DOT_COMMAND_UNKNOWN = DOT_COMMAND_COUNT,    // not a recognised dot-command
 };
 
-// maps a command string such as ".tables" to its enum value
+// maps a command string such as ".tables" to its enum value, or to
+// DOT_COMMAND_UNKNOWN if it isn't one. Matching is exact, case included.
 enum DotCommand parse_dot_command(const char* text);
 
 // each run_*_command prints its own error message to stderr and returns
