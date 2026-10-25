@@ -31,7 +31,7 @@ $ ./your_program.sh companies.db "SELECT id, name FROM companies WHERE country =
 | Count rows | `SELECT COUNT(*) FROM apples` |
 | Count non-NULL values | `SELECT COUNT(color) FROM apples` |
 | Read columns | `SELECT name, color FROM apples` or `SELECT * FROM apples` |
-| Filter rows | `SELECT id, name FROM apples WHERE color = 'Yellow'` |
+| Filter rows | `SELECT id, name FROM apples WHERE color = 'Yellow'` or `WHERE id = 3` |
 
 Tables can span many pages: the B-tree is walked through interior and leaf
 pages, so the multi-megabyte sample databases work the same as the tiny one.
@@ -41,8 +41,8 @@ the row's rowid rather than in the row itself.
 
 Not supported yet:
 
-- `WHERE` takes one `column = 'text'` comparison. Comparing against numbers
-  works underneath, but the parser only reads text after `WHERE` so far.
+- `WHERE` takes one `column = value` comparison, where the value is a string
+  or an integer: no `AND`/`OR`, other operators or parentheses yet.
 - Rows too big for one page (overflow pages), and indexes.
 
 ## How it works
@@ -60,8 +60,12 @@ A query goes through four stages:
 
 1. **Tokenize** ([tokenizer.c](src/sql/tokenizer.c)): split the SQL text into
    tokens such as `SELECT`, `apples` and `'Yellow'`.
-2. **Parse** ([sql_parser.c](src/sql/sql_parser.c)): turn the tokens into a
-   statement: which table, which columns, what filter.
+2. **Parse** ([sql_parser.c](src/sql/sql_parser.c)): match the tokens against
+   the SQL grammar and turn them into a statement: which table, which columns,
+   what filter. The grammar is written as data in
+   [sql_grammar.c](src/sql/sql_grammar.c), and one generic matcher
+   ([grammar.c](src/sql/grammar.c)) checks queries against it, instead of a
+   hand-written parsing function for every statement.
 3. **Plan** ([plan.c](src/query/plan.c)): look the table up in the schema, find
    the page its B-tree starts on, and work out where each column sits in a row.
 4. **Execute** ([execute.c](src/query/execute.c)): walk the table's rows with a
@@ -83,14 +87,11 @@ Underneath, these read the file itself:
 
 ## In progress
 
-- **A grammar-driven parser** (the `parser-overhaul` branch): the SQL grammar
-  is written as data, and one generic matcher checks queries against it,
-  instead of hand-writing a parsing function for every statement. It handles
-  `CREATE TABLE` and single-column `SELECT` and `COUNT` so far; multiple
-  columns, `WHERE` and `CREATE INDEX` come next, and then it replaces the
-  current parser.
 - **Index lookups**: using an index such as `idx_companies_country` to jump
-  straight to matching rows instead of scanning the whole table.
+  straight to matching rows instead of scanning the whole table. This starts
+  with teaching the grammar `CREATE INDEX`.
+- **Full `WHERE` expressions**: `AND`, `OR`, `NOT`, parentheses and the other
+  comparison operators, parsed into an expression tree.
 
 ## Running it
 
