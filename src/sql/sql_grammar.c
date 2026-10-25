@@ -15,7 +15,7 @@
 //     type_word         ::= IDENTIFIER | INTEGER | STRING
 //
 // [ ] (optional) needs RULE_OPTIONAL, which the engine doesn't have yet, so
-// for now SELECT takes one result column and no WHERE.
+// for now SELECT takes no WHERE.
 //
 // A column_def is a column's name followed by its type and constraints, such
 // as "integer primary key autoincrement" or "varchar(255) not null". Those
@@ -28,12 +28,13 @@
 #define RESULT_COLUMN   CHOICE(TAGGED_TOK(TOKEN_IDENTIFIER, TAG_COLUMN), \
                                TAGGED_TOK(TOKEN_STAR, TAG_COLUMN))
 
-// select_stmt ::= SELECT ( COUNT "(" result_column ")" | result_column ) FROM IDENTIFIER EOF
+// select_stmt ::= SELECT ( COUNT "(" result_column ")" | result_column { "," result_column } )
+//                 FROM IDENTIFIER EOF
 static const Rule* const SELECT_STMT = SEQ(
     TOK(TOKEN_SELECT),
     CHOICE(
         SEQ(TAGGED_TOK(TOKEN_COUNT, TAG_COUNT), TOK(TOKEN_LPAREN), RESULT_COLUMN, TOK(TOKEN_RPAREN)),
-        RESULT_COLUMN),
+        SEQ(RESULT_COLUMN, REPEAT(SEQ(TOK(TOKEN_COMMA), RESULT_COLUMN)))),
     TOK(TOKEN_FROM),
     TAGGED_TOK(TOKEN_IDENTIFIER, TAG_TABLE),
     TOK(TOKEN_EOF)
