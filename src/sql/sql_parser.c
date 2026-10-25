@@ -65,6 +65,11 @@ static int build_select_statement(Parser* parser, SelectQuery* query) {
             case TAG_COLUMN: if (token_list_add(&query->names, capture.token)) return 1; break;
             case TAG_COUNT:  query->is_count = true; break;
             case TAG_TABLE:  query->table = capture.token; break;
+            case TAG_WHERE_COLUMN:
+                query->has_where = true;
+                query->where.column = capture.token;
+                break;
+            case TAG_WHERE_VALUE: query->where.value = capture.token; break;
             default: return 1;
         }
     }

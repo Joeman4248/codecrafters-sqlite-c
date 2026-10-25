@@ -5,17 +5,15 @@
 // The full grammar this parser is heading for, a simplified slice of
 // https://sqlite.org/lang.html:
 //
-//     select_stmt       ::= SELECT result_columns FROM IDENTIFIER [ WHERE IDENTIFIER "=" STRING ] EOF
+//     select_stmt       ::= SELECT result_columns FROM IDENTIFIER [ where_clause ] EOF
 //     result_columns    ::= COUNT "(" ( IDENTIFIER | "*" ) ")"
 //                         | result_column { "," result_column }
 //     result_column     ::= IDENTIFIER | "*"
+//     where_clause      ::= WHERE IDENTIFIER "=" ( STRING | INTEGER )
 //
 //     create_table_stmt ::= CREATE TABLE IDENTIFIER "(" column_def { "," column_def } ")" EOF
 //     column_def        ::= IDENTIFIER { type_word | "(" { type_word | "," } ")" }
 //     type_word         ::= IDENTIFIER | INTEGER | STRING
-//
-// [ ] (optional) needs RULE_OPTIONAL, which the engine doesn't have yet, so
-// for now SELECT takes no WHERE.
 //
 // A column_def is a column's name followed by its type and constraints, such
 // as "integer primary key autoincrement" or "varchar(255) not null". Those
@@ -28,8 +26,15 @@
 #define RESULT_COLUMN   CHOICE(TAGGED_TOK(TOKEN_IDENTIFIER, TAG_COLUMN), \
                                TAGGED_TOK(TOKEN_STAR, TAG_COLUMN))
 
+// where_clause ::= WHERE IDENTIFIER "=" ( STRING | INTEGER )
+#define WHERE_CLAUSE    SEQ(                                                    \
+    TOK(TOKEN_WHERE),                                                           \
+    TAGGED_TOK(TOKEN_IDENTIFIER, TAG_WHERE_COLUMN),                             \
+    TOK(TOKEN_EQUALS),                                                          \
+    CHOICE(TAGGED_TOK(TOKEN_STRING, TAG_WHERE_VALUE), TAGGED_TOK(TOKEN_INTEGER, TAG_WHERE_VALUE)))
+
 // select_stmt ::= SELECT ( COUNT "(" result_column ")" | result_column { "," result_column } )
-//                 FROM IDENTIFIER EOF
+//                 FROM IDENTIFIER [ where_clause ] EOF
 static const Rule* const SELECT_STMT = SEQ(
     TOK(TOKEN_SELECT),
     CHOICE(
@@ -37,6 +42,7 @@ static const Rule* const SELECT_STMT = SEQ(
         SEQ(RESULT_COLUMN, REPEAT(SEQ(TOK(TOKEN_COMMA), RESULT_COLUMN)))),
     TOK(TOKEN_FROM),
     TAGGED_TOK(TOKEN_IDENTIFIER, TAG_TABLE),
+    OPTIONAL(WHERE_CLAUSE),
     TOK(TOKEN_EOF)
 );
 

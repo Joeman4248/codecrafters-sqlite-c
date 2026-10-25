@@ -25,10 +25,11 @@ typedef struct {
     Token     name;         // the index's name
 } IndexColumns;
 
-// a WHERE condition of the form column = 'text'
+// a WHERE condition of the form column = 'text' or column = 123
 typedef struct {
     Token column;   // TOKEN_IDENTIFIER: the column to compare
-    Token value;    // TOKEN_STRING: the text it must equal, without the quotes
+    Token value;    // TOKEN_STRING (the text, without the quotes) or TOKEN_INTEGER:
+                    // the value it must equal
 } Condition;
 
 // the parts of a SELECT query. Like TableColumns, the tokens point into the
@@ -71,9 +72,12 @@ typedef struct {
 // statement its first keywords name. The grammar is written out in
 // sql_grammar.c; so far it supports:
 //
-//     SELECT column FROM table        (column may be *)
-//     SELECT COUNT(column) FROM table (column may be *)
+//     SELECT column, ... FROM table [WHERE column = value]
+//     SELECT COUNT(column) FROM table [WHERE column = value]
 //     CREATE TABLE name (column type constraints..., ...)
+//
+// A SELECT column may be *, and so may COUNT's. A WHERE value is a 'string'
+// or an integer.
 //
 // A CREATE TABLE, such as the sql column of a sqlite_schema row, is read for
 // its column names and which column, if any, is the INTEGER PRIMARY KEY. The
