@@ -34,6 +34,11 @@
                     "ignoreFailures": true
                 },
                 {
+                    "description": "Show string views as only their len characters",
+                    "text": "source ${workspaceFolder}/.vscode/views.py",
+                    "ignoreFailures": true
+                },
+                {
                     "description": "Set disassembly flavor to Intel",
                     "text": "-gdb-set disassembly-flavor intel",
                     "ignoreFailures": true

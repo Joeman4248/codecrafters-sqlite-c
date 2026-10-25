@@ -111,7 +111,8 @@ static int64_t read_int(Reader* reader, const uint64_t serial_type) {
         case SERIAL_INT24: return sign_extend(read_u24(reader), 24);
         case SERIAL_INT32: return sign_extend(read_u32(reader), 32);
         case SERIAL_INT48: return sign_extend(read_u48(reader), 48);
-        default:           return read_i64(reader);
+        case SERIAL_INT64: return read_i64(reader);
+        default: return 0;
     }
 }
 
