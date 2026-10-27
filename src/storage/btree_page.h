@@ -18,10 +18,10 @@ enum PageType {
 // a b-tree page header, in the order its fields appear in the page
 typedef struct {
     uint8_t  page_type;         // offset 0
+    uint8_t  num_free_bytes;    // offset 7
     uint16_t freeblock_offset;  // offset 1
     uint16_t cell_count;        // offset 3
     uint16_t cell_area_start;   // offset 5
-    uint8_t  num_free_bytes;    // offset 7
     uint32_t rightmost_ptr;     // offset 8, only on interior pages (0 on leaves)
 
     uint32_t cell_pointers;     // not stored: where in the page the cell pointer
