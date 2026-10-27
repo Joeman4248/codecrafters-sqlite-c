@@ -30,8 +30,8 @@ typedef struct {
 
 // a table b-tree interior cell: one child page and the key that bounds it
 typedef struct {
-    uint32_t left_child;    // the page holding every rowid up to and including key
     int64_t  key;
+    uint32_t left_child;    // the page holding every rowid up to and including key
 } TableInteriorCell;
 
 // a table b-tree leaf cell: one row
