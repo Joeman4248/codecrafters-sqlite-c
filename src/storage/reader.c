@@ -20,7 +20,7 @@ uint8_t read_u8(Reader* reader) {
 uint16_t read_u16(Reader* reader) {
     const uint16_t upper = read_u8(reader);
     const uint16_t lower = read_u8(reader);
-    return reader->failed ? 0 : (uint16_t) ((upper << 8) | lower);
+    return reader->failed ? 0 : ((upper << 8) | lower);
 }
 
 // 3 bytes, big-endian, as an upper uint16 and lower uint8
