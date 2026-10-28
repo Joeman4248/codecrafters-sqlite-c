@@ -22,19 +22,12 @@ static int run(Database* db, const char* command) {
     }
 
     // anything that isn't a dot-command is treated as SQL
-    if (command[0] != '.') {
-        return run_sql_command(db, command);
-    }
+    if (command[0] != '.') return run_sql_command(db, command);
 
     switch (parse_dot_command(command)) {
-        case DOT_COMMAND_DBINFO:
-            return run_dbinfo_command(db);
-
-        case DOT_COMMAND_TABLES:
-            return run_tables_command(db);
-
-        case DOT_COMMAND_UNKNOWN:
-            break;
+        case DOT_COMMAND_DBINFO:  return run_dbinfo_command(db);
+        case DOT_COMMAND_TABLES:  return run_tables_command(db);
+        case DOT_COMMAND_UNKNOWN: break;
     }
 
     fprintf(stderr, "Unknown command %s\n", command);
