@@ -18,11 +18,9 @@ static int read_page_bytes(const Database* db, const uint32_t number, uint8_t* d
 int read_page(const Database* db, const uint32_t number, Page* page) {
     // the whole page is read, reserved bytes included, but only the usable
     // part is ever looked at
-    *page = (Page) {
-        .data   = malloc(db->file_header.page_size),
-        .size   = db->file_header.usable_size,
-        .number = number,
-    };
+    page->data   = malloc(db->file_header.page_size);
+    page->size   = db->file_header.usable_size;
+    page->number = number;
 
     if (page->data == NULL || read_page_bytes(db, number, page->data)) {
         free_page(page);
