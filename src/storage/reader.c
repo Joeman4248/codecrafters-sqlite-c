@@ -115,12 +115,13 @@ uint32_t read_varint_u32(Reader* reader) {
 }
 
 ByteView reader_take(Reader* reader, const uint32_t len) {
-    ByteView out;
+    ByteView out = { 0 };
     if (reader->failed || bv_slice(reader->bytes, reader->pos, len, &out)) {
         reader->failed = true;
-        return (ByteView) { 0 };
     }
-    reader->pos += len;
+    else {
+        reader->pos += len;
+    }
     return out;
 }
 
