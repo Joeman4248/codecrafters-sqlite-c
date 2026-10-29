@@ -6,8 +6,8 @@
 #include "util/view.h"
 
 enum TokenType {
-    TOKEN_UNKNOWN,                          // a character no token starts with; 0 on purpose
-    TOKEN_EOF,                              // end of the SQL text
+    TOKEN_UNKNOWN,          // a character no token starts with; 0 on purpose
+    TOKEN_EOF,              // end of the SQL text
 
     // keywords, matched ignoring case. Anything word-shaped that isn't one of
     // these (including type names like integer and function names like max)
@@ -17,21 +17,21 @@ enum TokenType {
     TOKEN_CREATE,
     TOKEN_TABLE,
     TOKEN_INDEX,
-    TOKEN_COUNT,                            // the token 'COUNT', not the number of token types
+    TOKEN_COUNT,            // the token 'COUNT', not the number of token types
     TOKEN_WHERE,
     TOKEN_ON,
 
-    TOKEN_IDENTIFIER,                       // table or column name
-    TOKEN_STRING,                           // 'text' without the quotes
-    TOKEN_INTEGER,                          // digits, such as 42
+    TOKEN_IDENTIFIER,       // table or column name
+    TOKEN_STRING,           // 'text' without the quotes
+    TOKEN_INTEGER,          // digits, such as 42
 
-    TOKEN_LPAREN,                           // (
-    TOKEN_RPAREN,                           // )
-    TOKEN_COMMA,                            // ,
-    TOKEN_STAR,                             // *
-    TOKEN_EQUALS,                           // =
+    TOKEN_LPAREN,           // (
+    TOKEN_RPAREN,           // )
+    TOKEN_COMMA,            // ,
+    TOKEN_STAR,             // *
+    TOKEN_EQUALS,           // =
 
-    TOKEN_TYPE_COUNT,                       // number of token types
+    TOKEN_TYPE_COUNT,       // number of token types
 
     // aliases for the range of keywords. They come after every real token type
     // so a debugger, which shows the first name declared for a value, shows
@@ -63,7 +63,7 @@ int token_list_add(TokenList* list, Token token);
 void free_token_list(TokenList* list);
 
 typedef struct {
-    const char* pos;    // next character to read
+    const char* pos;        // next character to read
 } Tokenizer;
 
 // returns a tokenizer positioned at the start of the null-terminated string sql
