@@ -1,0 +1,53 @@
+# SQLite in C
+
+CodeCrafters "Build Your Own SQLite": reads real SQLite `.db` files and answers
+simple SQL. C23, CMake, MinGW gcc on Windows (PowerShell). README.md has the
+user-facing overview; don't re-read it for orientation.
+
+## Build and test
+
+- Build: `cmake --build build`. If `build/` is missing:
+  `cmake -G "MinGW Makefiles" -S . -B build`.
+- Test: `pwsh -NoProfile -File tests/check.ps1` builds, compares ~25 queries
+  with sqlite3, and prints only differences plus `N/N passed`. Run this
+  instead of ad-hoc queries; add a case there for new behaviour.
+- Run one query: `./build/sqlite.exe sample.db "SELECT name FROM apples"`.
+- `*.db` files are binary test data: never Read them; query them with sqlite3.
+
+## Layout (src/, includes written as "folder/name.h")
+
+Layers depend downwards only: util <- storage, sql <- query. No two-way dependencies.
+
+- `util/` view.h (StringView/ByteView, not null-terminated), value.c (tagged-union Value, value_equal, value_print)
+- `storage/` reader.c (byte reader, sticky `failed`), file_header.c, database.h (Database, Page),
+  btree_page.c (page header, cells), btree_cursor.c (table row walker), record.c (records/serial types), schema.c
+- `sql/` tokenizer.c, grammar.c (generic rule matcher), sql_grammar.c (the SQL grammar as macro-built data),
+  sql_parser.c (builders that turn captures into Statement)
+- `query/` plan.c (schema lookup, column positions), execute.c, sql.c (runs a statement), commands.c (.dbinfo/.tables)
+- `main.c` argument handling
+
+Header comments state the contract; read the .h before the .c.
+
+## C style (follow exactly)
+
+- `}` then `else` on its own line; never `} else {`.
+- Bare error checks: `if (f(...)) return 1;`, not `!= 0`. Functions that can fail return int, nonzero on error.
+- No goto: split into a helper and do cleanup once in the caller.
+- No negative sentinels: return bool and fill an out-parameter for "not found".
+- Enums end with `FOO_COUNT` and `FOO_UNKNOWN = FOO_COUNT`; switches over them list every case, no `default:`.
+- Byte readers (`read_u16(Reader*)` etc.) return the value and set the sticky `reader->failed`;
+  check it once after a group. One read per statement (call order inside an initializer is unspecified).
+- Contract comments in .h; .c comments only for the non-obvious, never repeating the header.
+- Match the surrounding code's naming and comment density.
+
+## Git
+
+- Main line is `master`. `index-lookup` is a reference branch only: never merge it.
+- Commit messages: lowercase subject, then a body explaining why. Use a PowerShell here-string:
+  `git commit -m @'...'@`.
+- Commit once it builds and `tests/check.ps1` passes. Pushing (to GitHub or `codecrafters submit`) needs the user's go-ahead.
+
+## Known gaps
+
+- No type affinity: `WHERE text_column = 1990` doesn't match the text '1990' (sqlite3 does).
+- WHERE is one `column = literal`; no overflow pages; schema must fit on page 1; no index lookups yet.
