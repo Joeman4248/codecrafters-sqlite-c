@@ -6,9 +6,9 @@
 #include "storage/database.h"
 #include "util/view.h"
 
-// walks the sqlite_schema b-tree on page 1, parsing each leaf cell into a
-// SchemaEntry. Allocates db->schema on the heap and sets db->schema_count.
-// Returns nonzero on error.
+// walks the sqlite_schema b-tree rooted at page 1, parsing each row into a
+// SchemaEntry. The b-tree may span many pages. Allocates db->schema on the heap
+// and sets db->schema_count. Returns nonzero on error.
 int read_schema(Database* db);
 
 // returns the schema entry for the table named name, compared ignoring case
