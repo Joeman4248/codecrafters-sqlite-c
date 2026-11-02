@@ -1,5 +1,5 @@
-#include "storage/record.h"
-#include "storage/reader.h"
+#include "record/record.h"
+#include "util/reader.h"
 
 // serial type codes for the record format
 enum SerialType {

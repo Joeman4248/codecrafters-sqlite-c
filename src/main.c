@@ -1,7 +1,7 @@
 #include <stdio.h>
 
-#include "storage/database.h"
-#include "storage/schema.h"
+#include "pager/database.h"
+#include "record/schema.h"
 #include "query/commands.h"
 #include "query/sql.h"
 

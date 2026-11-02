@@ -1,7 +1,7 @@
 #ifndef CODECRAFTERS_SQLITE_EXECUTE_H
 #define CODECRAFTERS_SQLITE_EXECUTE_H
 
-#include "storage/database.h"
+#include "pager/database.h"
 #include "query/plan.h"
 
 // runs a planned SELECT against db, printing its result to stdout: one line

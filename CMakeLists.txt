@@ -14,5 +14,5 @@ set(CMAKE_C_STANDARD 23) # Enable the C23 standard
 
 add_executable(sqlite ${SOURCE_FILES})
 
-# includes name their folder, as in "storage/record.h"
+# includes name their folder, as in "record/record.h"
 target_include_directories(sqlite PRIVATE src)

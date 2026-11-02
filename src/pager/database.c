@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "storage/database.h"
+#include "pager/database.h"
 
 // fills data, which holds page_size bytes, with page number of the file
 static int read_page_bytes(const Database* db, const uint32_t number, uint8_t* data) {

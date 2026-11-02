@@ -1,6 +1,6 @@
 #include <string.h>
 
-#include "storage/reader.h"
+#include "util/reader.h"
 
 // every other read goes through this one (or reader_take), so this is where
 // running out of bytes is detected and made sticky

@@ -53,8 +53,10 @@ The code under [src/](src/) is grouped by layer:
 |---|---|
 | [sql/](src/sql/) | the SQL language: tokenizing and parsing |
 | [query/](src/query/) | running a statement: planning, executing, and the dot commands |
-| [storage/](src/storage/) | SQLite's file format, from raw bytes up to tables |
-| [util/](src/util/) | small shared types: string and byte views, and values |
+| [record/](src/record/) | SQLite's row format, and the schema table built from it |
+| [btree/](src/btree/) | B-tree pages and a cursor over a table's rows |
+| [pager/](src/pager/) | the database file: its header and loading pages |
+| [util/](src/util/) | small shared types: string and byte views, values, and a byte reader |
 
 A query goes through four stages:
 
@@ -73,11 +75,11 @@ A query goes through four stages:
 
 Underneath, these read the file itself:
 
-- [file_header.c](src/storage/file_header.c) and [schema.c](src/storage/schema.c):
+- [file_header.c](src/pager/file_header.c) and [schema.c](src/record/schema.c):
   the file header and the `sqlite_schema` table that lists every table and index.
-- [btree_page.c](src/storage/btree_page.c) and [btree_cursor.c](src/storage/btree_cursor.c):
+- [btree_page.c](src/btree/btree_page.c) and [btree_cursor.c](src/btree/btree_cursor.c):
   B-tree pages and a cursor that steps through a table's rows in order.
-- [record.c](src/storage/record.c) and [reader.c](src/storage/reader.c): SQLite's
+- [record.c](src/record/record.c) and [reader.c](src/util/reader.c): SQLite's
   row format (a header saying each column's type, then the values), and a
   reader for its big-endian integers, floats and variable-length integers
   (varints).

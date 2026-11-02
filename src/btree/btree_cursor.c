@@ -1,4 +1,4 @@
-#include "storage/btree_cursor.h"
+#include "btree/btree_cursor.h"
 
 // reads page number into the frame and decodes its header. Returns nonzero if
 // the read fails or the page isn't a table b-tree page; the caller frees the

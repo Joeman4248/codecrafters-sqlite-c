@@ -16,11 +16,14 @@ user-facing overview; don't re-read it for orientation.
 
 ## Layout (src/, includes written as "folder/name.h")
 
-Layers depend downwards only: util <- storage, sql <- query. No two-way dependencies.
+Layers depend downwards only: util <- pager <- btree <- record <- query, and util <- sql <- query.
+No two-way dependencies. (Exception for now: database.h in pager/ holds the schema types.)
 
-- `util/` view.h (StringView/ByteView, not null-terminated), value.c (tagged-union Value, value_equal, value_print)
-- `storage/` reader.c (byte reader, sticky `failed`), file_header.c, database.h (Database, Page),
-  btree_page.c (page header, cells), btree_cursor.c (table row walker), record.c (records/serial types), schema.c
+- `util/` view.h (StringView/ByteView, not null-terminated), value.c (tagged-union Value, value_equal, value_print),
+  reader.c (byte reader, sticky `failed`)
+- `pager/` database.h (Database, Page), file_header.c, pager.c (page cache, in progress)
+- `btree/` btree_page.c (page header, cells), btree_cursor.c (table row walker)
+- `record/` record.c (records/serial types), schema.c
 - `sql/` tokenizer.c, grammar.c (generic rule matcher), sql_grammar.c (the SQL grammar as macro-built data),
   sql_parser.c (builders that turn captures into Statement)
 - `query/` plan.c (schema lookup, column positions), execute.c, sql.c (runs a statement), commands.c (.dbinfo/.tables)

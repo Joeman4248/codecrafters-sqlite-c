@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-#include "storage/btree_page.h"
-#include "storage/database.h"
+#include "btree/btree_page.h"
+#include "pager/database.h"
 #include "util/view.h"
 
 // real table b-trees are 3-4 levels deep. The cap also stops a corrupt file

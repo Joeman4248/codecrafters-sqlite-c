@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "storage/schema.h"
-#include "storage/btree_page.h"
-#include "storage/record.h"
+#include "record/schema.h"
+#include "btree/btree_page.h"
+#include "record/record.h"
 
 // type strings, indexed by their SchemaType value; SCHEMA_TYPE_COUNT keeps
 // this list in sync with the enum

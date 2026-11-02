@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 
-#include "storage/database.h"
-#include "storage/reader.h"
+#include "pager/database.h"
+#include "util/reader.h"
 
 #define SCHEMA_ROOT_PAGE 1            // root page of the sqlite_schema b-tree
 

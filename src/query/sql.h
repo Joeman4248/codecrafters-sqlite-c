@@ -1,7 +1,7 @@
 #ifndef CODECRAFTERS_SQLITE_SQL_H
 #define CODECRAFTERS_SQLITE_SQL_H
 
-#include "storage/database.h"
+#include "pager/database.h"
 
 // runs an SQL statement
 // prints its own error message to stderr and returns nonzero on failure.

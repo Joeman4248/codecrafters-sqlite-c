@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "storage/database.h"
+#include "pager/database.h"
 #include "sql/sql_parser.h"
 #include "util/value.h"
 #include "util/view.h"

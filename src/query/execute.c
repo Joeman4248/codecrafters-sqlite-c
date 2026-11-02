@@ -3,8 +3,8 @@
 #include <stdlib.h>
 
 #include "query/execute.h"
-#include "storage/btree_cursor.h"
-#include "storage/record.h"
+#include "btree/btree_cursor.h"
+#include "record/record.h"
 
 // a pass over every row of the plan's table
 typedef struct {
