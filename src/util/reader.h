@@ -7,7 +7,7 @@
 #include "util/view.h"
 
 // reads values one after another from a run of bytes
-typedef struct {
+typedef struct Reader {
     ByteView bytes;
     uint32_t pos;       // offset of the next byte to read
     bool     failed;    // set by the first read that runs out of bytes, or by

@@ -45,6 +45,13 @@
                 }
             ],
             "preLaunchTask": "CMake: build"
+        },
+        {
+            "name": "Run checks",
+            "type": "node-terminal",
+            "request": "launch",
+            "command": "pwsh -NoProfile -File tests/check.ps1",
+            "cwd": "${workspaceFolder}"
         }
     ]
 }

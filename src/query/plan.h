@@ -12,7 +12,7 @@
 // how to run a SELECT, with every name in the query resolved against the
 // table's schema: columns are positions in a record, and the table is its root
 // page. Execution needs only this, not the query or the schema.
-typedef struct {
+typedef struct SelectPlan {
     uint32_t   table_root;      // root page of the table's b-tree
     uint32_t   column_count;    // columns the table declares
     bool       has_rowid_alias;

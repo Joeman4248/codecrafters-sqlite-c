@@ -7,7 +7,7 @@
 #include "record/record.h"
 
 // a pass over every row of the plan's table
-typedef struct {
+typedef struct TableScan {
     const SelectPlan* plan;
     TableCursor       cursor;
     RecordColumn*     storage;      // room for plan->column_count entries, reused for every row
@@ -15,7 +15,7 @@ typedef struct {
 
 // one row as read by next_row. Its record points into the cursor's page and
 // scan->storage, so it is valid until the next next_row.
-typedef struct {
+typedef struct Row {
     int64_t rowid;
     Record  record;
 } Row;
@@ -113,7 +113,7 @@ static int count_values(TableScan* scan) {
     return 0;
 }
 
-int execute_select(const Database* db, const SelectPlan* plan) {
+int execute_select(Database* db, const SelectPlan* plan) {
     // the cursor is zeroed so cursor_close is safe even if cursor_open is never reached
     TableScan scan = {
         .plan = plan,
@@ -122,7 +122,7 @@ int execute_select(const Database* db, const SelectPlan* plan) {
     };
 
     int result = (scan.storage == NULL) ? 1 : 0;
-    if (result == 0) result = cursor_open(&scan.cursor, db, plan->table_root);
+    if (result == 0) result = cursor_open(&scan.cursor, &db->pager, plan->table_root);
     if (result == 0) result = plan->is_count ? count_values(&scan) : print_rows(&scan);
 
     cursor_close(&scan.cursor);

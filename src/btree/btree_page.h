@@ -16,7 +16,7 @@ enum PageType {
 };
 
 // a b-tree page header, in the order its fields appear in the page
-typedef struct {
+typedef struct PageHeader {
     uint8_t  page_type;         // offset 0
     uint8_t  num_free_bytes;    // offset 7
     uint16_t freeblock_offset;  // offset 1
@@ -29,13 +29,13 @@ typedef struct {
 } PageHeader;
 
 // a table b-tree interior cell: one child page and the key that bounds it
-typedef struct {
+typedef struct TableInteriorCell {
     int64_t  key;
     uint32_t left_child;    // the page holding every rowid up to and including key
 } TableInteriorCell;
 
 // a table b-tree leaf cell: one row
-typedef struct {
+typedef struct TableLeafCell {
     int64_t  rowid;
     ByteView payload;       // the row's record, viewed inside the page (not copied)
 } TableLeafCell;

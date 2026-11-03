@@ -73,13 +73,13 @@ typedef struct Rule {
 #define OPTIONAL(r) (&(const Rule) { .type = RULE_OPTIONAL, .children = RULE_LIST(r) })
 
 // a token that matched a tagged rule, and the tag it matched under
-typedef struct {
+typedef struct Capture {
     enum CaptureTag tag;
     Token           token;
 } Capture;
 
 // the tokens being matched, how far matching has got, and what it has captured
-typedef struct {
+typedef struct Parser {
     const TokenList* tokens;        // as tokenize_all made them, ending with TOKEN_EOF
     uint32_t         pos;           // index of the next token to match
     Capture*         captures;      // room for tokens->count entries, provided by the caller.

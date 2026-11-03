@@ -7,7 +7,7 @@ static void add_capture(Parser* parser, const enum CaptureTag tag, const Token t
 
 // how far matching had got, so a failed attempt can go back to it. Holds only
 // what a failed attempt undoes.
-typedef struct {
+typedef struct Mark {
     uint32_t pos;
     uint32_t capture_count;
 } Mark;

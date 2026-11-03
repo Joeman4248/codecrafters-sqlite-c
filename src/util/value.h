@@ -19,7 +19,7 @@ enum ValueType {
 // one value of any storage class. Only the union member matching type is
 // valid, and NULL has none. Text and blobs are views, not copies, so they are
 // valid only while the bytes they view are, such as a record's page.
-typedef struct {
+typedef struct Value {
     enum ValueType type;
     union {
         int64_t    integer;     // VALUE_INTEGER

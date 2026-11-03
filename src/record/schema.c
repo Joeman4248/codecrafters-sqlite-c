@@ -98,10 +98,10 @@ static int parse_schema_page(Database* db, const Page* page) {
 }
 
 int read_schema(Database* db) {
-    Page page;
-    if (read_page(db, SCHEMA_ROOT_PAGE, &page)) return 1;
-    const int result = parse_schema_page(db, &page);
-    free_page(&page);
+    Page* page;
+    if (pager_get(&db->pager, SCHEMA_ROOT_PAGE, &page)) return 1;
+    const int result = parse_schema_page(db, page);
+    pager_unref(&db->pager, page);
     return result;
 }
 

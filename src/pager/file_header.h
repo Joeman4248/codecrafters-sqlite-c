@@ -49,7 +49,7 @@ enum TextEncoding {
     TEXT_ENCODING_UTF16BE = 3,
 };
 
-typedef struct {
+typedef struct FileHeader {
     uint8_t  header_string[HEADER_STR_SZ];      // offset 0
     uint32_t page_size;                         // offset 16, in bytes (marker already resolved)
     uint8_t  write_version;                     // offset 18

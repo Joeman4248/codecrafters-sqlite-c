@@ -9,7 +9,7 @@
 // the column names from a CREATE TABLE statement. The names are tokens: they
 // are not copied or null-terminated, but point into the SQL string, which
 // must outlive the TableColumns.
-typedef struct {
+typedef struct TableColumns {
     Token     table;
     TokenList names;            // in declaration order
     bool      has_rowid_alias;  // whether a column is the INTEGER PRIMARY KEY
@@ -18,7 +18,7 @@ typedef struct {
 
 // the parts of a CREATE INDEX statement. Like TableColumns, the tokens point
 // into the SQL string, which must outlive the IndexColumns.
-typedef struct {
+typedef struct IndexColumns {
     Token     table;        // the table it indexes
     TokenList columns;      // the indexed column names, in index order
     bool      has_where;    // a partial index (... WHERE ...), with entries for only some rows
@@ -26,7 +26,7 @@ typedef struct {
 } IndexColumns;
 
 // a WHERE condition of the form column = 'text' or column = 123
-typedef struct {
+typedef struct Condition {
     Token column;   // TOKEN_IDENTIFIER: the column to compare
     Token value;    // TOKEN_STRING (the text, without the quotes) or TOKEN_INTEGER:
                     // the value it must equal
@@ -34,7 +34,7 @@ typedef struct {
 
 // the parts of a SELECT query. Like TableColumns, the tokens point into the
 // query string, which must outlive the SelectQuery.
-typedef struct {
+typedef struct SelectQuery {
     Token     table;
     TokenList names;        // column names and TOKEN_STARs, in query order. A *
                             // means every column, except inside COUNT, where the
@@ -59,7 +59,7 @@ enum StatementType {
 };
 
 // a parsed statement. Only the union member matching type is valid.
-typedef struct {
+typedef struct Statement {
     enum StatementType type;
     union {
         SelectQuery  select;

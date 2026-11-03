@@ -5,7 +5,7 @@
 #include "query/plan.h"
 #include "query/execute.h"
 
-static int run_select_query(const Database* db, const SelectQuery* query) {
+static int run_select_query(Database* db, const SelectQuery* query) {
     SelectPlan plan;
     if (plan_select(db, query, &plan)) return 1;
 
@@ -15,7 +15,7 @@ static int run_select_query(const Database* db, const SelectQuery* query) {
     return result;
 }
 
-int run_sql_command(const Database* db, const char* sql) {
+int run_sql_command(Database* db, const char* sql) {
     Statement statement;
     int result = parse_statement(sql, &statement);
 

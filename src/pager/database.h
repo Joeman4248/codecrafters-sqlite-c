@@ -5,8 +5,8 @@
 #include <stdio.h>
 
 #include "pager/file_header.h"
+#include "pager/pager.h"
 #include "util/view.h"
-
 
 // the value stored in a sqlite_schema row's type column
 enum SchemaType {
@@ -19,7 +19,7 @@ enum SchemaType {
 };
 
 // one row of sqlite_schema, storing the fields .tables uses
-typedef struct {
+typedef struct SchemaEntry {
     enum SchemaType type;
     char*           name;
     char*           tbl_name;
@@ -37,37 +37,16 @@ enum SchemaColumn {
     SCHEMA_COL_COUNT,       // number of columns in a sqlite_schema record
 };
 
-typedef struct {
+typedef struct Database {
     FILE*       file;             // the open database file
     FileHeader  file_header;      // header fields read from the start of the file
+    Pager       pager;            // reads and caches the file's pages
 
     SchemaEntry* schema;          // populated by read_schema(), one entry per row
     uint32_t    schema_count;     // number of objects in the schema
 } Database;
 
-// one page of the database, read into memory it owns, and which page it is
-typedef struct {
-    uint8_t* data;      // the page's bytes, freed with free_page
-    uint32_t size;      // bytes to read from data: the usable size, which leaves
-                        // out the reserved space at the end that no b-tree uses
-    uint32_t number;    // pages are numbered from 1
-} Page;
-
-// the page's bytes as a read-only view, for reading through a Reader
-static inline ByteView page_bytes(const Page* page) {
-    return (ByteView) { page->data, page->size };
-}
-
-// reads page number of the database file into newly allocated memory in
-// *page. On success the caller releases it with free_page. On failure
-// returns nonzero and leaves nothing to free.
-int read_page(const Database* db, const uint32_t number, Page* page);
-
-// frees the page's memory. Safe to call on a zero-initialised or already
-// freed Page.
-void free_page(Page* page);
-
-// closes the database file and frees the schema. Safe to call on a
+// closes the pager and the database file and frees the schema. Safe to call on a
 // zero-initialised or already-closed Database.
 void close_database(Database* db);
 

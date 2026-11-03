@@ -20,7 +20,7 @@
 // one column's entry in the record header: what kind of value it holds, and
 // where that value sits in the body. Callers only make room for these (see
 // RecordHeader); parse_record fills them in and the record_ functions read them.
-typedef struct {
+typedef struct RecordColumn {
     uint64_t serial_type;     // serial type code for this column
     uint32_t value_offset;    // byte offset of the value from the start of the body
     uint32_t value_size;      // size of the value in bytes
@@ -28,7 +28,7 @@ typedef struct {
 
 // a record header, parsed: one entry per column. The caller provides the
 // storage by setting columns and capacity; parse_record fills it and sets count.
-typedef struct {
+typedef struct RecordHeader {
     RecordColumn* columns;  // storage the caller owns
     uint32_t      capacity; // entries columns has room for
     uint32_t      count;    // columns in this record, which can be fewer than its table has
@@ -37,7 +37,7 @@ typedef struct {
 // a record split into its header and body. Nothing is copied: body points into
 // a page and the header's columns into storage the caller owns, both of which
 // must outlive the Record.
-typedef struct {
+typedef struct Record {
     RecordHeader header;    // what each column holds and where
     ByteView     body;      // the values, back to back
 } Record;

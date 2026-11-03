@@ -43,13 +43,13 @@ enum TokenType {
 
 // one token. The text is not copied: it points into the SQL string, which
 // must outlive the token.
-typedef struct {
+typedef struct Token {
     enum TokenType type;
     StringView     text;
 } Token;
 
 // a heap-allocated list of tokens that grows as tokens are added
-typedef struct {
+typedef struct TokenList {
     Token*   items;
     uint32_t count;         // tokens in the list
     uint32_t capacity;      // tokens items has room for
@@ -62,7 +62,7 @@ int token_list_add(TokenList* list, Token token);
 // frees the list's array. Safe to call on a zero-initialised TokenList.
 void free_token_list(TokenList* list);
 
-typedef struct {
+typedef struct Tokenizer {
     const char* pos;        // next character to read
 } Tokenizer;
 

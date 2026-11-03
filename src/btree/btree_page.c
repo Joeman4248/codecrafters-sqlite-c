@@ -6,7 +6,7 @@
 
 Reader btree_header_reader(const Page* page) {
     // page 1 starts with the file header; every other page with its b-tree header
-    const uint32_t start = (page->number == SCHEMA_ROOT_PAGE) ? FILE_HEADER_SZ : 0;
+    const uint32_t start = (page->page_number == SCHEMA_ROOT_PAGE) ? FILE_HEADER_SZ : 0;
     return reader_at(page_bytes(page), start);
 }
 

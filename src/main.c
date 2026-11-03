@@ -16,6 +16,11 @@ static int run(Database* db, const char* command) {
         return 1;
     }
 
+    if (pager_open(&db->pager, db->file, &db->file_header)) {
+        fprintf(stderr, "Error setting up the page cache\n");
+        return 1;
+    }
+
     if (read_schema(db)) {
         fprintf(stderr, "Error reading database schema\n");
         return 1;

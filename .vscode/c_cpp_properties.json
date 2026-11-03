@@ -4,7 +4,7 @@
             "name": "MinGW",
             "compilerPath": "C:/Users/joseph/scoop/apps/mingw/current/bin/gcc.exe",
             "intelliSenseMode": "windows-gcc-x64",
-            "cStandard": "c23",
+            "cStandard": "c17",
             "includePath": [
                 "${workspaceFolder}/src"
             ]

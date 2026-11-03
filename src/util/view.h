@@ -10,13 +10,13 @@
 // characters that are not copied: data points into a longer string, such as
 // the SQL text or a page, which must outlive the view. The end is given by
 // len, so a view is not necessarily null-terminated.
-typedef struct {
+typedef struct StringView {
     const char* data;
     uint32_t    len;
 } StringView;
 
 // bytes that are neither copied nor owned, such as a page or a record payload
-typedef struct {
+typedef struct ByteView {
     const uint8_t* data;
     uint32_t       len;
 } ByteView;
