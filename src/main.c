@@ -3,7 +3,6 @@
 #include "pager/database.h"
 #include "record/schema.h"
 #include "query/commands.h"
-#include "query/sql.h"
 
 // positions of the command-line arguments in argv
 enum Arg { ARG_PROGRAM, ARG_DATABASE_PATH, ARG_COMMAND, ARG_COUNT, };

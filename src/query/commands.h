@@ -3,7 +3,8 @@
 
 #include "pager/database.h"
 
-// dot-commands accepted on the command line (SQL text is handled separately)
+// dot-commands accepted on the command line; anything else is SQL, for
+// run_sql_command
 enum DotCommand {
     DOT_COMMAND_DBINFO,
     DOT_COMMAND_TABLES,
@@ -24,5 +25,8 @@ int run_dbinfo_command(const Database* db);
 // prints the names of all user tables in the sqlite_schema b-tree
 // (rows where type == "table" and the name does not start with "sqlite_")
 int run_tables_command(const Database* db);
+
+// parses one SQL statement and runs it, printing any result rows
+int run_sql_command(Database* db, const char* sql);
 
 #endif // CODECRAFTERS_SQLITE_COMMANDS_H
