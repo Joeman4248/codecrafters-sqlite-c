@@ -34,13 +34,8 @@ void free_page(Page* page) {
     *page = (Page) { 0 };
 }
 
-void close_database(Database* db) {
-    // fclose(NULL) is undefined, so only close a file we actually opened
-    if (db->file) {
-        fclose(db->file);
-        db->file = NULL;
-    }
-
+// frees the schema entries and the list itself, leaving an empty schema
+static void free_schema(Database* db) {
     // free(NULL) is a no-op, so entries left partly filled by a failed
     // read_schema (calloc'd, so unset fields are NULL) need no checks
     for (uint32_t i = 0; i < db->schema_count; i++) {
@@ -51,4 +46,14 @@ void close_database(Database* db) {
     free(db->schema);
     db->schema = NULL;
     db->schema_count = 0;
+}
+
+void close_database(Database* db) {
+    // fclose(NULL) is undefined, so only close a file we actually opened
+    if (db->file) {
+        fclose(db->file);
+        db->file = NULL;
+    }
+
+    free_schema(db);
 }
