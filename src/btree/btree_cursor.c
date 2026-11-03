@@ -25,7 +25,8 @@ static int push_page(TableCursor* cursor, const uint32_t page_number) {
 
     CursorFrame* frame = &cursor->frames[cursor->depth];
     frame->next_entry = 0;
-    if (pager_get(cursor->pager, page_number, &frame->page)) return 1;
+    frame->page = pager_get(cursor->pager, page_number);
+    if (frame->page == NULL) return 1;
 
     // unpinned here on failure, so the stack is left as it was
     if (read_frame_header(frame)) {

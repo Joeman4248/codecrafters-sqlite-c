@@ -16,10 +16,9 @@ int pcache_open(PageCache* cache, uint32_t page_count) {
     return 0;
 }
 
-int pcache_fetch(PageCache* cache, const uint32_t page_number, PageSlot** slot) {
-    if (page_number == 0 || page_number > cache->slot_count) return 1;
-    *slot = &cache->slots[page_number - 1];
-    return 0;
+PageSlot* pcache_fetch(PageCache* cache, const uint32_t page_number) {
+    if (page_number == 0 || page_number > cache->slot_count) return NULL;
+    return &cache->slots[page_number - 1];
 }
 
 int pcache_close(PageCache* cache) {

@@ -40,10 +40,10 @@ typedef struct PageCache {
 // nonzero and leaves nothing to free.
 int pcache_open(PageCache* cache, uint32_t page_count);
 
-// sets *slot to page number's slot, which may not be loaded yet. Returns
-// nonzero for page 0 or a page number past the end, leaving *slot untouched.
-// The slot stays at the same address until pcache_close.
-int pcache_fetch(PageCache* cache, uint32_t page_number, PageSlot** slot);
+// returns page number's slot, which may not be loaded yet, or NULL for page 0
+// or a page number past the end. The slot stays at the same address until
+// pcache_close.
+PageSlot* pcache_fetch(PageCache* cache, uint32_t page_number);
 
 // frees every loaded page and the slots, and zeroes the cache. Returns
 // nonzero, naming each page on stderr, if any page still has refs. Safe to

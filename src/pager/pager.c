@@ -47,27 +47,24 @@ static int load_page(const Pager* pager, PageSlot* slot, const uint32_t page_num
     return 0;
 }
 
-int pager_get(Pager* pager, const uint32_t page_number, Page** page) {
-    PageSlot* page_slot = NULL;
-    if (pcache_fetch(&pager->cache, page_number, &page_slot) ||
-        load_page(pager, page_slot, page_number)) return 1;
+Page* pager_get(Pager* pager, const uint32_t page_number) {
+    PageSlot* slot = pcache_fetch(&pager->cache, page_number);
+    if (slot == NULL || load_page(pager, slot, page_number)) return NULL;
 
     // pinned last, so a failed call never leaves a ref behind
-    page_slot->ref_count++;
-    *page = &page_slot->page;
+    slot->ref_count++;
 
-    return 0;
+    return &slot->page;
 }
 
 void pager_unref(Pager* pager, Page* page) {
-    PageSlot* page_slot = NULL;
-    if (pcache_fetch(&pager->cache, page->page_number, &page_slot) ||
-        page_slot->ref_count == 0) {
+    PageSlot* slot = pcache_fetch(&pager->cache, page->page_number);
+    if (slot == NULL || slot->ref_count == 0) {
         // a caller bug: an extra unref, or a page this pager never handed out
         fprintf(stderr, "pager_unref: page %u is not pinned\n", page->page_number);
         return;
     }
-    page_slot->ref_count--;
+    slot->ref_count--;
 }
 
 int pager_close(Pager* pager) {

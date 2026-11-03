@@ -21,11 +21,11 @@ typedef struct Pager {
 // nothing yet. On failure returns nonzero and leaves nothing to close.
 int pager_open(Pager* pager, FILE* file, const FileHeader* header);
 
-// sets *page to page number, reading it if it isn't cached, and pins it: the
-// page stays valid until the matching pager_unref. Every successful call needs
-// exactly one pager_unref. Returns nonzero for page 0, a page number past the
-// end or a failed read, leaving *page untouched.
-int pager_get(Pager* pager, uint32_t page_number, Page** page);
+// returns page number, reading it if it isn't cached, and pins it: the page
+// stays valid until the matching pager_unref. Every successful call needs
+// exactly one pager_unref. Returns NULL for page 0, a page number past the end
+// or a failed read.
+Page* pager_get(Pager* pager, uint32_t page_number);
 
 // releases one pin taken by pager_get. The page stays cached; page must not
 // be used afterwards. Unref-ing a page with no pins is reported on stderr.
