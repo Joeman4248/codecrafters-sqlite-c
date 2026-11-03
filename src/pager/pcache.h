@@ -20,28 +20,38 @@ static inline ByteView page_bytes(const Page* page) {
     return (ByteView) { page->data, page->size };
 }
 
+// buckets in the hash table. Fixed for now; growing it comes later.
+#define PCACHE_BUCKET_COUNT 64
+
 // one page's place in the cache. The cache creates slots empty (not loaded,
 // no refs, data NULL); the pager reads the page into it and counts refs.
 // Once loaded, page.data is owned by the cache and freed by pcache_close.
 typedef struct PageSlot {
-    Page     page;      // the page itself, stored by value
-    uint32_t ref_count; // how many callers hold it right now
-    bool     loaded;    // whether the page has been read from disk
+    Page             page;          // the page itself, stored by value
+    uint32_t         page_number;   // the key; set when the slot is created, before
+                                    // the page is loaded and page.page_number is
+    uint32_t         ref_count;     // how many callers hold it right now
+    bool             loaded;        // whether the page has been read from disk
+    struct PageSlot* next;          // the next slot in the same bucket, or NULL
 } PageSlot;
 
-// the pages read so far. Stage 1: one slot per page of the file, indexed by
-// page number - 1, allocated once and never resized or evicted.
+// the pages asked for so far, in a hash table: each page number goes in bucket
+// page_number % bucket_count, and a bucket is a linked list of the slots that
+// landed there. Only pages that were asked for have slots. Nothing is evicted yet.
 typedef struct PageCache {
-    PageSlot* slots;
-    uint32_t  slot_count;   // pages in the file
+    PageSlot** buckets;         // bucket_count list heads, NULL when empty
+    uint32_t   bucket_count;
+    uint32_t   slot_count;      // slots in the table
+    uint32_t   max_page;        // pages in the file, for the range check
 } PageCache;
 
-// allocates an empty slot for each of page_count pages. On failure returns
+// allocates an empty table for a file of page_count pages. On failure returns
 // nonzero and leaves nothing to free.
 int pcache_open(PageCache* cache, uint32_t page_count);
 
-// returns page number's slot, which may not be loaded yet, or NULL for page 0
-// or a page number past the end. The slot stays at the same address until
+// returns page number's slot, creating an empty one (not loaded) the first
+// time it is asked for. Returns NULL for page 0, a page number past the end,
+// or a failed allocation. The slot stays at the same address until
 // pcache_close.
 PageSlot* pcache_fetch(PageCache* cache, uint32_t page_number);
 
