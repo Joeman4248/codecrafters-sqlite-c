@@ -17,9 +17,9 @@ static void free_schema(Database* db) {
     db->schema_count = 0;
 }
 
-void close_database(Database* db) {
-    // before the file, which the pager borrows. Leaks are reported on stderr.
-    pager_close(&db->pager);
+int close_database(Database* db) {
+    // before the file, which the pager borrows
+    const int leaked = pager_close(&db->pager);
 
     // fclose(NULL) is undefined, so only close a file we actually opened
     if (db->file) {
@@ -28,4 +28,5 @@ void close_database(Database* db) {
     }
 
     free_schema(db);
+    return leaked;
 }

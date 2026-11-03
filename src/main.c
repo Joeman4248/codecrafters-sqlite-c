@@ -55,7 +55,8 @@ int main(const int argc, const char* argv[]) {
         return 1;
     }
 
+    // close even if run failed; a leaked page fails the run too
     const int status = run(&db, command);
-    close_database(&db);
+    if (close_database(&db)) return 1;
     return status;
 }

@@ -46,8 +46,9 @@ typedef struct Database {
     uint32_t    schema_count;     // number of objects in the schema
 } Database;
 
-// closes the pager and the database file and frees the schema. Safe to call on a
-// zero-initialised or already-closed Database.
-void close_database(Database* db);
+// closes the pager and the database file and frees the schema. Returns nonzero
+// if a page was still pinned (reported on stderr), after closing everything
+// anyway. Safe to call on a zero-initialised or already-closed Database.
+int close_database(Database* db);
 
 #endif // CODECRAFTERS_SQLITE_DATABASE_H
