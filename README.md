@@ -35,6 +35,7 @@ $ ./your_program.sh companies.db "SELECT id, name FROM companies WHERE country =
 
 Tables can span many pages: the B-tree is walked through interior and leaf
 pages, so the multi-megabyte sample databases work the same as the tiny one.
+The schema is read the same way, so a database with many tables works too.
 Values of every SQLite type are read and printed: integers, floats, text,
 blobs and NULL, plus the `INTEGER PRIMARY KEY` column, which SQLite stores as
 the row's rowid rather than in the row itself.
@@ -52,10 +53,10 @@ The code under [src/](src/) is grouped by layer:
 | Folder | What it does |
 |---|---|
 | [sql/](src/sql/) | the SQL language: tokenizing and parsing |
-| [query/](src/query/) | running a statement: planning, executing, and the dot commands |
+| [query/](src/query/) | running commands: the dot commands, and planning and executing SQL |
 | [record/](src/record/) | SQLite's row format, and the schema table built from it |
 | [btree/](src/btree/) | B-tree pages and a cursor over a table's rows |
-| [pager/](src/pager/) | the database file: its header and loading pages |
+| [pager/](src/pager/) | the database file: its header, and a cache of the pages read from it |
 | [util/](src/util/) | small shared types: string and byte views, values, and a byte reader |
 
 A query goes through four stages:
@@ -75,6 +76,11 @@ A query goes through four stages:
 
 Underneath, these read the file itself:
 
+- [pager.c](src/pager/pager.c) and [pcache.c](src/pager/pcache.c): every page
+  comes from the pager, which reads it from disk the first time and keeps it in
+  a hash table after that, the way SQLite's own pager does. Callers pin a page
+  while they use it and release it when done; a page still pinned when the
+  database closes is reported and fails the run, so leaks show up in testing.
 - [file_header.c](src/pager/file_header.c) and [schema.c](src/record/schema.c):
   the file header and the `sqlite_schema` table that lists every table and index.
 - [btree_page.c](src/btree/btree_page.c) and [btree_cursor.c](src/btree/btree_cursor.c):
@@ -89,6 +95,8 @@ Underneath, these read the file itself:
 
 ## In progress
 
+- **A bounded page cache**: growing the hash table as pages are added, then
+  capping how many pages stay in memory and evicting ones nobody has pinned.
 - **Index lookups**: using an index such as `idx_companies_country` to jump
   straight to matching rows instead of scanning the whole table. The parser
   already reads `CREATE INDEX` statements, so the next step is finding an
@@ -118,3 +126,7 @@ To compare answers with the real thing, run the same query through `sqlite3`:
 ```sh
 sqlite3 sample.db "SELECT name, color FROM apples"
 ```
+
+[tests/check.ps1](tests/check.ps1) does that for a set of queries: it builds
+the program, runs each query through both, and prints only the ones whose
+output differs (it needs PowerShell and `sqlite3`).
