@@ -37,12 +37,9 @@ static uint32_t serial_type_size(const uint64_t serial_type) {
             return 8;
 
         default:
-            // even serial types >= 12: BLOB of (serial_type - 12) / 2 bytes in length
-            // odd serial types >= 13: string of (serial_type - 13) / 2 bytes in length
-            if (serial_type_is_text(serial_type))
-                return (uint32_t) ((serial_type - SERIAL_TEXT) / 2);
-            else
-                return (uint32_t) ((serial_type - SERIAL_BLOB) / 2);
+            return serial_type_is_text(serial_type) 
+                ? (uint32_t) ((serial_type - SERIAL_TEXT) / 2)
+                : (uint32_t) ((serial_type - SERIAL_BLOB) / 2);
     }
 }
 
@@ -129,18 +126,16 @@ Value record_get_value(const Record* record, const uint32_t index) {
 
         case SERIAL_INT8:  case SERIAL_INT16: case SERIAL_INT24:
         case SERIAL_INT32: case SERIAL_INT48: case SERIAL_INT64:
-            return (Value) { .type = VALUE_INTEGER, .integer = read_int(&reader, col->serial_type) };
+            return (Value) { .type = VALUE_INTEGER, 
+                             .integer = read_int(&reader, col->serial_type) };
 
         case SERIAL_FLOAT:
             return (Value) { .type = VALUE_REAL, .real = read_f64(&reader) };
-
-        default: {
-            // text or blob: the length is folded into the serial type, and
-            // parse_record has already checked it fits in the body
-            const ByteView bytes = reader_take(&reader, col->value_size);
-            return serial_type_is_text(col->serial_type)
-                ? (Value) { .type = VALUE_TEXT, .text = bv_as_text(bytes) }
-                : (Value) { .type = VALUE_BLOB, .blob = bytes };
-        }
     }
+    // text or blob: the length is folded into the serial type, and
+    // parse_record has already checked it fits in the body
+    const ByteView bytes = reader_take(&reader, col->value_size);
+    return serial_type_is_text(col->serial_type)
+        ? (Value) { .type = VALUE_TEXT, .text = bv_as_text(bytes) }
+        : (Value) { .type = VALUE_BLOB, .blob = bytes };
 }

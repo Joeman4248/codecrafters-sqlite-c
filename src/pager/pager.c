@@ -20,9 +20,9 @@ static int read_page_bytes(const Pager* pager, const uint32_t page_number, uint8
 static int read_page(const Pager* pager, const uint32_t page_number, Page* page) {
     // the whole page is read, reserved bytes included, but only the usable
     // part is ever looked at
-    *page = (Page) {.data        = malloc(pager->page_size),
-                    .size        = pager->usable_size,
-                    .page_number = page_number};
+    *page = (Page) { .data        = malloc(pager->page_size),
+                     .size        = pager->usable_size,
+                     .page_number = page_number };
     if (page->data == NULL || read_page_bytes(pager, page_number, page->data)) {
         free(page->data);
         page->data = NULL;
@@ -32,9 +32,9 @@ static int read_page(const Pager* pager, const uint32_t page_number, Page* page)
 }
 
 int pager_open(Pager* pager, FILE* file, const FileHeader* header) {
-    *pager = (Pager) {.file = file, 
-                      .page_size = header->page_size, 
-                      .usable_size = header->usable_size};
+    *pager = (Pager) { .file = file, 
+                       .page_size = header->page_size, 
+                       .usable_size = header->usable_size };
     return pcache_open(&pager->cache, header->db_size_in_pages);
 }
 
