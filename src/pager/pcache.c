@@ -4,6 +4,10 @@
 #include <stdlib.h>
 
 int pcache_open(PageCache* cache, uint32_t page_count) {
+    // zeroed first, so a failed allocation leaves nothing to free without
+    // depending on the caller having passed an empty cache
+    *cache = (PageCache) { 0 };
+
     // calloc, so every slot starts not loaded, with no refs and data NULL
     cache->slots = calloc(page_count, sizeof(PageSlot));
     if (cache->slots == NULL) return 1;
