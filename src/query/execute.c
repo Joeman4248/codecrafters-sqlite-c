@@ -34,36 +34,25 @@ static enum CursorStatus next_row(TableScan* scan, Row* row) {
     return CURSOR_ROW;
 }
 
-// sets *out to the value of column index in the row. The rowid alias column is
-// stored as NULL in the record, so its value is the row's rowid instead.
-static int row_get_value(const SelectPlan* plan, const Row* row, const uint32_t index, Value* out) {
+// the value of column index in the row. The rowid alias column is stored as
+// NULL in the record, so its value is the row's rowid instead.
+static Value row_get_value(const SelectPlan* plan, const Row* row, const uint32_t index) {
     if (plan->has_rowid_alias && index == plan->rowid_column) {
-        *out = (Value) { .type = VALUE_INTEGER, .integer = row->rowid };
-        return 0;
+        return (Value) { .type = VALUE_INTEGER, .integer = row->rowid };
     }
-    return record_get_value(&row->record, index, out);
+    return record_get_value(&row->record, index);
 }
 
-// sets *matches to whether the row passes the plan's WHERE condition. Every
-// row passes when there is no WHERE.
-static int row_matches(const SelectPlan* plan, const Row* row, bool* matches) {
-    *matches = !plan->has_where;
-    if (*matches) return 0;
-
-    Value value;
-    if (row_get_value(plan, row, plan->where_column, &value)) return 1;
-
-    *matches = value_equal(value, plan->where_value);
-    return 0;
+// whether the row passes the plan's WHERE condition. Every row passes when
+// there is no WHERE.
+static bool row_matches(const SelectPlan* plan, const Row* row) {
+    if (!plan->has_where) return true;
+    return value_equal(row_get_value(plan, row, plan->where_column), plan->where_value);
 }
 
 // prints column index of the row without a newline
-static int print_column(const SelectPlan* plan, const Row* row, const uint32_t index) {
-    Value value;
-    if (row_get_value(plan, row, index, &value)) return 1;
-
-    value_print(value, stdout);
-    return 0;
+static void print_column(const SelectPlan* plan, const Row* row, const uint32_t index) {
+    value_print(row_get_value(plan, row, index), stdout);
 }
 
 // prints the selected columns of every matching row, one row per line with |
@@ -73,13 +62,11 @@ static int print_rows(TableScan* scan) {
     Row row;
     enum CursorStatus status;
     while ((status = next_row(scan, &row)) == CURSOR_ROW) {
-        bool matches;
-        if (row_matches(plan, &row, &matches)) return 1;
-        if (!matches) continue;
+        if (!row_matches(plan, &row)) continue;
 
         for (uint32_t j = 0; j < plan->selected_count; j++) {
             if (j > 0) printf("|");
-            if (print_column(plan, &row, plan->selected[j])) return 1;
+            print_column(plan, &row, plan->selected[j]);
         }
         printf("\n");
     }
@@ -94,18 +81,14 @@ static int count_values(TableScan* scan) {
     Row row;
     enum CursorStatus status;
     while ((status = next_row(scan, &row)) == CURSOR_ROW) {
-        bool matches;
-        if (row_matches(plan, &row, &matches)) return 1;
-        if (!matches) continue;
+        if (!row_matches(plan, &row)) continue;
 
         if (plan->count_rows) {
             count++;
             continue;
         }
 
-        Value value;
-        if (row_get_value(plan, &row, plan->count_column, &value)) return 1;
-        if (value.type != VALUE_NULL) count++;
+        if (row_get_value(plan, &row, plan->count_column).type != VALUE_NULL) count++;
     }
     if (status == CURSOR_ERROR) return 1;
 

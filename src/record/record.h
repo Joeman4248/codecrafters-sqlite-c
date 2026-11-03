@@ -50,10 +50,11 @@ typedef struct Record {
 // than capacity.
 int parse_record(ByteView payload, Record* record);
 
-// decodes column index into *out, whatever its storage class. A column past the
-// end of a short record (a row written before its table gained that column) is
-// NULL. Text and blobs view the body without copying, so they are valid while
-// the body is. Returns nonzero if the value runs past the end of the record.
-int record_get_value(const Record* record, uint32_t index, Value* out);
+// decodes column index, whatever its storage class. A column past the end of a
+// short record (a row written before its table gained that column) is NULL.
+// parse_record has checked that every column fits in the body, so this always
+// returns a value: there is no error for the caller to handle. Text and blobs
+// view the body without copying, so they are valid while the body is.
+Value record_get_value(const Record* record, uint32_t index);
 
 #endif // CODECRAFTERS_SQLITE_RECORD_H

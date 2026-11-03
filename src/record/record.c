@@ -116,38 +116,31 @@ static int64_t read_int(Reader* reader, const uint64_t serial_type) {
     }
 }
 
-int record_get_value(const Record* record, const uint32_t index, Value* out) {
-    if (index >= record->header.count) {
-        *out = (Value) { .type = VALUE_NULL };
-        return 0;
-    }
+Value record_get_value(const Record* record, const uint32_t index) {
+    if (index >= record->header.count) return (Value) { .type = VALUE_NULL };
 
     const RecordColumn* col = &record->header.columns[index];
     Reader reader = reader_at(record->body, col->value_offset);
 
     switch (col->serial_type) {
-        case SERIAL_NULL: *out = (Value) { .type = VALUE_NULL }; return 0;
-        case SERIAL_ZERO: *out = (Value) { .type = VALUE_INTEGER, .integer = 0 }; return 0;
-        case SERIAL_ONE:  *out = (Value) { .type = VALUE_INTEGER, .integer = 1 }; return 0;
+        case SERIAL_NULL: return (Value) { .type = VALUE_NULL };
+        case SERIAL_ZERO: return (Value) { .type = VALUE_INTEGER, .integer = 0 };
+        case SERIAL_ONE:  return (Value) { .type = VALUE_INTEGER, .integer = 1 };
 
         case SERIAL_INT8:  case SERIAL_INT16: case SERIAL_INT24:
         case SERIAL_INT32: case SERIAL_INT48: case SERIAL_INT64:
-            *out = (Value) { .type = VALUE_INTEGER, .integer = read_int(&reader, col->serial_type) };
-            break;
+            return (Value) { .type = VALUE_INTEGER, .integer = read_int(&reader, col->serial_type) };
 
         case SERIAL_FLOAT:
-            *out = (Value) { .type = VALUE_REAL, .real = read_f64(&reader) };
-            break;
+            return (Value) { .type = VALUE_REAL, .real = read_f64(&reader) };
 
         default: {
             // text or blob: the length is folded into the serial type, and
             // parse_record has already checked it fits in the body
             const ByteView bytes = reader_take(&reader, col->value_size);
-            *out = serial_type_is_text(col->serial_type)
+            return serial_type_is_text(col->serial_type)
                 ? (Value) { .type = VALUE_TEXT, .text = bv_as_text(bytes) }
                 : (Value) { .type = VALUE_BLOB, .blob = bytes };
-            break;
         }
     }
-    return reader.failed;
 }

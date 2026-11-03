@@ -26,8 +26,7 @@ static enum SchemaType schema_type_from_text(const StringView text) {
 // outlive the page they're read from. Leaves *out NULL for a NULL column (sql
 // is NULL for automatic indexes).
 static int alloc_column_text(const Record* record, const uint32_t index, char** out) {
-    Value value;
-    if (record_get_value(record, index, &value)) return 1;
+    const Value value = record_get_value(record, index);
     if (value.type == VALUE_NULL) return 0;
     if (value.type != VALUE_TEXT) return 1;
 
@@ -71,15 +70,13 @@ static int add_schema_entry(Database* db, uint32_t* capacity, const ByteView pay
     // sqlite_schema columns: type, name, tbl_name, rootpage, sql.
     // The type is compared where it sits in the page. A type that isn't text stays
     // empty, and so unknown, rather than failing the whole schema.
-    Value type;
-    if (record_get_value(&record, SCHEMA_COL_TYPE, &type)) return 1;
+    const Value type = record_get_value(&record, SCHEMA_COL_TYPE);
     entry->type = (type.type == VALUE_TEXT) ? schema_type_from_text(type.text)
                                             : SCHEMA_TYPE_UNKNOWN;
 
     // page numbers are positive and fit in 32 bits; views and triggers use 0
-    Value rootpage;
-    if (record_get_value(&record, SCHEMA_COL_ROOTPAGE, &rootpage) ||
-        rootpage.type != VALUE_INTEGER ||
+    const Value rootpage = record_get_value(&record, SCHEMA_COL_ROOTPAGE);
+    if (rootpage.type != VALUE_INTEGER ||
         rootpage.integer < 0 || rootpage.integer > UINT32_MAX) {
         return 1;
     }
