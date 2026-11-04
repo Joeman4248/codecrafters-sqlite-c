@@ -56,7 +56,7 @@ static enum TokenType lookup_keyword(const StringView word) {
     return TOKEN_IDENTIFIER;
 }
 
-static void scan_quoted_word(Tokenizer* tokenizer, Token* token, const char quote) {
+static Token scan_quoted_word(Tokenizer* tokenizer, Token* token, const char quote) {
     token->text.data = ++tokenizer->pos;    // skip opening quote
 
     while (*tokenizer->pos != quote) {
@@ -64,7 +64,7 @@ static void scan_quoted_word(Tokenizer* tokenizer, Token* token, const char quot
         if (*tokenizer->pos == '\0') {
             token->type = TOKEN_UNKNOWN;
             token->text.len = (uint32_t) (tokenizer->pos - token->text.data);
-            return;
+            return *token;
         }
         tokenizer->pos++;
     }
@@ -73,28 +73,27 @@ static void scan_quoted_word(Tokenizer* tokenizer, Token* token, const char quot
     token->text.len = (uint32_t) (tokenizer->pos - token->text.data);
 
     tokenizer->pos++;                       // skip the closing quote
+    return *token;
 }
 
-// scans a keyword or identifier: letters, digits and underscores. Called with
-// tokenizer->pos on the first character and token->text.data set to it; fills
-// in token->type and token->text.len and moves tokenizer->pos past the word.
-static void scan_word(Tokenizer* tokenizer, Token* token) {
+// scans a keyword or identifier: letters, digits and underscores. 
+static Token scan_word(Tokenizer* tokenizer, Token* token) {
     while (is_word_char(*tokenizer->pos)) {
         tokenizer->pos++;
     }
     token->text.len = (uint32_t) (tokenizer->pos - token->text.data);
     token->type = lookup_keyword(token->text);
+    return *token;
 }
 
-// scans an integer literal: a run of digits. Called with tokenizer->pos on the
-// first digit and token->text.data set to it. A leading - isn't part of it:
-// in SQL that's a minus operator applied to the number.
-static void scan_integer(Tokenizer* tokenizer, Token* token) {
+// scans an integer literal: a run of digits. 
+static Token scan_integer(Tokenizer* tokenizer, Token* token) {
     while (isdigit((unsigned char) *tokenizer->pos)) {
         tokenizer->pos++;
     }
     token->text.len = (uint32_t) (tokenizer->pos - token->text.data);
     token->type = TOKEN_INTEGER;
+    return *token;
 }
 
 Tokenizer tokenizer_init(const char* sql) {
@@ -114,9 +113,7 @@ Token next_token(Tokenizer* tokenizer) {
             token.text.len = 0;
             return token;
 
-        case '"': case '\'':
-            scan_quoted_word(tokenizer, &token, c);
-            return token;
+        case '"': case '\'': return scan_quoted_word(tokenizer, &token, c);
 
         case '(': token.type = TOKEN_LPAREN; break;
         case ')': token.type = TOKEN_RPAREN; break;
@@ -126,15 +123,8 @@ Token next_token(Tokenizer* tokenizer) {
         default:  break;    // stays TOKEN_UNKNOWN
     }
 
-    if (is_word_start(c)) {
-        scan_word(tokenizer, &token);
-        return token;
-    }
-
-    if (isdigit((unsigned char) c)) {
-        scan_integer(tokenizer, &token);
-        return token;
-    }
+    if (is_word_start(c))           return scan_word(tokenizer, &token);
+    if (isdigit((unsigned char) c)) return scan_integer(tokenizer, &token);
 
     // every single-character token, known or not, is consumed here
     tokenizer->pos++;
