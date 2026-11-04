@@ -107,16 +107,23 @@ Token next_token(Tokenizer* tokenizer) {
     Token token = { .type = TOKEN_UNKNOWN, .text = { tokenizer->pos, 1 } };
     const char c = *tokenizer->pos;
 
-    // pos stays on the terminator, so every later call returns EOF too
-    if (c == '\0') {
-        token.type = TOKEN_EOF;
-        token.text.len = 0;
-        return token;
-    }
+    switch (c) {
+        case '\0':
+            // pos stays on the terminator, so every later call returns EOF too
+            token.type = TOKEN_EOF;
+            token.text.len = 0;
+            return token;
 
-    if (c == '"' || c == '\'') {
-        scan_quoted_word(tokenizer, &token, c);
-        return token;
+        case '"': case '\'':
+            scan_quoted_word(tokenizer, &token, c);
+            return token;
+
+        case '(': token.type = TOKEN_LPAREN; break;
+        case ')': token.type = TOKEN_RPAREN; break;
+        case ',': token.type = TOKEN_COMMA;  break;
+        case '*': token.type = TOKEN_STAR;   break;
+        case '=': token.type = TOKEN_EQUALS; break;
+        default:  break;    // stays TOKEN_UNKNOWN
     }
 
     if (is_word_start(c)) {
@@ -127,15 +134,6 @@ Token next_token(Tokenizer* tokenizer) {
     if (isdigit((unsigned char) c)) {
         scan_integer(tokenizer, &token);
         return token;
-    }
-
-    switch (c) {
-        case '(': token.type = TOKEN_LPAREN; break;
-        case ')': token.type = TOKEN_RPAREN; break;
-        case ',': token.type = TOKEN_COMMA;  break;
-        case '*': token.type = TOKEN_STAR;   break;
-        case '=': token.type = TOKEN_EQUALS; break;
-        default:  break;    // stays TOKEN_UNKNOWN
     }
 
     // every single-character token, known or not, is consumed here
