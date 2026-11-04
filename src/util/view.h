@@ -78,30 +78,21 @@ static inline StringView bv_as_text(const ByteView bytes) {
     return (StringView) { (const char*) bytes.data, bytes.len };
 }
 
-// sets *index to the index of the first of the count views in list that
-// equals s. Returns false, leaving *index alone, if none does. For mapping
-// text to an enum through a table of names indexed by the enum's values.
-static inline bool sv_find(const StringView* list, const uint32_t count, const StringView s,
-        uint32_t* index) {
-    for (uint32_t i = 0; i < count; i++) {
-        if (sv_equal(list[i], s)) {
-            *index = i;
-            return true;
-        }
-    }
-    return false;
+// returns the index of the first of the count views in list that equals s,
+// or count if none does. For mapping text to an enum through a table of names
+// indexed by the enum's values: with FOO_UNKNOWN = FOO_COUNT, the result casts
+// straight to the enum, not-found included.
+static inline uint32_t sv_find(const StringView* list, const uint32_t count, const StringView s) {
+    uint32_t i = 0;
+    while (i < count && !sv_equal(list[i], s)) i++;
+    return i;
 }
 
 // sv_find, ignoring ASCII case
-static inline bool sv_find_nocase(const StringView* list, const uint32_t count, const StringView s,
-        uint32_t* index) {
-    for (uint32_t i = 0; i < count; i++) {
-        if (sv_equal_nocase(list[i], s)) {
-            *index = i;
-            return true;
-        }
-    }
-    return false;
+static inline uint32_t sv_find_nocase(const StringView* list, const uint32_t count, const StringView s) {
+    uint32_t i = 0;
+    while (i < count && !sv_equal_nocase(list[i], s)) i++;
+    return i;
 }
 
 #endif // CODECRAFTERS_SQLITE_VIEW_H

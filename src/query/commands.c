@@ -14,9 +14,7 @@ static const StringView DOT_COMMAND_NAMES[DOT_COMMAND_COUNT] = {
 };
 
 enum DotCommand parse_dot_command(const char* text) {
-    uint32_t i;
-    if (sv_find(DOT_COMMAND_NAMES, DOT_COMMAND_COUNT, sv_from_cstr(text), &i)) return (enum DotCommand) i;
-    return DOT_COMMAND_UNKNOWN;
+    return (enum DotCommand) sv_find(DOT_COMMAND_NAMES, DOT_COMMAND_COUNT, sv_from_cstr(text));
 }
 
 int run_dbinfo_command(const Database* db) {
