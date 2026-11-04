@@ -36,9 +36,9 @@ enum TokenType {
     // aliases for the range of keywords. They come after every real token type
     // so a debugger, which shows the first name declared for a value, shows
     // the real names rather than these.
-    TOKEN_KEYWORD_START = TOKEN_SELECT,                             // first keyword
-    TOKEN_KEYWORD_END   = TOKEN_IDENTIFIER,                         // one past the last keyword
-    TOKEN_KEYWORD_COUNT = TOKEN_KEYWORD_END - TOKEN_KEYWORD_START,  // number of keywords
+    TOKEN_KW_START = TOKEN_SELECT,                      // first keyword
+    TOKEN_KW_END   = TOKEN_IDENTIFIER,                  // one past the last keyword
+    TOKEN_KW_COUNT = TOKEN_KW_END - TOKEN_KW_START,     // number of keywords
 };
 
 // one token. The text is not copied: it points into the SQL string, which

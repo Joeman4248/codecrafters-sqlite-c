@@ -5,7 +5,7 @@
 #include "sql/tokenizer.h"
 
 // token type names, indexed by their TokenType value. The entries from
-// TOKEN_KEYWORD_START up to TOKEN_KEYWORD_END double as the keyword spellings.
+// TOKEN_KW_START up to TOKEN_KW_END double as the keyword spellings.
 static const StringView TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_EOF]         = SV_LIT("EOF"),
     [TOKEN_UNKNOWN]     = SV_LIT("UNKNOWN"),
@@ -49,9 +49,8 @@ static void skip_whitespace(Tokenizer* tokenizer) {
 // returns the keyword type for word, compared ignoring case against the
 // keyword entries of TOKEN_NAMES, or TOKEN_IDENTIFIER if it is not a keyword
 static enum TokenType lookup_keyword(const StringView word) {
-    // not found gives TOKEN_KEYWORD_COUNT, and the keywords end at TOKEN_IDENTIFIER
-    const uint32_t index = sv_find_nocase(&TOKEN_NAMES[TOKEN_KEYWORD_START], TOKEN_KEYWORD_COUNT, word);
-    return (enum TokenType) (TOKEN_KEYWORD_START + index);
+    // not found gives TOKEN_KW_COUNT, and the keywords end at TOKEN_IDENTIFIER
+    return (enum TokenType) (TOKEN_KW_START + sv_find_nocase(&TOKEN_NAMES[TOKEN_KW_START], TOKEN_KW_COUNT, word));
 }
 
 static Token scan_quoted_word(Tokenizer* tokenizer, Token* token, const char quote) {
