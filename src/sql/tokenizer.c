@@ -50,7 +50,7 @@ static void skip_whitespace(Tokenizer* tokenizer) {
 // keyword entries of TOKEN_NAMES, or TOKEN_IDENTIFIER if it is not a keyword
 static enum TokenType lookup_keyword(const StringView word) {
     // not found gives TOKEN_KW_COUNT, and the keywords end at TOKEN_IDENTIFIER
-    return (enum TokenType) (TOKEN_KW_START + sv_find_nocase(&TOKEN_NAMES[TOKEN_KW_START], TOKEN_KW_COUNT, word));
+    return TOKEN_KW_START + sv_find_nocase(&TOKEN_NAMES[TOKEN_KW_START], TOKEN_KW_COUNT, word);
 }
 
 static Token scan_quoted_word(Tokenizer* tokenizer, Token* token, const char quote) {
