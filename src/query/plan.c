@@ -36,14 +36,7 @@ static int literal_value(const Token literal, Value* out) {
             return 0;
         }
 
-        // not literals: fall out to the error below
-        case TOKEN_UNKNOWN: case TOKEN_EOF:
-        case TOKEN_SELECT:  case TOKEN_FROM:   case TOKEN_CREATE: case TOKEN_TABLE:
-        case TOKEN_INDEX:   case TOKEN_COUNT:  case TOKEN_WHERE:  case TOKEN_ON:
-        case TOKEN_IDENTIFIER:
-        case TOKEN_LPAREN:  case TOKEN_RPAREN: case TOKEN_COMMA:  case TOKEN_STAR:
-        case TOKEN_EQUALS:
-        case TOKEN_TYPE_COUNT:
+        default:
             break;
     }
 
