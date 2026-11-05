@@ -11,9 +11,9 @@ static int read_frame_header(CursorFrame* frame) {
         case PAGE_TYPE_INTERIOR_TABLE:
         case PAGE_TYPE_LEAF_TABLE:
             return 0;
-        default:
-            return 1;
     }
+
+    return 1;
 }
 
 // reads page number into a new frame on top of the stack. Fails, leaving the

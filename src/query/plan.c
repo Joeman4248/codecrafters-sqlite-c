@@ -35,11 +35,10 @@ static int literal_value(const Token literal, Value* out) {
             *out = (Value) { .type = VALUE_INTEGER, .integer = integer };
             return 0;
         }
-
-        default:
-            fprintf(stderr, "expected a string or number, got: " SV_FMT "\n", SV_ARG(literal.text));
-            return 1;
     }
+
+    fprintf(stderr, "expected a string or number, got: " SV_FMT "\n", SV_ARG(literal.text));
+    return 1;
 }
 
 // returns how many column positions the query's names expand to: every column
