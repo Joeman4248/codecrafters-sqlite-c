@@ -15,15 +15,20 @@ enum SerialType {
     SERIAL_BLOB = 12, SERIAL_TEXT = 13,
 };
 
-// true if a serial type code holds a TEXT value (odd, 13 and up)
-static bool serial_type_is_text(const uint64_t serial_type) {
-    return serial_type >= SERIAL_TEXT && serial_type % 2 == 1;
+// the enum case for a serial type code: codes 12 and up truncate to
+// SERIAL_BLOB or SERIAL_TEXT by their low bit; smaller codes are their own case
+// (10 and 11 included, which match no case)
+static enum SerialType serial_type_kind(const uint64_t serial_type) {
+    if (serial_type >= SERIAL_BLOB) return SERIAL_BLOB + (serial_type & 1);
+    return serial_type;
 }
 
 // the byte size of the value described by a serial type code (0 for NULL and
-// for serial types 8 and 9, whose value is the code itself)
-static uint32_t serial_type_size(const uint64_t serial_type) {
-    switch (serial_type) {
+// for serial types 8 and 9, whose value is the code itself). Fails the reader
+// and returns 0 for the reserved codes 10 and 11.
+static uint32_t serial_type_size(Reader* reader, const uint64_t serial_type) {
+    const enum SerialType kind = serial_type_kind(serial_type);
+    switch (kind) {
         case SERIAL_NULL: case SERIAL_ZERO: case SERIAL_ONE:
             return 0;
 
@@ -36,10 +41,13 @@ static uint32_t serial_type_size(const uint64_t serial_type) {
         case SERIAL_INT64: case SERIAL_FLOAT:
             return 8;
 
+        // the length is folded in above the base code
+        case SERIAL_BLOB: case SERIAL_TEXT:
+            return (uint32_t) ((serial_type - kind) / 2);
+
         default:
-            return serial_type_is_text(serial_type)
-                ? (uint32_t) ((serial_type - SERIAL_TEXT) / 2)
-                : (uint32_t) ((serial_type - SERIAL_BLOB) / 2);
+            reader_fail(reader);
+            return 0;
     }
 }
 
@@ -47,7 +55,8 @@ static uint32_t serial_type_size(const uint64_t serial_type) {
 // sets header->count. reader covers only the header, positioned just after its
 // size varint, so a malformed serial type can't run on into the values. Each
 // value's offset counts from the start of the body. Fails the reader if a value
-// would run past body_len or there are more columns than header->capacity.
+// would run past body_len, a serial type is reserved (10 or 11), or there are
+// more columns than header->capacity.
 static void parse_record_header(Reader* reader, const uint32_t body_len, RecordHeader* header) {
     uint32_t count = 0;
     uint32_t offset = 0;    // where the next value starts in the body
@@ -62,7 +71,8 @@ static void parse_record_header(Reader* reader, const uint32_t body_len, RecordH
         const uint64_t serial_type = read_varint_u64(reader);
         if (reader->failed) break;
 
-        const uint32_t value_size = serial_type_size(serial_type);
+        const uint32_t value_size = serial_type_size(reader, serial_type);
+        if (reader->failed) break;
         if (value_size > body_len - offset) {
             reader_fail(reader);
             break;
@@ -121,7 +131,7 @@ Value record_get_value(const Record* record, const uint32_t index) {
     const RecordColumn* col = &record->header.columns[index];
     Reader reader = reader_at(record->body, col->value_offset);
 
-    switch (col->serial_type) {
+    switch (serial_type_kind(col->serial_type)) {
         case SERIAL_NULL: return (Value) { .type = VALUE_NULL };
         case SERIAL_ZERO: return (Value) { .type = VALUE_INTEGER, .integer = 0 };
         case SERIAL_ONE:  return (Value) { .type = VALUE_INTEGER, .integer = 1 };
@@ -133,11 +143,16 @@ Value record_get_value(const Record* record, const uint32_t index) {
 
         case SERIAL_FLOAT:
             return (Value) { .type = VALUE_REAL, .real = read_f64(&reader) };
+
+        // parse_record has already checked the length fits in the body
+        case SERIAL_BLOB:
+            return (Value) { .type = VALUE_BLOB, .blob = reader_take(&reader, col->value_size) };
+        case SERIAL_TEXT:
+            return (Value) { .type = VALUE_TEXT,
+                             .text = bv_as_text(reader_take(&reader, col->value_size)) };
+
+        // 10 and 11: parse_record rejects them, so a column never holds one
+        default:
+            return (Value) { .type = VALUE_NULL };
     }
-    // text or blob: the length is folded into the serial type, and
-    // parse_record has already checked it fits in the body
-    const ByteView bytes = reader_take(&reader, col->value_size);
-    return serial_type_is_text(col->serial_type)
-        ? (Value) { .type = VALUE_TEXT, .text = bv_as_text(bytes) }
-        : (Value) { .type = VALUE_BLOB, .blob = bytes };
 }
