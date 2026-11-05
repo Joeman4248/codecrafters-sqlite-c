@@ -35,12 +35,11 @@ static uint32_t serial_type_size(const uint64_t serial_type) {
 
         case SERIAL_INT64: case SERIAL_FLOAT:
             return 8;
-
-        default:
-            return serial_type_is_text(serial_type) 
-                ? (uint32_t) ((serial_type - SERIAL_TEXT) / 2)
-                : (uint32_t) ((serial_type - SERIAL_BLOB) / 2);
     }
+
+    return serial_type_is_text(serial_type)
+        ? (uint32_t) ((serial_type - SERIAL_TEXT) / 2)
+        : (uint32_t) ((serial_type - SERIAL_BLOB) / 2);
 }
 
 // reads the header's serial types into header->columns, one per column, and
