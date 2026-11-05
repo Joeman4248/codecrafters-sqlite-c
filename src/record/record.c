@@ -100,7 +100,8 @@ static int64_t sign_extend(const uint64_t raw, const unsigned bits) {
     return ((int64_t) raw ^ sign_bit) - sign_bit;
 }
 
-// reads an integer of serial type 1-6 at the reader's position
+// reads an integer of serial type 1-6 at the reader's position. Fails the
+// reader and returns 0 for any other serial type.
 static int64_t read_int(Reader* reader, const uint64_t serial_type) {
     switch (serial_type) {
         case SERIAL_INT8:  return sign_extend(read_u8(reader), 8);
