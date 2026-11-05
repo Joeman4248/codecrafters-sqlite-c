@@ -12,7 +12,6 @@ static int read_frame_header(CursorFrame* frame) {
         case PAGE_TYPE_LEAF_TABLE:
             return 0;
     }
-
     return 1;
 }
 
