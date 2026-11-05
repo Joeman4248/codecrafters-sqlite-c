@@ -19,7 +19,7 @@ enum SerialType {
 // SERIAL_BLOB or SERIAL_TEXT by their low bit; smaller codes are their own case
 // (10 and 11 included, which match no case)
 static enum SerialType serial_type_kind(const uint64_t serial_type) {
-    if (serial_type >= SERIAL_BLOB) return SERIAL_BLOB + (serial_type & 1);
+    if (serial_type >= SERIAL_BLOB) return SERIAL_BLOB + serial_type % 2;
     return serial_type;
 }
 
@@ -45,10 +45,10 @@ static uint32_t serial_type_size(Reader* reader, const uint64_t serial_type) {
         case SERIAL_BLOB: case SERIAL_TEXT:
             return (uint32_t) ((serial_type - kind) / 2);
 
-        default:
-            reader_fail(reader);
-            return 0;
+        default: break;
     }
+    reader_fail(reader);
+    return 0;
 }
 
 // reads the header's serial types into header->columns, one per column, and
