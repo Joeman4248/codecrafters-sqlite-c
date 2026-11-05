@@ -17,24 +17,23 @@ static int resolve_column(const TableColumns* columns, const Token name, uint32_
 // and a run of digits an INTEGER. Prints an error if it's neither, or the
 // integer doesn't fit in 64 bits.
 static int literal_value(const Token literal, Value* out) {
-    switch (literal.type) {
-        case TOKEN_STRING:
-            *out = (Value) { .type = VALUE_TEXT, .text = literal.text };
-            return 0;
+    if (literal.type == TOKEN_STRING) {
+        *out = (Value) { .type = VALUE_TEXT, .text = literal.text };
+        return 0;
+    }
 
-        case TOKEN_INTEGER: {
-            int64_t integer = 0;
-            for (uint32_t i = 0; i < literal.text.len; i++) {
-                const int digit = literal.text.data[i] - '0';
-                if (integer > (INT64_MAX - digit) / 10) {
-                    fprintf(stderr, "integer too large: " SV_FMT "\n", SV_ARG(literal.text));
-                    return 1;
-                }
-                integer = integer * 10 + digit;
+    if (literal.type == TOKEN_INTEGER) {
+        int64_t integer = 0;
+        for (uint32_t i = 0; i < literal.text.len; i++) {
+            const int digit = literal.text.data[i] - '0';
+            if (integer > (INT64_MAX - digit) / 10) {
+                fprintf(stderr, "integer too large: " SV_FMT "\n", SV_ARG(literal.text));
+                return 1;
             }
-            *out = (Value) { .type = VALUE_INTEGER, .integer = integer };
-            return 0;
+            integer = integer * 10 + digit;
         }
+        *out = (Value) { .type = VALUE_INTEGER, .integer = integer };
+        return 0;
     }
 
     fprintf(stderr, "expected a string or number, got: " SV_FMT "\n", SV_ARG(literal.text));
