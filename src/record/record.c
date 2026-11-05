@@ -4,7 +4,7 @@
 // serial type codes for the record format
 enum SerialType {
     SERIAL_NULL,
-    SERIAL_INT8,  SERIAL_INT16, SERIAL_INT24, 
+    SERIAL_INT8,  SERIAL_INT16, SERIAL_INT24,
     SERIAL_INT32, SERIAL_INT48, SERIAL_INT64,
     SERIAL_FLOAT, SERIAL_ZERO,  SERIAL_ONE,
 
@@ -24,7 +24,7 @@ static bool serial_type_is_text(const uint64_t serial_type) {
 // for serial types 8 and 9, whose value is the code itself)
 static uint32_t serial_type_size(const uint64_t serial_type) {
     switch (serial_type) {
-        case SERIAL_NULL: case SERIAL_ZERO: case SERIAL_ONE: 
+        case SERIAL_NULL: case SERIAL_ZERO: case SERIAL_ONE:
             return 0;
 
         case SERIAL_INT8:   return 1;
@@ -35,11 +35,12 @@ static uint32_t serial_type_size(const uint64_t serial_type) {
 
         case SERIAL_INT64: case SERIAL_FLOAT:
             return 8;
-    }
 
-    return serial_type_is_text(serial_type)
-        ? (uint32_t) ((serial_type - SERIAL_TEXT) / 2)
-        : (uint32_t) ((serial_type - SERIAL_BLOB) / 2);
+        default:
+            return serial_type_is_text(serial_type)
+                ? (uint32_t) ((serial_type - SERIAL_TEXT) / 2)
+                : (uint32_t) ((serial_type - SERIAL_BLOB) / 2);
+    }
 }
 
 // reads the header's serial types into header->columns, one per column, and
@@ -109,7 +110,6 @@ static int64_t read_int(Reader* reader, const uint64_t serial_type) {
         case SERIAL_INT48: return sign_extend(read_u48(reader), 48);
         case SERIAL_INT64: return read_i64(reader);
     }
-
     return 0;
 }
 
@@ -126,7 +126,7 @@ Value record_get_value(const Record* record, const uint32_t index) {
 
         case SERIAL_INT8:  case SERIAL_INT16: case SERIAL_INT24:
         case SERIAL_INT32: case SERIAL_INT48: case SERIAL_INT64:
-            return (Value) { .type = VALUE_INTEGER, 
+            return (Value) { .type = VALUE_INTEGER,
                              .integer = read_int(&reader, col->serial_type) };
 
         case SERIAL_FLOAT:

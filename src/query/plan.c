@@ -18,10 +18,10 @@ static int resolve_column(const TableColumns* columns, const Token name, uint32_
 // integer doesn't fit in 64 bits.
 static int literal_value(const Token literal, Value* out) {
     switch (literal.type) {
-        case TOKEN_STRING:
+        case TOKEN_STRING: {
             *out = (Value) { .type = VALUE_TEXT, .text = literal.text };
             return 0;
-
+        }
         case TOKEN_INTEGER: {
             int64_t integer = 0;
             for (uint32_t i = 0; i < literal.text.len; i++) {
@@ -35,9 +35,7 @@ static int literal_value(const Token literal, Value* out) {
             *out = (Value) { .type = VALUE_INTEGER, .integer = integer };
             return 0;
         }
-
-        default:
-            break;
+        default: break;
     }
 
     fprintf(stderr, "expected a string or number, got: " SV_FMT "\n", SV_ARG(literal.text));
