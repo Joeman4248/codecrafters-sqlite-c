@@ -110,6 +110,7 @@ static int64_t read_int(Reader* reader, const uint64_t serial_type) {
         case SERIAL_INT48: return sign_extend(read_u48(reader), 48);
         case SERIAL_INT64: return read_i64(reader);
     }
+    reader_fail(reader);
     return 0;
 }
 
