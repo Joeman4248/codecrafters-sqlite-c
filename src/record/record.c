@@ -146,7 +146,8 @@ Value record_get_value(const Record* record, const uint32_t index) {
 
         // parse_record has already checked the length fits in the body
         case SERIAL_BLOB:
-            return (Value) { .type = VALUE_BLOB, .blob = reader_take(&reader, col->value_size) };
+            return (Value) { .type = VALUE_BLOB, 
+                             .blob = reader_take(&reader, col->value_size) };
         case SERIAL_TEXT:
             return (Value) { .type = VALUE_TEXT,
                              .text = bv_as_text(reader_take(&reader, col->value_size)) };
