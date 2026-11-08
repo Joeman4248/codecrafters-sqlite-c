@@ -127,13 +127,14 @@ int read_file_header(FILE* file, FileHeader* header) {
     if (fread(buf, 1, sizeof(buf), file) != sizeof(buf)) return 1;
 
     Reader reader = reader_at((ByteView) { buf, sizeof(buf) }, 0);
-    *header = decode_file_header(&reader);
+    FileHeader decoded = decode_file_header(&reader);
     if (reader.failed) return 1;
 
-    if (validate_file_header(header)) return 1;
+    if (validate_file_header(&decoded)) return 1;
 
     // computed only after validation guarantees page_size >= reserved_space + 480,
     // so the subtraction can't wrap
-    header->usable_size = header->page_size - header->reserved_space;
+    decoded.usable_size = decoded.page_size - decoded.reserved_space;
+    *header = decoded;
     return 0;
 }
