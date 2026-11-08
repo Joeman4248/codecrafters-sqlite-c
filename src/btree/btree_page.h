@@ -1,6 +1,7 @@
 #ifndef CODECRAFTERS_SQLITE_BTREE_PAGE_H
 #define CODECRAFTERS_SQLITE_BTREE_PAGE_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "pager/database.h"
@@ -14,6 +15,20 @@ enum PageType {
     PAGE_TYPE_LEAF_INDEX = 0x0a,
     PAGE_TYPE_LEAF_TABLE = 0x0d
 };
+
+// whether a page of this type belongs to a table b-tree rather than an index.
+// False for a byte that isn't a page type at all.
+static inline bool is_table_page(const enum PageType type) {
+    switch (type) {
+        case PAGE_TYPE_INTERIOR_TABLE:
+        case PAGE_TYPE_LEAF_TABLE:
+            return true;
+        case PAGE_TYPE_INTERIOR_INDEX:
+        case PAGE_TYPE_LEAF_INDEX:
+            break;
+    }
+    return false;
+}
 
 // a b-tree page header, in the order its fields appear in the page
 typedef struct PageHeader {

@@ -5,17 +5,7 @@
 static int read_frame_header(CursorFrame* frame) {
     Reader reader = btree_header_reader(frame->page);
     frame->header = read_btree_header(&reader);
-    if (reader.failed) return 1;
-
-    switch ((enum PageType) frame->header.page_type) {
-        case PAGE_TYPE_INTERIOR_TABLE:
-        case PAGE_TYPE_LEAF_TABLE:
-            return 0;
-        case PAGE_TYPE_INTERIOR_INDEX:
-        case PAGE_TYPE_LEAF_INDEX:
-            break;
-    }
-    return 1;
+    return reader.failed || !is_table_page(frame->header.page_type);
 }
 
 // reads page number into a new frame on top of the stack. Does nothing if the
