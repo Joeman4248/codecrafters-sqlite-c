@@ -28,17 +28,19 @@ PageHeader read_btree_header(Reader* reader) {
         case PAGE_TYPE_INTERIOR_INDEX:
         case PAGE_TYPE_INTERIOR_TABLE:
             header.rightmost_ptr = read_u32(reader);
-            header.cell_pointers = reader->pos;
-            return header;
+            break;
 
         case PAGE_TYPE_LEAF_INDEX:
         case PAGE_TYPE_LEAF_TABLE:
-            header.cell_pointers = reader->pos;
-            return header;
+            break;
+
+        // the byte from the file isn't a page type
+        default:
+            reader_fail(reader);
+            break;
     }
 
-    // the byte isn't a page type
-    reader_fail(reader);
+    header.cell_pointers = reader->pos;
     return header;
 }
 
