@@ -1,4 +1,5 @@
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -27,9 +28,11 @@ static bool next_row(TableScan* scan, Row* row) {
     if (!cursor_next(&scan->cursor)) return false;
 
     const TableLeafCell cell = scan->cursor.cell;
+    const uint32_t column_count = scan->plan->column_count;
     row->rowid = cell.rowid;
     Reader reader = reader_at(cell.payload, 0);
-    row->record = read_record(&reader, (RecordHeader) { .columns = scan->storage, .capacity = scan->plan->column_count });
+    row->record = read_record(&reader, (RecordHeader) { .columns = scan->storage, 
+                                                        .capacity = column_count });
     if (reader.failed) cursor_fail(&scan->cursor);
     return !reader.failed;
 }
