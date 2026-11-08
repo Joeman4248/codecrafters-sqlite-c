@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdio.h>
 
 #include "pager/database.h"
@@ -5,7 +6,7 @@
 #include "query/commands.h"
 
 // positions of the command-line arguments in argv
-enum Arg { ARG_PROGRAM, ARG_DATABASE_PATH, ARG_COMMAND, ARG_COUNT, };
+enum Arg : uint8_t { ARG_PROGRAM, ARG_DATABASE_PATH, ARG_COMMAND, ARG_COUNT, };
 
 // reads the header and schema, then runs the command.
 // Returns nonzero on error. Does not release db; the caller does.

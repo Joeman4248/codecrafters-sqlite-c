@@ -50,7 +50,7 @@ typedef struct SelectQuery {
 bool find_column(const TableColumns* columns, Token name, uint32_t* index);
 
 // which kind of statement a Statement holds
-enum StatementType {
+enum StatementType : uint8_t {
     STATEMENT_TYPE_SELECT,
     STATEMENT_TYPE_CREATE_TABLE,
     STATEMENT_TYPE_CREATE_INDEX,

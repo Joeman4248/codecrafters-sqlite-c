@@ -8,7 +8,7 @@
 #include "util/view.h"
 
 // SQLite's five storage classes: every value in a database is one of these
-enum ValueType {
+enum ValueType : uint8_t {
     VALUE_NULL,
     VALUE_INTEGER,
     VALUE_REAL,         // a 64-bit IEEE 754 double

@@ -9,7 +9,7 @@
 #include "util/view.h"
 
 // the value stored in a sqlite_schema row's type column
-enum SchemaType {
+enum SchemaType : uint8_t {
     SCHEMA_TYPE_TABLE,
     SCHEMA_TYPE_INDEX,
     SCHEMA_TYPE_VIEW,
@@ -28,7 +28,7 @@ typedef struct SchemaEntry {
 } SchemaEntry;
 
 // column indices into a sqlite_schema record
-enum SchemaColumn {
+enum SchemaColumn : uint8_t {
     SCHEMA_COL_TYPE,        // 'table' | 'index' | 'view' | 'trigger'
     SCHEMA_COL_NAME,        // object name
     SCHEMA_COL_TBL_NAME,    // table the object belongs to

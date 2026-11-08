@@ -2,7 +2,7 @@
 #include "util/reader.h"
 
 // serial type codes for the record format
-enum SerialType {
+enum SerialType : uint8_t {
     SERIAL_NULL,
     SERIAL_INT8,  SERIAL_INT16, SERIAL_INT24,
     SERIAL_INT32, SERIAL_INT48, SERIAL_INT64,

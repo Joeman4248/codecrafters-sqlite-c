@@ -1,11 +1,13 @@
 #ifndef CODECRAFTERS_SQLITE_COMMANDS_H
 #define CODECRAFTERS_SQLITE_COMMANDS_H
 
+#include <stdint.h>
+
 #include "pager/database.h"
 
 // dot-commands accepted on the command line; anything else is SQL, for
 // run_sql_command
-enum DotCommand {
+enum DotCommand : uint8_t {
     DOT_COMMAND_DBINFO,
     DOT_COMMAND_TABLES,
     DOT_COMMAND_COUNT,                          // number of real commands

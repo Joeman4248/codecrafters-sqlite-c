@@ -11,7 +11,7 @@
 // match_rule checks tokens against any grammar it's given: the knowledge of
 // SQL lives in the grammar, not in the code that matches it.
 
-enum RuleType {
+enum RuleType : uint8_t {
     RULE_TOKEN,         // one token of a given type:          FROM
     RULE_SEQ,           // every child, one after another:     a b c
     RULE_CHOICE,        // the first child that matches:       a | b
@@ -22,7 +22,7 @@ enum RuleType {
 // what a matched token means, so it can be found after matching. A grammar
 // tags the tokens that carry information (names, values) and leaves keywords
 // and punctuation untagged.
-enum CaptureTag {
+enum CaptureTag : uint8_t {
     TAG_NONE,           // 0, so every rule the macros make without a tag is untagged
     TAG_COUNT,
     TAG_COLUMN,

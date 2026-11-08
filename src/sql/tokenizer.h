@@ -5,7 +5,7 @@
 
 #include "util/view.h"
 
-enum TokenType {
+enum TokenType : uint8_t {
     TOKEN_UNKNOWN,          // a character no token starts with; 0 on purpose
     TOKEN_EOF,              // end of the SQL text
 
