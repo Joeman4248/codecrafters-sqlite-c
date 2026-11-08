@@ -15,26 +15,36 @@ static int read_frame_header(CursorFrame* frame) {
     return 1;
 }
 
-// reads page number into a new frame on top of the stack. Fails, leaving the
-// stack as it was, if the page number is out of range, the tree is deeper
-// than BTREE_MAX_DEPTH, or the page isn't a table b-tree page.
-static int push_page(TableCursor* cursor, const uint32_t page_number) {
+// reads page number into a new frame on top of the stack. Does nothing if the
+// cursor has already failed, so a page number read by a failed step is never
+// followed. Fails the cursor, leaving the stack as it was, if the page number
+// is out of range, the tree is deeper than BTREE_MAX_DEPTH, or the page isn't
+// a table b-tree page.
+static void push_page(TableCursor* cursor, const uint32_t page_number) {
+    if (cursor->failed) return;
+
     // the pager checks the page number
-    if (cursor->depth == BTREE_MAX_DEPTH) return 1;
+    if (cursor->depth == BTREE_MAX_DEPTH) {
+        cursor_fail(cursor);
+        return;
+    }
 
     CursorFrame* frame = &cursor->frames[cursor->depth];
     frame->next_entry = 0;
     frame->page = pager_get(cursor->pager, page_number);
-    if (frame->page == NULL) return 1;
+    if (frame->page == NULL) {
+        cursor_fail(cursor);
+        return;
+    }
 
     // unpinned here on failure, so the stack is left as it was
     if (read_frame_header(frame)) {
         pager_unref(cursor->pager, frame->page);
-        return 1;
+        cursor_fail(cursor);
+        return;
     }
 
     cursor->depth++;
-    return 0;
 }
 
 // unpins the top frame's page and removes it from the stack
@@ -54,32 +64,35 @@ static uint32_t frame_entries(const CursorFrame* frame) {
     return frame->header.page_type == PAGE_TYPE_LEAF_TABLE ? cells : cells + 1;
 }
 
-// the child page for entry index of an interior frame: cell index's left
-// child, or rightmost_ptr for the entry after the last cell
-static int frame_child(const CursorFrame* frame, const uint16_t index, uint32_t* child) {
-    if (index == frame->header.cell_count) {
-        *child = frame->header.rightmost_ptr;
-        return 0;
-    }
+// the child page for entry index of the top frame, an interior page: cell
+// index's left child, or rightmost_ptr for the entry after the last cell.
+// Fails the cursor if the cell can't be read.
+static uint32_t frame_child(TableCursor* cursor, const uint16_t index) {
+    const CursorFrame* frame = cursor_top(cursor);
+    if (index == frame->header.cell_count) return frame->header.rightmost_ptr;
 
     // the cell's key separates the children; only lookups need it, not full scans
     Reader reader = btree_header_reader(frame->page);
     seek_cell(&reader, &frame->header, index);
-    *child = read_interior_table_cell(&reader).left_child;
-    return reader.failed;
+    const uint32_t child = read_interior_table_cell(&reader).left_child;
+    if (reader.failed) cursor_fail(cursor);
+    return child;
 }
 
-// reads the row in entry index of a leaf frame
-static int frame_row(const CursorFrame* frame, const uint16_t index, TableLeafCell* cell) {
+// the row in entry index of the top frame, a leaf page. Fails the cursor if
+// the cell can't be read.
+static TableLeafCell frame_row(TableCursor* cursor, const uint16_t index) {
+    const CursorFrame* frame = cursor_top(cursor);
     Reader reader = btree_header_reader(frame->page);
     seek_cell(&reader, &frame->header, index);
-    *cell = read_leaf_table_cell(&reader);
-    return reader.failed;
+    const TableLeafCell cell = read_leaf_table_cell(&reader);
+    if (reader.failed) cursor_fail(cursor);
+    return cell;
 }
 
 void cursor_open(TableCursor* cursor, Pager* pager, const uint32_t rootpage) {
     *cursor = (TableCursor) { .pager = pager };
-    if (push_page(cursor, rootpage)) cursor_fail(cursor);
+    push_page(cursor, rootpage);
 }
 
 bool cursor_next(TableCursor* cursor) {
@@ -95,12 +108,12 @@ bool cursor_next(TableCursor* cursor) {
         const uint16_t index = frame->next_entry++;
         
         if (frame->header.page_type == PAGE_TYPE_LEAF_TABLE) {
-            if (frame_row(frame, index, &cursor->cell)) cursor_fail(cursor);
+            cursor->cell = frame_row(cursor, index);
             return !cursor->failed;
         }
 
-        uint32_t child;
-        if (frame_child(frame, index, &child) || push_page(cursor, child)) cursor_fail(cursor);
+        // push_page does nothing if frame_child failed
+        push_page(cursor, frame_child(cursor, index));
     }
     return false;
 }
