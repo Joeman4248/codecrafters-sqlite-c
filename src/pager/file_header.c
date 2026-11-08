@@ -14,6 +14,41 @@ static bool is_powerof2(const uint32_t val) {
     return (val & (val - 1)) == 0;
 }
 
+// whether a file with this read version can be read: 1 (legacy) or 2 (WAL).
+// A file with a read version > 2 cannot be read at all.
+static bool is_readable_version(const enum FileFormatVersion version) {
+    switch (version) {
+        case FILE_FORMAT_VERSION_LEGACY:
+        case FILE_FORMAT_VERSION_WAL:
+            return true;
+    }
+    return false;
+}
+
+// whether this is a supported schema format, 0-4 (0 means an empty database)
+static bool is_known_schema_format(const enum SchemaFormat format) {
+    switch (format) {
+        case SCHEMA_FORMAT_NONE:
+        case SCHEMA_FORMAT_1:
+        case SCHEMA_FORMAT_2:
+        case SCHEMA_FORMAT_3:
+        case SCHEMA_FORMAT_4:
+            return true;
+    }
+    return false;
+}
+
+// whether this is a text encoding: 1 (UTF-8), 2 (UTF-16le), or 3 (UTF-16be)
+static bool is_known_text_encoding(const enum TextEncoding encoding) {
+    switch (encoding) {
+        case TEXT_ENCODING_UTF8:
+        case TEXT_ENCODING_UTF16LE:
+        case TEXT_ENCODING_UTF16BE:
+            return true;
+    }
+    return false;
+}
+
 // validates the field values once the header has been fully read,
 // per the SQLite file format spec
 static int validate_file_header(const FileHeader* header) {
@@ -30,15 +65,7 @@ static int validate_file_header(const FileHeader* header) {
         return 1;
     }
 
-    // read version must be 1 (legacy) or 2 (WAL); a file with a
-    // read version > 2 cannot be read at all
-    switch (header->read_version) {
-        case FILE_FORMAT_VERSION_LEGACY:
-        case FILE_FORMAT_VERSION_WAL:
-            break;
-        default:
-            return 1;
-    }
+    if (!is_readable_version(header->read_version)) return 1;
 
     // usable page size = page_size - reserved_space, and must be >= 480
     if (header->page_size < header->reserved_space + MIN_USABLE_PAGE_SIZE) {
@@ -51,27 +78,8 @@ static int validate_file_header(const FileHeader* header) {
         return 1;
     }
 
-    // supported schema formats are 0-4 (0 means an empty database)
-    switch (header->schema_format) {
-        case SCHEMA_FORMAT_NONE:
-        case SCHEMA_FORMAT_1:
-        case SCHEMA_FORMAT_2:
-        case SCHEMA_FORMAT_3:
-        case SCHEMA_FORMAT_4:
-            break;
-        default:
-            return 1;
-    }
-
-    // text encoding must be 1 (UTF-8), 2 (UTF-16le), or 3 (UTF-16be)
-    switch (header->text_encoding) {
-        case TEXT_ENCODING_UTF8:
-        case TEXT_ENCODING_UTF16LE:
-        case TEXT_ENCODING_UTF16BE:
-            break;
-        default:
-            return 1;
-    }
+    if (!is_known_schema_format(header->schema_format)) return 1;
+    if (!is_known_text_encoding(header->text_encoding)) return 1;
 
     // if there is no largest root b-tree page (no auto-vacuum), the
     // incremental-vacuum flag (offset 64) must also be zero

@@ -9,7 +9,10 @@
 
 #define SCHEMA_ROOT_PAGE 1            // root page of the sqlite_schema b-tree
 
-enum PageType {
+// the page header's first byte. The enum is a byte wide like the field, so a
+// PageHeader holds it directly; a byte read from a file can still be any
+// value, which read_btree_header rejects.
+enum PageType : uint8_t {
     PAGE_TYPE_INTERIOR_INDEX = 0x02,
     PAGE_TYPE_INTERIOR_TABLE = 0x05,
     PAGE_TYPE_LEAF_INDEX = 0x0a,
@@ -32,15 +35,15 @@ static inline bool is_table_page(const enum PageType type) {
 
 // a b-tree page header, in the order its fields appear in the page
 typedef struct PageHeader {
-    uint8_t  page_type;         // offset 0
-    uint8_t  num_free_bytes;    // offset 7
-    uint16_t freeblock_offset;  // offset 1
-    uint16_t cell_count;        // offset 3
-    uint16_t cell_area_start;   // offset 5
-    uint32_t rightmost_ptr;     // offset 8, only on interior pages (0 on leaves)
+    enum PageType page_type;            // offset 0
+    uint8_t       num_free_bytes;       // offset 7
+    uint16_t      freeblock_offset;     // offset 1
+    uint16_t      cell_count;           // offset 3
+    uint16_t      cell_area_start;      // offset 5
+    uint32_t      rightmost_ptr;        // offset 8, only on interior pages (0 on leaves)
 
-    uint32_t cell_pointers;     // not stored: where in the page the cell pointer
-                                // array starts, right after this header
+    uint32_t      cell_pointers;        // not stored: where in the page the cell pointer
+                                        // array starts, right after this header
 } PageHeader;
 
 // a table b-tree interior cell: one child page and the key that bounds it
