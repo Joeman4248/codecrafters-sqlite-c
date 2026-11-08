@@ -85,21 +85,31 @@ static void parse_record_header(Reader* reader, const uint32_t body_len, RecordH
     header->count = count;
 }
 
-int parse_record(const ByteView payload, Record* record) {
-    Reader reader = reader_at(payload, 0);
+Record read_record(Reader* reader, const RecordHeader header) {
+    Record record = { .header = header };
+    const ByteView all = reader->bytes;
+    const uint32_t start = reader->pos;
 
     // the header size counts the varint holding it, so it can't be smaller than that
-    const uint32_t header_size = read_varint_u32(&reader);
-    if (reader.failed || header_size < reader.pos || header_size > payload.len) return 1;
+    const uint32_t header_size = read_varint_u32(reader);
+    if (reader->failed) return record;
+    if (header_size < reader->pos - start || header_size > all.len - start) {
+        reader_fail(reader);
+        return record;
+    }
 
-    // the header is the first header_size bytes, and the body everything after
-    reader.bytes = bv_prefix(payload, header_size);
-    const ByteView body = { payload.data + header_size, payload.len - header_size };
-    parse_record_header(&reader, body.len, &record->header);
-    if (reader.failed) return 1;
+    // the header is the next header_size bytes, and the body everything after.
+    // The reader is cut to the header while it is parsed, then given back its bytes.
+    const uint32_t body_start = start + header_size;
+    const ByteView body = { all.data + body_start, all.len - body_start };
+    reader->bytes = bv_prefix(all, body_start);
+    parse_record_header(reader, body.len, &record.header);
+    reader->bytes = all;
+    if (reader->failed) return record;
 
-    record->body = body;
-    return 0;
+    record.body = body;
+    reader_seek(reader, all.len);
+    return record;
 }
 
 // interprets the low 'bits' bits of raw as a two's-complement value. XOR-ing
@@ -144,7 +154,7 @@ Value record_get_value(const Record* record, const uint32_t index) {
         case SERIAL_FLOAT:
             return (Value) { .type = VALUE_REAL, .real = read_f64(&reader) };
 
-        // parse_record has already checked the length fits in the body
+        // read_record has already checked the length fits in the body
         case SERIAL_BLOB:
             return (Value) { .type = VALUE_BLOB, 
                              .blob = reader_take(&reader, col->value_size) };
@@ -152,7 +162,7 @@ Value record_get_value(const Record* record, const uint32_t index) {
             return (Value) { .type = VALUE_TEXT,
                              .text = bv_as_text(reader_take(&reader, col->value_size)) };
 
-        // 10 and 11: parse_record rejects them, so a column never holds one
+        // 10 and 11: read_record rejects them, so a column never holds one
         default:
             return (Value) { .type = VALUE_NULL };
     }

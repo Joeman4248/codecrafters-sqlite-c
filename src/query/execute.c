@@ -29,9 +29,9 @@ static enum CursorStatus next_row(TableScan* scan, Row* row) {
     if (status != CURSOR_ROW) return status;
 
     row->rowid = cell.rowid;
-    row->record.header = (RecordHeader) { .columns = scan->storage, .capacity = scan->plan->column_count };
-    if (parse_record(cell.payload, &row->record)) return CURSOR_ERROR;
-    return CURSOR_ROW;
+    Reader reader = reader_at(cell.payload, 0);
+    row->record = read_record(&reader, (RecordHeader) { .columns = scan->storage, .capacity = scan->plan->column_count });
+    return reader.failed ? CURSOR_ERROR : CURSOR_ROW;
 }
 
 // the value of column index in the row. The rowid alias column is stored as

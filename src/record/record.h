@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "util/reader.h"
 #include "util/value.h"
 #include "util/view.h"
 
@@ -19,7 +20,7 @@
 
 // one column's entry in the record header: what kind of value it holds, and
 // where that value sits in the body. Callers only make room for these (see
-// RecordHeader); parse_record fills them in and the record_ functions read them.
+// RecordHeader); read_record fills them in and the record_ functions read them.
 typedef struct RecordColumn {
     uint64_t serial_type;     // serial type code for this column
     uint32_t value_offset;    // byte offset of the value from the start of the body
@@ -27,7 +28,7 @@ typedef struct RecordColumn {
 } RecordColumn;
 
 // a record header, parsed: one entry per column. The caller provides the
-// storage by setting columns and capacity; parse_record fills it and sets count.
+// storage by setting columns and capacity; read_record fills it and sets count.
 typedef struct RecordHeader {
     RecordColumn* columns;  // storage the caller owns
     uint32_t      capacity; // entries columns has room for
@@ -42,17 +43,17 @@ typedef struct Record {
     ByteView     body;      // the values, back to back
 } Record;
 
-// splits payload, a whole record, into record's header and body. The header's
-// serial types are parsed into record->header.columns, which the caller has
-// already pointed at storage for record->header.capacity entries; count is set
-// to how many there are, and body to the values. Returns nonzero if the record
-// is malformed, a value runs past the end of the body, or it has more columns
-// than capacity.
-int parse_record(ByteView payload, Record* record);
+// reads the record that runs from the reader's position to the end of its
+// bytes, leaving the reader at the end. The header's serial types are parsed
+// into header.columns, which the caller has pointed at storage for
+// header.capacity entries; the returned record's count is how many there are,
+// and its body the values. Fails the reader if the record is malformed, a value
+// runs past the end of the body, or it has more columns than capacity.
+Record read_record(Reader* reader, RecordHeader header);
 
 // decodes column index, whatever its storage class. A column past the end of a
 // short record (a row written before its table gained that column) is NULL.
-// parse_record has checked that every column fits in the body, so this always
+// read_record has checked that every column fits in the body, so this always
 // returns a value: there is no error for the caller to handle. Text and blobs
 // view the body without copying, so they are valid while the body is.
 Value record_get_value(const Record* record, uint32_t index);
