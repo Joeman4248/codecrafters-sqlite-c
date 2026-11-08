@@ -82,51 +82,52 @@ static int validate_file_header(const FileHeader* header) {
     return 0;
 }
 
-int read_file_header(FILE* file, FileHeader* header) {
-    // zeroed first, so every failure above still leaves the caller a defined header
+// decodes the header's fields without checking them; validate_file_header
+// does that. usable_size is left 0, since it is only safe to compute once
+// the fields are validated.
+static FileHeader read_file_header(Reader* reader) {
+    FileHeader header = { 0 };
+
+    const ByteView header_string = reader_take(reader, sizeof(header.header_string));
+    if (!reader->failed) memcpy(header.header_string, header_string.data, header_string.len);
+
+    header.page_size = page_size_bytes(read_u16(reader));
+
+    header.write_version                 = read_u8(reader);
+    header.read_version                  = read_u8(reader);
+    header.reserved_space                = read_u8(reader);
+    header.max_embedded_payload_fraction = read_u8(reader);
+    header.min_embedded_payload_fraction = read_u8(reader);
+    header.leaf_payload_fraction         = read_u8(reader);
+
+    header.file_change_counter        = read_u32(reader);
+    header.db_size_in_pages           = read_u32(reader);
+    header.first_freelist_trunk_page  = read_u32(reader);
+    header.freelist_page_count        = read_u32(reader);
+    header.schema_cookie              = read_u32(reader);
+    header.schema_format              = read_u32(reader);
+    header.default_page_cache_size    = read_u32(reader);
+    header.largest_root_btree_page    = read_u32(reader);
+    header.text_encoding              = read_u32(reader);
+    header.user_version               = read_u32(reader);
+    header.incremental_vacuum_enabled = read_u32(reader);
+    header.application_id             = read_u32(reader);
+
+    reader_skip(reader, FILE_HEADER_RESV_SZ);     // reserved, always zero
+    header.version_valid_for     = read_u32(reader);
+    header.sqlite_version_number = read_u32(reader);
+    return header;
+}
+
+int load_file_header(FILE* file, FileHeader* header) {
     *header = (FileHeader) { 0 };
 
-    if (fseek(file, 0, SEEK_SET)) {
-        // fprintf(stderr, "Error seeking to beginning of file");
-        return 1;
-    }
-    
     uint8_t buf[FILE_HEADER_SZ];
-    if (fread(buf, 1, sizeof(buf), file) != sizeof(buf)) {
-        // fprintf(stderr, "Error reading file header");
-        return 1;
-    }
+    if (fseek(file, 0, SEEK_SET)) return 1;
+    if (fread(buf, 1, sizeof(buf), file) != sizeof(buf)) return 1;
 
-    memcpy(header->header_string, buf, sizeof(header->header_string));
-    Reader reader = reader_at((ByteView) { buf, sizeof(buf) }, sizeof(header->header_string));
-
-    header->page_size = page_size_bytes(read_u16(&reader));
-
-    header->write_version                 = read_u8(&reader);
-    header->read_version                  = read_u8(&reader);
-    header->reserved_space                = read_u8(&reader);
-    header->max_embedded_payload_fraction = read_u8(&reader);
-    header->min_embedded_payload_fraction = read_u8(&reader);
-    header->leaf_payload_fraction         = read_u8(&reader);
-
-    header->file_change_counter        = read_u32(&reader);
-    header->db_size_in_pages           = read_u32(&reader);
-    header->first_freelist_trunk_page  = read_u32(&reader);
-    header->freelist_page_count        = read_u32(&reader);
-    header->schema_cookie              = read_u32(&reader);
-    header->schema_format              = read_u32(&reader);
-    header->default_page_cache_size    = read_u32(&reader);
-    header->largest_root_btree_page    = read_u32(&reader);
-    header->text_encoding              = read_u32(&reader);
-    header->user_version               = read_u32(&reader);
-    header->incremental_vacuum_enabled = read_u32(&reader);
-    header->application_id             = read_u32(&reader);
-
-    reader_skip(&reader, FILE_HEADER_RESV_SZ);     // reserved, always zero
-    header->version_valid_for     = read_u32(&reader);
-    header->sqlite_version_number = read_u32(&reader);
-
-    // one check covers every read above: none of the values is used until here
+    Reader reader = reader_at((ByteView) { buf, sizeof(buf) }, 0);
+    *header = read_file_header(&reader);
     if (reader.failed) return 1;
 
     if (validate_file_header(header)) return 1;

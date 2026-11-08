@@ -77,6 +77,9 @@ typedef struct FileHeader {
     uint32_t usable_size;   // not stored: page_size - reserved_space, validated >= MIN_USABLE_PAGE_SIZE
 } FileHeader;
 
-int read_file_header(FILE* file, FileHeader* header);
+// reads the header from the start of file into *header and validates it.
+// Returns nonzero if it can't be read or isn't a database this program can
+// read; *header is zeroed or partly filled then.
+int load_file_header(FILE* file, FileHeader* header);
 
 #endif // CODECRAFTERS_SQLITE_FILE_HEADER_H
