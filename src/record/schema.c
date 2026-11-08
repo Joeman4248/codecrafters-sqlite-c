@@ -56,8 +56,9 @@ static int grow_schema(Database* db, uint32_t* capacity) {
 static int add_schema_entry(Database* db, uint32_t* capacity, const ByteView payload) {
     RecordColumn columns[SCHEMA_COL_COUNT];
     Reader reader = reader_at(payload, 0);
-    const Record record = read_record(&reader, (RecordHeader) { .columns = columns,
-                                                                .capacity = SCHEMA_COL_COUNT });
+    const RecordHeader header = (RecordHeader) { .columns = columns, 
+                                                 .capacity = SCHEMA_COL_COUNT };
+    const Record record = read_record(&reader, header);
     if (reader.failed || record.header.count != SCHEMA_COL_COUNT) return 1;
 
     if (grow_schema(db, capacity)) return 1;
