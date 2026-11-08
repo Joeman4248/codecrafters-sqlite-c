@@ -77,13 +77,13 @@ static int frame_row(const CursorFrame* frame, const uint16_t index, TableLeafCe
     return reader.failed;
 }
 
-int cursor_open(TableCursor* cursor, Pager* pager, const uint32_t rootpage) {
+void cursor_open(TableCursor* cursor, Pager* pager, const uint32_t rootpage) {
     *cursor = (TableCursor) { .pager = pager };
-    return push_page(cursor, rootpage);
+    if (push_page(cursor, rootpage)) cursor_fail(cursor);
 }
 
-enum CursorStatus cursor_next(TableCursor* cursor, TableLeafCell* cell) {
-    while (cursor->depth > 0) {
+bool cursor_next(TableCursor* cursor) {
+    while (!cursor->failed && cursor->depth > 0) {
         CursorFrame* frame = cursor_top(cursor);
         
         // finished with this page, go back up to its parent
@@ -95,13 +95,14 @@ enum CursorStatus cursor_next(TableCursor* cursor, TableLeafCell* cell) {
         const uint16_t index = frame->next_entry++;
         
         if (frame->header.page_type == PAGE_TYPE_LEAF_TABLE) {
-            return frame_row(frame, index, cell) ? CURSOR_ERROR : CURSOR_ROW;
+            if (frame_row(frame, index, &cursor->cell)) cursor_fail(cursor);
+            return !cursor->failed;
         }
 
         uint32_t child;
-        if (frame_child(frame, index, &child) || push_page(cursor, child)) return CURSOR_ERROR;
+        if (frame_child(frame, index, &child) || push_page(cursor, child)) cursor_fail(cursor);
     }
-    return CURSOR_DONE;
+    return false;
 }
 
 void cursor_close(TableCursor* cursor) {

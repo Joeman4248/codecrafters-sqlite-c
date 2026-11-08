@@ -94,20 +94,18 @@ int read_schema(Database* db) {
     // the schema is a table b-tree like any other, rooted at page 1, so a
     // cursor walks it whether it fits on one leaf page or spans several
     TableCursor cursor;
-    if (cursor_open(&cursor, &db->pager, SCHEMA_ROOT_PAGE)) return 1;
+    cursor_open(&cursor, &db->pager, SCHEMA_ROOT_PAGE);
 
     uint32_t capacity = 0;
     int result = 0;
 
-    TableLeafCell cell;
-    enum CursorStatus status;
-    while ((status = cursor_next(&cursor, &cell)) == CURSOR_ROW) {
-        if (add_schema_entry(db, &capacity, cell.payload)) {
+    while (cursor_next(&cursor)) {
+        if (add_schema_entry(db, &capacity, cursor.cell.payload)) {
             result = 1;
             break;
         }
     }
-    if (status == CURSOR_ERROR) result = 1;
+    if (cursor.failed) result = 1;
 
     cursor_close(&cursor);
     return result;

@@ -1,6 +1,7 @@
 #ifndef CODECRAFTERS_SQLITE_BTREE_CURSOR_H
 #define CODECRAFTERS_SQLITE_BTREE_CURSOR_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "btree/btree_page.h"
@@ -19,29 +20,32 @@ typedef struct CursorFrame {
                                 // page is finished when it reaches the frame's entry count
 } CursorFrame;
 
-// walks the rows of a table b-tree in rowid order, one row per cursor_next
+// walks the rows of a table b-tree in rowid order, one row per cursor_next.
+// Like a Reader, it fails stickily: once failed is set, cursor_next returns
+// false, so a loop over the rows checks failed once after it ends.
 typedef struct TableCursor {
-    Pager*      pager;
-    CursorFrame frames[BTREE_MAX_DEPTH];
-    uint32_t    depth;          // frames in use; 0 once every row has been visited
+    Pager*        pager;
+    CursorFrame   frames[BTREE_MAX_DEPTH];
+    uint32_t      depth;        // frames in use; 0 once every row has been visited
+    TableLeafCell cell;         // the current row, set when cursor_next returns true
+    bool          failed;       // the file is malformed or a read failed
 } TableCursor;
 
-// what cursor_next found
-enum CursorStatus {
-    CURSOR_ROW,                 // *cell holds the next row
-    CURSOR_DONE,                // every row has been visited
-    CURSOR_ERROR,               // the file is malformed or a read failed
-};
-
 // starts a cursor at the first row of the table b-tree rooted at rootpage.
-// On success the caller releases it with cursor_close, even if it stops
-// before the last row. On failure there is nothing to close.
-int cursor_open(TableCursor* cursor, Pager* pager, uint32_t rootpage);
+// Fails the cursor if the root page can't be read. Either way the caller
+// releases it with cursor_close, even if it stops before the last row.
+void cursor_open(TableCursor* cursor, Pager* pager, uint32_t rootpage);
 
-// moves to the next row. On CURSOR_ROW, *cell holds the row's rowid and a view
-// of its record. The record points into the cursor's current page, so it is
-// only valid until the next cursor_next or cursor_close.
-enum CursorStatus cursor_next(TableCursor* cursor, TableLeafCell* cell);
+// moves to the next row. Returns true with cell holding the row's rowid and a
+// view of its record, or false once every row has been visited or the cursor
+// has failed. The record points into the cursor's current page, so it is only
+// valid until the next cursor_next or cursor_close.
+bool cursor_next(TableCursor* cursor);
+
+// marks the cursor as failed, for a caller that finds the current row is bad
+static inline void cursor_fail(TableCursor* cursor) {
+    cursor->failed = true;
+}
 
 // unpins the cursor's pages. Safe to call more than once.
 void cursor_close(TableCursor* cursor);

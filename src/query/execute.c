@@ -21,17 +21,17 @@ typedef struct Row {
 } Row;
 
 // reads the cursor's next row into *row, with its record parsed into
-// scan->storage. Returns CURSOR_ROW, CURSOR_DONE once there are no more rows,
-// or CURSOR_ERROR.
-static enum CursorStatus next_row(TableScan* scan, Row* row) {
-    TableLeafCell cell;
-    const enum CursorStatus status = cursor_next(&scan->cursor, &cell);
-    if (status != CURSOR_ROW) return status;
+// scan->storage. Returns false once there are no more rows or the scan has
+// failed; a record that can't be read fails the cursor.
+static bool next_row(TableScan* scan, Row* row) {
+    if (!cursor_next(&scan->cursor)) return false;
 
+    const TableLeafCell cell = scan->cursor.cell;
     row->rowid = cell.rowid;
     Reader reader = reader_at(cell.payload, 0);
     row->record = read_record(&reader, (RecordHeader) { .columns = scan->storage, .capacity = scan->plan->column_count });
-    return reader.failed ? CURSOR_ERROR : CURSOR_ROW;
+    if (reader.failed) cursor_fail(&scan->cursor);
+    return !reader.failed;
 }
 
 // the value of column index in the row. The rowid alias column is stored as
@@ -60,8 +60,7 @@ static void print_column(const SelectPlan* plan, const Row* row, const uint32_t 
 static int print_rows(TableScan* scan) {
     const SelectPlan* plan = scan->plan;
     Row row;
-    enum CursorStatus status;
-    while ((status = next_row(scan, &row)) == CURSOR_ROW) {
+    while (next_row(scan, &row)) {
         if (!row_matches(plan, &row)) continue;
 
         for (uint32_t j = 0; j < plan->selected_count; j++) {
@@ -70,7 +69,7 @@ static int print_rows(TableScan* scan) {
         }
         printf("\n");
     }
-    return status == CURSOR_ERROR;
+    return scan->cursor.failed;
 }
 
 // prints how many matching rows there are for COUNT(*), or how many of them
@@ -79,8 +78,7 @@ static int count_values(TableScan* scan) {
     const SelectPlan* plan = scan->plan;
     uint32_t count = 0;
     Row row;
-    enum CursorStatus status;
-    while ((status = next_row(scan, &row)) == CURSOR_ROW) {
+    while (next_row(scan, &row)) {
         if (!row_matches(plan, &row)) continue;
 
         if (plan->count_rows) {
@@ -90,7 +88,7 @@ static int count_values(TableScan* scan) {
 
         if (row_get_value(plan, &row, plan->count_column).type != VALUE_NULL) count++;
     }
-    if (status == CURSOR_ERROR) return 1;
+    if (scan->cursor.failed) return 1;
 
     printf("%u\n", count);
     return 0;
@@ -104,9 +102,12 @@ int execute_select(Database* db, const SelectPlan* plan) {
         .storage = malloc(plan->column_count * sizeof(RecordColumn)),
     };
 
-    int result = (scan.storage == NULL) ? 1 : 0;
-    if (result == 0) result = cursor_open(&scan.cursor, &db->pager, plan->table_root);
-    if (result == 0) result = plan->is_count ? count_values(&scan) : print_rows(&scan);
+    int result = 1;
+    if (scan.storage != NULL) {
+        // a cursor that fails to open has no rows, so the scan reports its failure
+        cursor_open(&scan.cursor, &db->pager, plan->table_root);
+        result = plan->is_count ? count_values(&scan) : print_rows(&scan);
+    }
 
     cursor_close(&scan.cursor);
     free(scan.storage);
