@@ -82,9 +82,9 @@ static int validate_file_header(const FileHeader* header) {
     return 0;
 }
 
-// decodes the header's fields without checking them; validate_file_header
-// does that. usable_size is left 0, since it is only safe to compute once
-// the fields are validated.
+// decodes and validates the header. Returns a complete, valid header, or
+// fails the reader and returns all zeros, so the caller never sees a partly
+// filled or invalid one.
 static FileHeader decode_file_header(Reader* reader) {
     FileHeader header = { 0 };
 
@@ -116,6 +116,16 @@ static FileHeader decode_file_header(Reader* reader) {
     reader_skip(reader, FILE_HEADER_RESV_SZ);     // reserved, always zero
     header.version_valid_for     = read_u32(reader);
     header.sqlite_version_number = read_u32(reader);
+
+    // one check covers every read above: none of the values is used until here
+    if (reader->failed || validate_file_header(&header)) {
+        reader_fail(reader);
+        return (FileHeader) { 0 };
+    }
+
+    // computed only after validation guarantees page_size >= reserved_space + 480,
+    // so the subtraction can't wrap
+    header.usable_size = header.page_size - header.reserved_space;
     return header;
 }
 
@@ -127,14 +137,6 @@ int read_file_header(FILE* file, FileHeader* header) {
     if (fread(buf, 1, sizeof(buf), file) != sizeof(buf)) return 1;
 
     Reader reader = reader_at((ByteView) { buf, sizeof(buf) }, 0);
-    FileHeader decoded = decode_file_header(&reader);
-    if (reader.failed) return 1;
-
-    if (validate_file_header(&decoded)) return 1;
-
-    // computed only after validation guarantees page_size >= reserved_space + 480,
-    // so the subtraction can't wrap
-    decoded.usable_size = decoded.page_size - decoded.reserved_space;
-    *header = decoded;
-    return 0;
+    *header = decode_file_header(&reader);
+    return reader.failed;
 }
