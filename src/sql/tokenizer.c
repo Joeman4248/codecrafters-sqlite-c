@@ -41,9 +41,7 @@ static bool is_word_char(const char c) {
 
 // moves past spaces, tabs and newlines
 static void skip_whitespace(Tokenizer* tokenizer) {
-    while (isspace((unsigned char) *tokenizer->pos)) {
-        tokenizer->pos++;
-    }
+    while (isspace((unsigned char) *tokenizer->pos)) tokenizer->pos++;
 }
 
 // returns the keyword type for word, compared ignoring case against the
@@ -53,6 +51,11 @@ static enum TokenType lookup_keyword(const StringView word) {
     return TOKEN_KW_START + sv_find_nocase(&TOKEN_NAMES[TOKEN_KW_START], TOKEN_KW_COUNT, word);
 }
 
+// ends the token's text just before the tokenizer's position
+static void end_token_text(Token* token, const Tokenizer* tokenizer) {
+    token->text.len = (uint32_t) (tokenizer->pos - token->text.data);
+}
+
 static Token scan_quoted_word(Tokenizer* tokenizer, Token* token, const char quote) {
     token->text.data = ++tokenizer->pos;    // skip opening quote
 
@@ -60,14 +63,14 @@ static Token scan_quoted_word(Tokenizer* tokenizer, Token* token, const char quo
         // string runs out before quote is closed
         if (*tokenizer->pos == '\0') {
             token->type = TOKEN_UNKNOWN;
-            token->text.len = (uint32_t) (tokenizer->pos - token->text.data);
+            end_token_text(token, tokenizer);
             return *token;
         }
         tokenizer->pos++;
     }
 
     token->type = (quote == '"') ? TOKEN_IDENTIFIER : TOKEN_STRING;
-    token->text.len = (uint32_t) (tokenizer->pos - token->text.data);
+    end_token_text(token, tokenizer);
 
     tokenizer->pos++;                       // skip the closing quote
     return *token;
@@ -78,7 +81,7 @@ static Token scan_word(Tokenizer* tokenizer, Token* token) {
     while (is_word_char(*tokenizer->pos)) {
         tokenizer->pos++;
     }
-    token->text.len = (uint32_t) (tokenizer->pos - token->text.data);
+    end_token_text(token, tokenizer);
     token->type = lookup_keyword(token->text);
     return *token;
 }
@@ -88,7 +91,7 @@ static Token scan_integer(Tokenizer* tokenizer, Token* token) {
     while (isdigit((unsigned char) *tokenizer->pos)) {
         tokenizer->pos++;
     }
-    token->text.len = (uint32_t) (tokenizer->pos - token->text.data);
+    end_token_text(token, tokenizer);
     token->type = TOKEN_INTEGER;
     return *token;
 }

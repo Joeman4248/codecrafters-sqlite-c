@@ -27,10 +27,9 @@ bool match_rule(Parser* parser, const Rule* rule) {
         case RULE_TOKEN: {
             const Token token = parser->tokens->items[parser->pos];
             match = token.type == rule->token_type;
-            if (match) {
-                parser->pos++;
-                if (rule->tag != TAG_NONE) add_capture(parser, rule->tag, token);
-            }
+            if (!match) break;
+            parser->pos++;
+            if (rule->tag != TAG_NONE) add_capture(parser, rule->tag, token);
             break;
         }
         case RULE_SEQ: {
