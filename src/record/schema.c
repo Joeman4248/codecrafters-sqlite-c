@@ -52,19 +52,16 @@ static int grow_schema(Database* db, uint32_t* capacity) {
     return 0;
 }
 
-// parses one sqlite_schema row into a new entry at the end of db->schema
-static int add_schema_entry(Database* db, uint32_t* capacity, const ByteView payload) {
+// decodes one sqlite_schema row from its record payload into *entry.
+// Returns nonzero if the row is malformed or a string can't be allocated;
+// strings already copied stay in *entry for close_database to free.
+static int decode_schema_entry(const ByteView payload, SchemaEntry* entry) {
     RecordColumn columns[SCHEMA_COL_COUNT];
     Reader reader = reader_at(payload, 0);
-    const RecordHeader header = (RecordHeader) { .columns = columns, 
+    const RecordHeader header = (RecordHeader) { .columns = columns,
                                                  .capacity = SCHEMA_COL_COUNT };
     const Record record = read_record(&reader, header);
     if (reader.failed || record.header.count != SCHEMA_COL_COUNT) return 1;
-
-    if (grow_schema(db, capacity)) return 1;
-
-    // counted before it is filled, so close_database frees it if a later step fails
-    SchemaEntry* entry = &db->schema[db->schema_count++];
 
     // sqlite_schema columns: type, name, tbl_name, rootpage, sql.
     // The type is compared where it sits in the page. A type that isn't text stays
@@ -89,6 +86,15 @@ static int add_schema_entry(Database* db, uint32_t* capacity, const ByteView pay
         return 1;
     }
     return 0;
+}
+
+// decodes one sqlite_schema row into a new entry at the end of db->schema
+static int add_schema_entry(Database* db, uint32_t* capacity, const ByteView payload) {
+    if (grow_schema(db, capacity)) return 1;
+
+    // counted before it is filled, so close_database frees it if decoding fails
+    SchemaEntry* entry = &db->schema[db->schema_count++];
+    return decode_schema_entry(payload, entry);
 }
 
 int read_schema(Database* db) {
