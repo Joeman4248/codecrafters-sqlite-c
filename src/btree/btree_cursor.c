@@ -7,10 +7,13 @@ static int read_frame_header(CursorFrame* frame) {
     frame->header = read_btree_header(&reader);
     if (reader.failed) return 1;
 
-    switch (frame->header.page_type) {
+    switch ((enum PageType) frame->header.page_type) {
         case PAGE_TYPE_INTERIOR_TABLE:
         case PAGE_TYPE_LEAF_TABLE:
             return 0;
+        case PAGE_TYPE_INTERIOR_INDEX:
+        case PAGE_TYPE_LEAF_INDEX:
+            break;
     }
     return 1;
 }
