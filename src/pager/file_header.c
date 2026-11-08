@@ -85,7 +85,7 @@ static int validate_file_header(const FileHeader* header) {
 // decodes the header's fields without checking them; validate_file_header
 // does that. usable_size is left 0, since it is only safe to compute once
 // the fields are validated.
-static FileHeader read_file_header(Reader* reader) {
+static FileHeader decode_file_header(Reader* reader) {
     FileHeader header = { 0 };
 
     const ByteView header_string = reader_take(reader, sizeof(header.header_string));
@@ -119,7 +119,7 @@ static FileHeader read_file_header(Reader* reader) {
     return header;
 }
 
-int load_file_header(FILE* file, FileHeader* header) {
+int read_file_header(FILE* file, FileHeader* header) {
     *header = (FileHeader) { 0 };
 
     uint8_t buf[FILE_HEADER_SZ];
@@ -127,7 +127,7 @@ int load_file_header(FILE* file, FileHeader* header) {
     if (fread(buf, 1, sizeof(buf), file) != sizeof(buf)) return 1;
 
     Reader reader = reader_at((ByteView) { buf, sizeof(buf) }, 0);
-    *header = read_file_header(&reader);
+    *header = decode_file_header(&reader);
     if (reader.failed) return 1;
 
     if (validate_file_header(header)) return 1;

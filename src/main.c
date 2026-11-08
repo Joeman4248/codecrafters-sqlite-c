@@ -10,7 +10,7 @@ enum Arg { ARG_PROGRAM, ARG_DATABASE_PATH, ARG_COMMAND, ARG_COUNT, };
 // reads the header and schema, then runs the command.
 // Returns nonzero on error. Does not release db; the caller does.
 static int run(Database* db, const char* command) {
-    if (load_file_header(db->file, &db->file_header)) {
+    if (read_file_header(db->file, &db->file_header)) {
         fprintf(stderr, "Error reading database file header\n");
         return 1;
     }
