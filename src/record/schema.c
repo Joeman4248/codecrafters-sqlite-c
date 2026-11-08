@@ -88,7 +88,6 @@ static int add_schema_entry(Database* db, uint32_t* capacity, const ByteView pay
         alloc_column_text(&record, SCHEMA_COL_SQL, &entry->sql)) {
         return 1;
     }
-
     return 0;
 }
 
