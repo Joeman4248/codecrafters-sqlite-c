@@ -115,13 +115,14 @@ uint32_t read_varint_u32(Reader* reader) {
 }
 
 ByteView reader_take(Reader* reader, const uint32_t len) {
-    ByteView out = { 0 };
-    if (reader->failed || bv_slice(reader->bytes, reader->pos, len, &out)) {
+    // written so neither side can overflow: pos <= bytes.len is checked first
+    if (reader->failed || reader->pos > reader->bytes.len || len > reader->bytes.len - reader->pos) {
         reader->failed = true;
+        return (ByteView) { 0 };
     }
-    else {
-        reader->pos += len;
-    }
+
+    const ByteView out = { reader->bytes.data + reader->pos, len };
+    reader->pos += len;
     return out;
 }
 

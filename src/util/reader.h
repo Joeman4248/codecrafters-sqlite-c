@@ -69,7 +69,8 @@ int64_t read_varint_i64(Reader* reader);
 // fails the same way as running out of bytes.
 uint32_t read_varint_u32(Reader* reader);
 
-// returns a view of the next len bytes and moves past them
+// returns a view of the next len bytes and moves past them. Fails the reader,
+// returning an empty view, if fewer than len bytes are left.
 ByteView reader_take(Reader* reader, uint32_t len);
 
 // moves past the next len bytes
