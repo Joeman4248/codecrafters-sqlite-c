@@ -20,6 +20,22 @@ typedef struct ValueResult {
     Value value;
 } ValueResult;
 
+// the INTEGER Value a run of digits stands for. Returns one whose ok is
+// false, after printing an error, if the number doesn't fit in 64 bits.
+static ValueResult integer_value(const StringView digits) {
+    int64_t integer = 0;
+    for (uint32_t i = 0; i < digits.len; i++) {
+        const int digit = digits.data[i] - '0';
+        if (integer > (INT64_MAX - digit) / 10) {
+            fprintf(stderr, "integer too large: " SV_FMT "\n", SV_ARG(digits));
+            return (ValueResult) { 0 };
+        }
+        integer = integer * 10 + digit;
+    }
+    return (ValueResult) { .ok = true,
+                           .value = { .type = VALUE_INTEGER, .integer = integer } };
+}
+
 // the Value a literal in the query stands for: a string is TEXT and a run of
 // digits an INTEGER. Returns one whose ok is false, after printing an error,
 // if it's neither or the integer doesn't fit in 64 bits.
@@ -30,17 +46,7 @@ static ValueResult literal_value(const Token literal) {
                                    .value = { .type = VALUE_TEXT, .text = literal.text } };
         }
         case TOKEN_INTEGER: {
-            int64_t integer = 0;
-            for (uint32_t i = 0; i < literal.text.len; i++) {
-                const int digit = literal.text.data[i] - '0';
-                if (integer > (INT64_MAX - digit) / 10) {
-                    fprintf(stderr, "integer too large: " SV_FMT "\n", SV_ARG(literal.text));
-                    return (ValueResult) { 0 };
-                }
-                integer = integer * 10 + digit;
-            }
-            return (ValueResult) { .ok = true,
-                                   .value = { .type = VALUE_INTEGER, .integer = integer } };
+            return integer_value(literal.text);
         }
         default: break;
     }
