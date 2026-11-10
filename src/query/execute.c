@@ -59,8 +59,9 @@ static void print_column(const SelectPlan* plan, const Row* row, const uint32_t 
 }
 
 // prints the selected columns of every matching row, one row per line with |
-// between values
-static int print_rows(TableScan* scan) {
+// between values. A failed scan just ends its loop early; the caller reads
+// scan->cursor.failed
+static void print_rows(TableScan* scan) {
     const SelectPlan* plan = scan->plan;
     Row row;
     while (next_row(scan, &row)) {
@@ -72,12 +73,12 @@ static int print_rows(TableScan* scan) {
         }
         printf("\n");
     }
-    return scan->cursor.failed;
 }
 
 // prints how many matching rows there are for COUNT(*), or how many of them
-// have a non-NULL count_column for COUNT(column)
-static int count_values(TableScan* scan) {
+// have a non-NULL count_column for COUNT(column). Prints nothing if the scan
+// failed; the caller reads scan->cursor.failed
+static void count_values(TableScan* scan) {
     const SelectPlan* plan = scan->plan;
     uint32_t count = 0;
     Row row;
@@ -91,10 +92,9 @@ static int count_values(TableScan* scan) {
 
         if (row_get_value(plan, &row, plan->count_column).type != VALUE_NULL) count++;
     }
-    if (scan->cursor.failed) return 1;
+    if (scan->cursor.failed) return;
 
     printf("%u\n", count);
-    return 0;
 }
 
 int execute_select(Database* db, const SelectPlan* plan) {
@@ -109,7 +109,13 @@ int execute_select(Database* db, const SelectPlan* plan) {
     if (scan.storage != NULL) {
         // a cursor that fails to open has no rows, so the scan reports its failure
         cursor_open(&scan.cursor, &db->pager, plan->table_root);
-        result = plan->is_count ? count_values(&scan) : print_rows(&scan);
+        if (plan->is_count) {
+            count_values(&scan);
+        }
+        else {
+            print_rows(&scan);
+        }
+        result = scan.cursor.failed;
     }
 
     cursor_close(&scan.cursor);
