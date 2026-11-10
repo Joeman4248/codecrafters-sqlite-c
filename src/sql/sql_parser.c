@@ -70,6 +70,21 @@ static int build_create_index(Parser* parser, IndexColumns* create_index) {
     return 0;
 }
 
+// the comparison operator an operator token stands for. Returns false for a
+// token the grammar doesn't match as one.
+static bool comparison_op(const Token token, enum CompareOp* op) {
+    switch (token.type) {
+        case TOKEN_EQUALS: *op = COMPARE_EQUAL;         return true;
+        case TOKEN_LT:     *op = COMPARE_LESS;          return true;
+        case TOKEN_LE:     *op = COMPARE_LESS_EQUAL;    return true;
+        case TOKEN_GT:     *op = COMPARE_GREATER;       return true;
+        case TOKEN_GE:     *op = COMPARE_GREATER_EQUAL; return true;
+        case TOKEN_NE:     *op = COMPARE_NOT_EQUAL;     return true;
+        default: break;
+    }
+    return false;
+}
+
 static int build_select_statement(Parser* parser, SelectQuery* query) {
     for (uint32_t i = 0; i < parser->capture_count; i++) {
         const Capture capture = parser->captures[i];
@@ -81,7 +96,15 @@ static int build_select_statement(Parser* parser, SelectQuery* query) {
                 query->has_where = true;
                 query->where.column = capture.token;
                 break;
-            case TAG_WHERE_VALUE: query->where.value = capture.token; break;
+            case TAG_WHERE_OP:
+                if (!comparison_op(capture.token, &query->where.op)) return 1;
+                break;
+            case TAG_WHERE_VALUE:
+                query->where.value = capture.token;
+                // the captures are in token order, so a value before the column
+                // means the query wrote the literal first
+                query->where.literal_first = !query->has_where;
+                break;
             default: return 1;
         }
     }

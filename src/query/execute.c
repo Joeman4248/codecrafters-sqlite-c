@@ -46,11 +46,31 @@ static Value row_get_value(const SelectPlan* plan, const Row* row, const uint32_
     return record_get_value(&row->record, index);
 }
 
+// whether order satisfies op
+static bool order_matches(const enum CompareOp op, const enum CompareOrder order) {
+    switch (op) {
+        case COMPARE_EQUAL:         return order == ORDER_EQUAL;
+        case COMPARE_LESS:          return order == ORDER_LESS;
+        case COMPARE_LESS_EQUAL:    return order != ORDER_GREATER;
+        case COMPARE_GREATER:       return order == ORDER_GREATER;
+        case COMPARE_GREATER_EQUAL: return order != ORDER_LESS;
+        case COMPARE_NOT_EQUAL:     return order != ORDER_EQUAL;
+    }
+    return false;   // unreachable: every CompareOp is listed
+}
+
 // whether the row passes the plan's WHERE condition. Every row passes when
 // there is no WHERE.
 static bool row_matches(const SelectPlan* plan, const Row* row) {
     if (!plan->has_where) return true;
-    return value_equal(row_get_value(plan, row, plan->where_column), plan->where_value);
+
+    const Value column = row_get_value(plan, row, plan->where_column);
+
+    // a comparison with NULL is neither true nor false, so the row is dropped,
+    // whatever the operator: NULL = NULL and NULL != 1 both fail
+    if (column.type == VALUE_NULL || plan->where_value.type == VALUE_NULL) return false;
+
+    return order_matches(plan->where_op, value_compare(column, plan->where_value));
 }
 
 // prints column index of the row without a newline

@@ -53,4 +53,5 @@ Header comments state the contract; read the .h before the .c.
 ## Known gaps
 
 - No type affinity: `WHERE text_column = 1990` doesn't match the text '1990' (sqlite3 does).
-- WHERE is one `column = literal`; no overflow pages; no index lookups yet.
+- WHERE is one comparison, `column op literal` or `literal op column`; no AND/OR,
+  parentheses or NOT yet; no overflow pages; no index lookups yet.

@@ -25,11 +25,25 @@ typedef struct IndexColumns {
     Token     name;         // the index's name
 } IndexColumns;
 
-// a WHERE condition of the form column = 'text' or column = 123
+// the comparison operators a WHERE condition can use. Like CompareOrder they
+// are a closed set: nothing looks an operator up by name, so there is no
+// COMPARE_COUNT and no COMPARE_UNKNOWN.
+enum CompareOp : uint8_t {
+    COMPARE_EQUAL,          // = or ==
+    COMPARE_LESS,           // <
+    COMPARE_LESS_EQUAL,     // <=
+    COMPARE_GREATER,        // >
+    COMPARE_GREATER_EQUAL,  // >=
+    COMPARE_NOT_EQUAL,      // != or <>
+};
+
+// a WHERE condition: a column compared with a literal, in either order
 typedef struct Condition {
-    Token column;   // TOKEN_IDENTIFIER: the column to compare
-    Token value;    // TOKEN_STRING (the text, without the quotes) or TOKEN_INTEGER:
-                    // the value it must equal
+    Token           column;         // TOKEN_IDENTIFIER: the column to compare
+    Token           value;          // TOKEN_STRING (the text, without the quotes) or
+                                    // TOKEN_INTEGER: the value to compare it with
+    enum CompareOp  op;             // how they compare, as the query wrote it
+    bool            literal_first;  // whether the query wrote the value before the column
 } Condition;
 
 // the parts of a SELECT query. Like TableColumns, the tokens point into the
@@ -72,13 +86,13 @@ typedef struct Statement {
 // statement its first keywords name. The grammar is written out in
 // sql_grammar.c; so far it supports:
 //
-//     SELECT column, ... FROM table [WHERE column = value]
-//     SELECT COUNT(column) FROM table [WHERE column = value]
+//     SELECT column, ... FROM table [WHERE column op value]
+//     SELECT COUNT(column) FROM table [WHERE column op value]
 //     CREATE TABLE name (column type constraints..., ...)
-//     CREATE INDEX name ON table (column, ...) [WHERE column = value]
+//     CREATE INDEX name ON table (column, ...) [WHERE column op value]
 //
-// A SELECT column may be *, and so may COUNT's. A WHERE value is a 'string'
-// or an integer.
+// A SELECT column may be *, and so may COUNT's. A WHERE compares a column with
+// a 'string' or an integer, in either order, using = == < <= > >= != or <>.
 //
 // A CREATE TABLE, such as the sql column of a sqlite_schema row, is read for
 // its column names and which column, if any, is the INTEGER PRIMARY KEY. The

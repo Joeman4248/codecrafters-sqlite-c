@@ -9,7 +9,9 @@
 //     result_columns    ::= COUNT "(" ( IDENTIFIER | "*" ) ")"
 //                         | result_column { "," result_column }
 //     result_column     ::= IDENTIFIER | "*"
-//     where_clause      ::= WHERE IDENTIFIER "=" ( STRING | INTEGER )
+//     where_clause      ::= WHERE ( IDENTIFIER op literal | literal op IDENTIFIER )
+//     op                ::= "=" | "==" | "<" | "<=" | ">" | ">=" | "!=" | "<>"
+//     literal           ::= STRING | INTEGER
 //
 //     create_table_stmt ::= CREATE TABLE IDENTIFIER "(" column_def { "," column_def } ")" EOF
 //     column_def        ::= IDENTIFIER { type_word | "(" { type_word | "," } ")" }
@@ -35,12 +37,27 @@
 #define RESULT_COLUMN   CHOICE(TAGGED_TOK(TOKEN_IDENTIFIER, TAG_COLUMN), \
                                TAGGED_TOK(TOKEN_STAR, TAG_COLUMN))
 
-// where_clause ::= WHERE IDENTIFIER "=" ( STRING | INTEGER )
-#define WHERE_CLAUSE    SEQ(                                                    \
-    TOK(TOKEN_WHERE),                                                           \
-    TAGGED_TOK(TOKEN_IDENTIFIER, TAG_WHERE_COLUMN),                             \
-    TOK(TOKEN_EQUALS),                                                          \
-    CHOICE(TAGGED_TOK(TOKEN_STRING, TAG_WHERE_VALUE), TAGGED_TOK(TOKEN_INTEGER, TAG_WHERE_VALUE)))
+// literal ::= STRING | INTEGER
+#define LITERAL  CHOICE(TAGGED_TOK(TOKEN_STRING, TAG_WHERE_VALUE), \
+                        TAGGED_TOK(TOKEN_INTEGER, TAG_WHERE_VALUE))
+
+// op ::= "=" | "==" | "<" | "<=" | ">" | ">=" | "!=" | "<>"
+// == scans as = and <> as !=, so those are all the token types there are
+#define COMPARISON_OPERATOR  CHOICE(                                \
+    TAGGED_TOK(TOKEN_EQUALS, TAG_WHERE_OP),                         \
+    TAGGED_TOK(TOKEN_LT,     TAG_WHERE_OP),                         \
+    TAGGED_TOK(TOKEN_LE,     TAG_WHERE_OP),                         \
+    TAGGED_TOK(TOKEN_GT,     TAG_WHERE_OP),                         \
+    TAGGED_TOK(TOKEN_GE,     TAG_WHERE_OP),                         \
+    TAGGED_TOK(TOKEN_NE,     TAG_WHERE_OP))
+
+// where_clause ::= WHERE ( IDENTIFIER op literal | literal op IDENTIFIER )
+// the column and the literal are tagged the same way whichever side they're on;
+// the builder reads their order from the captures. Two columns or two literals
+// don't match: comparing those isn't supported.
+#define WHERE_CLAUSE    SEQ(TOK(TOKEN_WHERE), CHOICE(                           \
+    SEQ(TAGGED_TOK(TOKEN_IDENTIFIER, TAG_WHERE_COLUMN), COMPARISON_OPERATOR, LITERAL), \
+    SEQ(LITERAL, COMPARISON_OPERATOR, TAGGED_TOK(TOKEN_IDENTIFIER, TAG_WHERE_COLUMN))))
 
 // select_stmt ::= SELECT ( COUNT "(" result_column ")" | result_column { "," result_column } )
 //                 FROM IDENTIFIER [ where_clause ] EOF

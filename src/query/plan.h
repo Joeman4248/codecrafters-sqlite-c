@@ -25,9 +25,11 @@ typedef struct SelectPlan {
     bool       count_rows;      // is_count: COUNT(*), which counts rows,
     uint32_t   count_column;    // or else COUNT(column), which counts its non-NULL values
 
-    bool       has_where;
-    uint32_t   where_column;    // has_where: the column to compare
-    Value      where_value;     // has_where: the value it must equal
+    bool            has_where;
+    uint32_t        where_column;   // has_where: the column to compare
+    enum CompareOp  where_op;       // has_where: how it compares with where_value,
+                                    // with the operands the right way round
+    Value           where_value;    // has_where: the value to compare it with
 } SelectPlan;
 
 // plans query against the schema of db: finds the table, reads its columns

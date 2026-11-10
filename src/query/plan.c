@@ -84,6 +84,19 @@ static int select_columns(const SelectQuery* query, const TableColumns* columns,
     return 0;
 }
 
+// the same comparison with its operands swapped: 1990 < year compares year > 1990
+static enum CompareOp flip_op(const enum CompareOp op) {
+    switch (op) {
+        case COMPARE_EQUAL:         return COMPARE_EQUAL;
+        case COMPARE_LESS:          return COMPARE_GREATER;
+        case COMPARE_LESS_EQUAL:    return COMPARE_GREATER_EQUAL;
+        case COMPARE_GREATER:       return COMPARE_LESS;
+        case COMPARE_GREATER_EQUAL: return COMPARE_LESS_EQUAL;
+        case COMPARE_NOT_EQUAL:     return COMPARE_NOT_EQUAL;
+    }
+    return COMPARE_EQUAL;   // unreachable: every CompareOp is listed
+}
+
 // fills in everything the plan takes from the query and the table's columns.
 // On failure plan->selected may be allocated; the caller frees it.
 static int plan_columns(const SelectQuery* query, const TableColumns* columns, SelectPlan* plan) {
@@ -109,6 +122,7 @@ static int plan_columns(const SelectQuery* query, const TableColumns* columns, S
         const ValueResult where_value = literal_value(query->where.value);
         if (!where_value.ok) return 1;
         plan->where_value = where_value.value;
+        plan->where_op = query->where.literal_first ? flip_op(query->where.op) : query->where.op;
 
         if (resolve_column(columns, query->where.column, &plan->where_column)) return 1;
     }

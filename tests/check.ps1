@@ -29,9 +29,20 @@ $same = @(
     @("sample.db",      "SELECT name, color FROM apples WHERE color = 'Yellow'"),
     @("sample.db",      "SELECT name FROM apples WHERE id = 3"),
     @("sample.db",      "SELECT name FROM apples WHERE color = 'nothing'"),
+    @("sample.db",      "SELECT name FROM apples WHERE id > 2"),
+    @("sample.db",      "SELECT name FROM apples WHERE 2 < id"),
+    @("sample.db",      "SELECT name FROM apples WHERE id <= 2"),
+    @("sample.db",      "SELECT name FROM apples WHERE id != 3"),
+    @("sample.db",      "SELECT name FROM apples WHERE id <> 3"),
+    @("sample.db",      "SELECT name FROM apples WHERE id == 3"),
+    @("sample.db",      "SELECT name FROM apples WHERE name > 'G'"),
+    @("sample.db",      "SELECT name FROM apples WHERE 'G' < name"),
     @("superheroes.db", "SELECT COUNT(*) FROM superheroes"),
     @("superheroes.db", "SELECT id, name FROM superheroes WHERE eye_color = 'Pink Eyes'"),
     @("superheroes.db", "SELECT name, hair_color FROM superheroes WHERE first_appearance_year = '1990'"),
+    @("superheroes.db", "SELECT COUNT(*) FROM superheroes WHERE hair_color != 'Black Hair'"),
+    @("superheroes.db", "SELECT COUNT(*) FROM superheroes WHERE first_appearance_year > '1990'"),
+    @("superheroes.db", "SELECT COUNT(*) FROM superheroes WHERE '1990' < first_appearance_year"),
     @("companies.db",   "SELECT COUNT(*) FROM companies"),
     @("companies.db",   "SELECT id, name FROM companies WHERE country = 'eritrea'"),
     @("companies.db",   "SELECT id, name FROM companies WHERE country = 'tonga'")
@@ -44,6 +55,8 @@ $fails = @(
     @("sample.db", "SELECT name apples"),
     @("sample.db", "SELECT name FROM apples WHERE"),
     @("sample.db", "SELECT name, FROM apples"),
+    @("sample.db", "SELECT name FROM apples WHERE id = color"),
+    @("sample.db", "SELECT name FROM apples WHERE 3 = 3"),
     @("sample.db", ".nonsense")
 )
 

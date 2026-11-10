@@ -29,12 +29,6 @@ typedef struct Value {
     };
 } Value;
 
-// true if a and b are equal values, the way SQL's = compares them: integers
-// and reals compare as numbers, text and blobs byte for byte, and values of
-// any other two different types are never equal. NULL equals nothing, not even
-// NULL.
-bool value_equal(Value a, Value b);
-
 // the result of comparing two values. The three are exhaustive, so there is no
 // ORDER_COUNT: nothing looks an order up by name, and a switch over it has no
 // "not found" to report.
