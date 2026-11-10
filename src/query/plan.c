@@ -41,13 +41,11 @@ static ValueResult integer_value(const StringView digits) {
 // if it's neither or the integer doesn't fit in 64 bits.
 static ValueResult literal_value(const Token literal) {
     switch (literal.type) {
-        case TOKEN_STRING: {
+        case TOKEN_STRING:
             return (ValueResult) { .ok = true,
                                    .value = { .type = VALUE_TEXT, .text = literal.text } };
-        }
-        case TOKEN_INTEGER: {
+        case TOKEN_INTEGER:
             return integer_value(literal.text);
-        }
         default: break;
     }
 
@@ -60,7 +58,8 @@ static ValueResult literal_value(const Token literal) {
 static uint32_t count_selected(const SelectQuery* query, const TableColumns* columns) {
     uint32_t count = 0;
     for (uint32_t i = 0; i < query->names.count; i++) {
-        count += (query->names.items[i].type == TOKEN_STAR) ? columns->names.count : 1;
+        const bool token_is_star = (query->names.items[i].type == TOKEN_STAR);
+        count += token_is_star ? columns->names.count : 1;
     }
     return count;
 }
