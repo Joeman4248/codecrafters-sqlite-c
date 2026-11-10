@@ -20,18 +20,6 @@ static enum SchemaType schema_type_from_text(const StringView text) {
     return sv_find(SCHEMA_TYPE_NAMES, SCHEMA_TYPE_COUNT, text);
 }
 
-// copies a text column into a new heap string in *out, since schema entries
-// outlive the page they're read from. Leaves *out NULL for a NULL column (sql
-// is NULL for automatic indexes).
-static int alloc_column_text(const Record* record, const uint32_t index, char** out) {
-    const Value value = record_get_value(record, index);
-    if (value.type == VALUE_NULL) return 0;
-    if (value.type != VALUE_TEXT) return 1;
-
-    *out = sv_to_cstr(value.text);
-    return *out == NULL;
-}
-
 // makes room for one more entry in db->schema, growing it if it is full. New
 // slots are zeroed, so an entry a failed parse leaves partly filled has NULL
 // strings for close_database to free.
@@ -78,13 +66,20 @@ static int decode_schema_entry(const ByteView payload, SchemaEntry* entry) {
     }
     entry->rootpage = (uint32_t) rootpage.integer;
 
-    // allocate schema entry text fields as null-terminated c-strings
-    // schema entries may outlive the heap-allocated pages they are read from
-    if (alloc_column_text(&record, SCHEMA_COL_NAME, &entry->name) ||
-        alloc_column_text(&record, SCHEMA_COL_TBL_NAME, &entry->tbl_name) ||
-        alloc_column_text(&record, SCHEMA_COL_SQL, &entry->sql)) {
-        return 1;
-    }
+    // the text fields are copied to null-terminated c-strings, since entries
+    // may outlive the pages they are read from. sql is NULL for automatic
+    // indexes; name and tbl_name are always text.
+    const Value name = record_get_value(&record, SCHEMA_COL_NAME);
+    const Value tbl_name = record_get_value(&record, SCHEMA_COL_TBL_NAME);
+    const Value sql = record_get_value(&record, SCHEMA_COL_SQL);
+    if (name.type != VALUE_TEXT || tbl_name.type != VALUE_TEXT ||
+        (sql.type != VALUE_TEXT && sql.type != VALUE_NULL)) return 1;
+
+    entry->name     = sv_to_cstr(name.text);
+    entry->tbl_name = sv_to_cstr(tbl_name.text);
+    entry->sql      = (sql.type == VALUE_TEXT) ? sv_to_cstr(sql.text) : NULL;
+    if (entry->name == NULL || entry->tbl_name == NULL ||
+        (sql.type == VALUE_TEXT && entry->sql == NULL)) return 1;
     return 0;
 }
 
