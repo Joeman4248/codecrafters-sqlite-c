@@ -1,0 +1,23 @@
+[
+    {
+        // the query the index-lookup stage must answer via idx_companies_country
+        "label": "sqlite companies.db",
+        "adapter": "GDB",
+        "build": "build",
+        "request": "launch",
+        "program": "$ZED_WORKTREE_ROOT/build/sqlite.exe",
+        "args": ["companies.db", "SELECT id, name FROM companies WHERE country = 'eritrea'"],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "gdb_args": ["-q", "-x", ".zed/gdbinit", "-x", ".vscode/views.py"]
+    },
+    {
+        "label": "sqlite sample.db",
+        "adapter": "GDB",
+        "build": "build",
+        "request": "launch",
+        "program": "$ZED_WORKTREE_ROOT/build/sqlite.exe",
+        "args": ["sample.db", "SELECT name FROM apples"],
+        "cwd": "$ZED_WORKTREE_ROOT",
+        "gdb_args": ["-q", "-x", ".zed/gdbinit", "-x", ".vscode/views.py"]
+    }
+]

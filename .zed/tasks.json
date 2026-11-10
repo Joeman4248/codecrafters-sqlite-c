@@ -1,0 +1,12 @@
+[
+    {
+        "label": "build",
+        "command": "cmake",
+        "args": ["--build", "build"]
+    },
+    {
+        "label": "check",
+        "command": "pwsh",
+        "args": ["-NoProfile", "-File", "tests/check.ps1"]
+    }
+]

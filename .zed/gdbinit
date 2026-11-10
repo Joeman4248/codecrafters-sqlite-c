@@ -1,0 +1,5 @@
+# gdb startup commands for the debug configurations in .zed/debug.json.
+# Kept in a file instead of a gdb_args "-ex" argument, because multi-word
+# commands don't survive the extra quoting on the way to gdb.
+
+set disassembly-flavor intel
