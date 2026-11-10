@@ -168,7 +168,8 @@ Token next_token(Tokenizer* tokenizer) {
 
         case '"': case '\'': return scan_quoted_word(tokenizer, &token, c);
 
-        case '<': case '>': case '!': case '=': return scan_operator(tokenizer, &token);
+        case '<': case '>': case '!': case '=': 
+            return scan_operator(tokenizer, &token);
 
         case '(': token.type = TOKEN_LPAREN; break;
         case ')': token.type = TOKEN_RPAREN; break;

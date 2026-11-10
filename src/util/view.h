@@ -63,6 +63,11 @@ static inline ByteView bv_prefix(const ByteView bytes, const uint32_t len) {
     return (ByteView) { bytes.data, len < bytes.len ? len : bytes.len };
 }
 
+// the same characters viewed as bytes, for the comparisons text and blobs share
+static inline ByteView sv_as_bytes(const StringView text) {
+    return (ByteView) { (const uint8_t*) text.data, text.len };
+}
+
 // the same bytes viewed as text
 static inline StringView bv_as_text(const ByteView bytes) {
     return (StringView) { (const char*) bytes.data, bytes.len };
