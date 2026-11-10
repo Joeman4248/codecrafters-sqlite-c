@@ -137,14 +137,11 @@ static FileHeader decode_file_header(Reader* reader) {
     return header;
 }
 
-int read_file_header(FILE* file, FileHeader* header) {
-    *header = (FileHeader) { 0 };
-
+FileHeader read_file_header(FILE* file) {
     uint8_t buf[FILE_HEADER_SZ];
-    if (fseek(file, 0, SEEK_SET)) return 1;
-    if (fread(buf, 1, sizeof(buf), file) != sizeof(buf)) return 1;
+    if (fseek(file, 0, SEEK_SET)) return (FileHeader) { 0 };
+    if (fread(buf, 1, sizeof(buf), file) != sizeof(buf)) return (FileHeader) { 0 };
 
     Reader reader = reader_at((ByteView) { buf, sizeof(buf) }, 0);
-    *header = decode_file_header(&reader);
-    return reader.failed;
+    return decode_file_header(&reader);
 }
