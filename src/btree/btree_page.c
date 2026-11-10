@@ -50,8 +50,13 @@ void seek_cell(Reader* reader, const PageHeader* header, const uint16_t index) {
         return;
     }
 
-    // each pointer is the 2-byte offset of its cell from the start of the page
+    // the cell pointer array right after the header has one 2-byte entry per
+    // cell, in key order. First go to entry index of that array...
     reader_seek(reader, header->cell_pointers + index * 2u);
+
+    // ...then read the entry, which is where the cell starts, counted from the
+    // start of the page (even on page 1, behind the file header), and go there.
+    // The cells themselves sit in no particular order at the end of the page.
     reader_seek(reader, read_u16(reader));
 }
 
