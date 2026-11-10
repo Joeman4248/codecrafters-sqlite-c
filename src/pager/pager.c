@@ -20,9 +20,9 @@ static int read_page_bytes(const Pager* pager, const uint32_t page_number, uint8
 static Page read_page(const Pager* pager, const uint32_t page_number) {
     // the whole page is read, reserved bytes included, but only the usable
     // part is ever looked at
-    Page page = (Page) { .data        = malloc(pager->page_size),
-                          .size        = pager->usable_size,
-                          .page_number = page_number };
+    Page page = (Page) { .data = malloc(pager->page_size),
+                         .size = pager->usable_size,
+                         .page_number = page_number };
     if (page.data == NULL || read_page_bytes(pager, page_number, page.data)) {
         free(page.data);
         return (Page) { 0 };
