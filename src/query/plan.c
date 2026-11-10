@@ -14,14 +14,20 @@ static int resolve_column(const TableColumns* columns, const Token name, uint32_
     return 0;
 }
 
-// sets *out to the value a literal in the query stands for: a string is TEXT
-// and a run of digits an INTEGER. Prints an error if it's neither, or the
-// integer doesn't fit in 64 bits.
-static int literal_value(const Token literal, Value* out) {
+// a Value, or the failure of making one. value is valid only when ok.
+typedef struct ValueResult {
+    bool  ok;
+    Value value;
+} ValueResult;
+
+// the Value a literal in the query stands for: a string is TEXT and a run of
+// digits an INTEGER. Returns one whose ok is false, after printing an error,
+// if it's neither or the integer doesn't fit in 64 bits.
+static ValueResult literal_value(const Token literal) {
     switch (literal.type) {
         case TOKEN_STRING: {
-            *out = (Value) { .type = VALUE_TEXT, .text = literal.text };
-            return 0;
+            return (ValueResult) { .ok = true,
+                                   .value = { .type = VALUE_TEXT, .text = literal.text } };
         }
         case TOKEN_INTEGER: {
             int64_t integer = 0;
@@ -29,18 +35,18 @@ static int literal_value(const Token literal, Value* out) {
                 const int digit = literal.text.data[i] - '0';
                 if (integer > (INT64_MAX - digit) / 10) {
                     fprintf(stderr, "integer too large: " SV_FMT "\n", SV_ARG(literal.text));
-                    return 1;
+                    return (ValueResult) { 0 };
                 }
                 integer = integer * 10 + digit;
             }
-            *out = (Value) { .type = VALUE_INTEGER, .integer = integer };
-            return 0;
+            return (ValueResult) { .ok = true,
+                                   .value = { .type = VALUE_INTEGER, .integer = integer } };
         }
         default: break;
     }
 
     fprintf(stderr, "expected a string or number, got: " SV_FMT "\n", SV_ARG(literal.text));
-    return 1;
+    return (ValueResult) { 0 };
 }
 
 // returns how many column positions the query's names expand to: every column
@@ -95,10 +101,11 @@ static int plan_columns(const SelectQuery* query, const TableColumns* columns, S
 
     plan->has_where = query->has_where;
     if (query->has_where) {
-        if (literal_value(query->where.value, &plan->where_value) ||
-            resolve_column(columns, query->where.column, &plan->where_column)) {
-            return 1;
-        }
+        const ValueResult where_value = literal_value(query->where.value);
+        if (!where_value.ok) return 1;
+        plan->where_value = where_value.value;
+
+        if (resolve_column(columns, query->where.column, &plan->where_column)) return 1;
     }
     return 0;
 }
