@@ -6,7 +6,8 @@
 
 // sets *index to the position of the column called name, or prints an error
 static int resolve_column(const TableColumns* columns, const Token name, uint32_t* index) {
-    if (!find_column(columns, name, index)) {
+    *index = find_column(columns, name);
+    if (*index == columns->names.count) {
         fprintf(stderr, "no such column: " SV_FMT "\n", SV_ARG(name.text));
         return 1;
     }

@@ -5,16 +5,13 @@
 #include "sql/sql_grammar.h"
 #include "sql/tokenizer.h"
 
-bool find_column(const TableColumns* columns, const Token name, uint32_t* index) {
+uint32_t find_column(const TableColumns* columns, const Token name) {
     // an empty name, such as the zeroed token of a missing WHERE, matches no
     // column: every column name has at least one character
     for (uint32_t i = 0; i < columns->names.count; i++) {
-        if (sv_equal_nocase(columns->names.items[i].text, name.text)) {
-            *index = i;
-            return true;
-        }
+        if (sv_equal_nocase(columns->names.items[i].text, name.text)) return i;
     }
-    return false;
+    return columns->names.count;
 }
 
 // true if the type words after the column captured at index start make it the

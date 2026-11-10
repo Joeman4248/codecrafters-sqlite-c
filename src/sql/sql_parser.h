@@ -44,10 +44,10 @@ typedef struct SelectQuery {
     Condition where;        // only valid when has_where is true
 } SelectQuery;
 
-// sets *index to the position of the column whose name matches the text of
-// name (compared ignoring case). Returns false, leaving *index alone, if there
-// is none.
-bool find_column(const TableColumns* columns, Token name, uint32_t* index);
+// the position of the column whose name matches the text of name (compared
+// ignoring case), or columns->names.count if there is none: like sv_find, a
+// list indexed by position uses one past the end for not found
+uint32_t find_column(const TableColumns* columns, Token name);
 
 // which kind of statement a Statement holds
 enum StatementType : uint8_t {
