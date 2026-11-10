@@ -15,20 +15,19 @@ static int read_page_bytes(const Pager* pager, const uint32_t page_number, uint8
     return fread(data, 1, page_size, pager->file) != page_size;
 }
 
-// reads page number into newly allocated memory in *page. On failure returns
-// nonzero and leaves page->data NULL, so the slot still looks unloaded.
-static int read_page(const Pager* pager, const uint32_t page_number, Page* page) {
+// reads page number into a new heap Page, or one whose data is NULL, so the
+// slot it lands in still looks unloaded
+static Page read_page(const Pager* pager, const uint32_t page_number) {
     // the whole page is read, reserved bytes included, but only the usable
     // part is ever looked at
-    *page = (Page) { .data        = malloc(pager->page_size),
-                     .size        = pager->usable_size,
-                     .page_number = page_number };
-    if (page->data == NULL || read_page_bytes(pager, page_number, page->data)) {
-        free(page->data);
-        page->data = NULL;
-        return 1;
+    Page page = (Page) { .data        = malloc(pager->page_size),
+                          .size        = pager->usable_size,
+                          .page_number = page_number };
+    if (page.data == NULL || read_page_bytes(pager, page_number, page.data)) {
+        free(page.data);
+        return (Page) { 0 };
     }
-    return 0;
+    return page;
 }
 
 int pager_open(Pager* pager, FILE* file, const FileHeader* header) {
@@ -42,7 +41,8 @@ int pager_open(Pager* pager, FILE* file, const FileHeader* header) {
 static int load_page(const Pager* pager, PageSlot* slot, const uint32_t page_number) {
     if (slot->loaded) return 0;
 
-    if (read_page(pager, page_number, &slot->page)) return 1;
+    slot->page = read_page(pager, page_number);
+    if (slot->page.data == NULL) return 1;
     slot->loaded = true;
     return 0;
 }
