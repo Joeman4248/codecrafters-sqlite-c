@@ -20,6 +20,8 @@ enum TokenType : uint8_t {
     TOKEN_COUNT,            // the token 'COUNT', not the number of token types
     TOKEN_WHERE,
     TOKEN_ON,
+    TOKEN_AND,
+    TOKEN_OR,
 
     TOKEN_IDENTIFIER,       // table or column name
     TOKEN_STRING,           // 'text' without the quotes
@@ -29,7 +31,12 @@ enum TokenType : uint8_t {
     TOKEN_RPAREN,           // )
     TOKEN_COMMA,            // ,
     TOKEN_STAR,             // *
-    TOKEN_EQUALS,           // =
+    TOKEN_EQUALS,           // = or ==
+    TOKEN_LT,               // <
+    TOKEN_LE,               // <=
+    TOKEN_GT,               // >
+    TOKEN_GE,               // >=
+    TOKEN_NE,               // != or <>
 
     TOKEN_TYPE_COUNT,       // number of token types
 

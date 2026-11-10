@@ -18,6 +18,8 @@ static const StringView TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_COUNT]       = SV_LIT("COUNT"),
     [TOKEN_WHERE]       = SV_LIT("WHERE"),
     [TOKEN_ON]          = SV_LIT("ON"),
+    [TOKEN_AND]         = SV_LIT("AND"),
+    [TOKEN_OR]          = SV_LIT("OR"),
 
     [TOKEN_IDENTIFIER]  = SV_LIT("IDENTIFIER"),
     [TOKEN_STRING]      = SV_LIT("STRING"),
@@ -27,6 +29,11 @@ static const StringView TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_COMMA]       = SV_LIT(","),
     [TOKEN_STAR]        = SV_LIT("*"),
     [TOKEN_EQUALS]      = SV_LIT("="),
+    [TOKEN_LT]          = SV_LIT("<"),
+    [TOKEN_LE]          = SV_LIT("<="),
+    [TOKEN_GT]          = SV_LIT(">"),
+    [TOKEN_GE]          = SV_LIT(">="),
+    [TOKEN_NE]          = SV_LIT("!="),
 };
 
 // true for characters that can start an identifier or keyword
@@ -96,6 +103,52 @@ static Token scan_integer(Tokenizer* tokenizer, Token* token) {
     return *token;
 }
 
+// scans a comparison operator: = == < <= > >= != <>. A lone ! starts no
+// token, so it stays a one-character TOKEN_UNKNOWN.
+static Token scan_operator(Tokenizer* tokenizer, Token* token) {
+    const char first = tokenizer->pos[0];
+    const char second = tokenizer->pos[1];
+    uint32_t len = 1;
+
+    switch (first) {
+        case '=':
+            token->type = TOKEN_EQUALS;
+            if (second == '=') len = 2;
+            break;
+
+        case '!':
+            if (second == '=') {
+                token->type = TOKEN_NE;
+                len = 2;
+            }
+            break;
+
+        case '<':
+            if (second == '=') {
+                token->type = TOKEN_LE;
+                len = 2;
+            }
+            else if (second == '>') {
+                token->type = TOKEN_NE;
+                len = 2;
+            }
+            else token->type = TOKEN_LT;
+            break;
+
+        case '>':
+            if (second == '=') {
+                token->type = TOKEN_GE;
+                len = 2;
+            }
+            else token->type = TOKEN_GT;
+            break;
+    }
+
+    token->text.len = len;
+    tokenizer->pos += len;
+    return *token;
+}
+
 Tokenizer tokenizer_init(const char* sql) {
     return (Tokenizer) {.pos = sql};
 }
@@ -115,11 +168,12 @@ Token next_token(Tokenizer* tokenizer) {
 
         case '"': case '\'': return scan_quoted_word(tokenizer, &token, c);
 
+        case '<': case '>': case '!': case '=': return scan_operator(tokenizer, &token);
+
         case '(': token.type = TOKEN_LPAREN; break;
         case ')': token.type = TOKEN_RPAREN; break;
         case ',': token.type = TOKEN_COMMA;  break;
         case '*': token.type = TOKEN_STAR;   break;
-        case '=': token.type = TOKEN_EQUALS; break;
         default:  break;    // stays TOKEN_UNKNOWN
     }
 
