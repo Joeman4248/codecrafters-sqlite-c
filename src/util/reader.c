@@ -74,7 +74,7 @@ static int64_t sign_extend(const uint64_t raw, const unsigned bits) {
     return ((int64_t) raw ^ sign_bit) - sign_bit;
 }
 
-int64_t read_i8(Reader* reader)  { return sign_extend(read_u8(reader), 8); }
+int64_t read_i8(Reader* reader)  { return sign_extend(read_u8(reader), 8);   }
 int64_t read_i16(Reader* reader) { return sign_extend(read_u16(reader), 16); }
 int64_t read_i24(Reader* reader) { return sign_extend(read_u24(reader), 24); }
 int64_t read_i32(Reader* reader) { return sign_extend(read_u32(reader), 32); }
