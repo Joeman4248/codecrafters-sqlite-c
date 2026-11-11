@@ -13,7 +13,7 @@ void scan_open(TableScan* scan, Pager* pager, const PlanTable* table) {
         cursor_fail(&scan->cursor);
         return;
     }
-    cursor_open(&scan->cursor, pager, table->root);
+    cursor_open(&scan->cursor, pager, table->root_page);
 }
 
 bool scan_next(TableScan* scan, Row* row) {

@@ -20,7 +20,7 @@ static int resolve_column(const TableColumns* columns, const Token name, uint32_
 
 static PlanTable plan_table(const SchemaEntry* table, const TableColumns* columns) {
     return (PlanTable) {
-        .root            = table->rootpage,
+        .root_page       = table->rootpage,
         .column_count    = columns->names.count,
         .has_rowid_alias = columns->has_rowid_alias,
         .rowid_column    = columns->rowid_column,

@@ -27,7 +27,7 @@ PageHeader read_btree_header(Reader* reader) {
     switch (header.page_type) {
         case PAGE_TYPE_INTERIOR_INDEX:
         case PAGE_TYPE_INTERIOR_TABLE:
-            header.rightmost_ptr = read_u32(reader);
+            header.rightmost_page = read_u32(reader);
             break;
 
         case PAGE_TYPE_LEAF_INDEX:
@@ -62,7 +62,7 @@ void seek_cell(Reader* reader, const PageHeader* header, const uint16_t index) {
 
 TableInteriorCell read_interior_table_cell(Reader* reader) {
     TableInteriorCell cell;
-    cell.left_child = read_u32(reader);
+    cell.left_child_page = read_u32(reader);
     cell.key        = read_varint_i64(reader);
     return cell;
 }

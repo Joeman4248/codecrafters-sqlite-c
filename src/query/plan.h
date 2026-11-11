@@ -12,7 +12,7 @@
 // the table a plan reads: everything needed to walk its rows and get a
 // column's value out of one
 typedef struct PlanTable {
-    uint32_t root;              // root page of the table's b-tree
+    uint32_t root_page;         // root page of the table's b-tree
     uint32_t column_count;      // columns the table declares
     bool     has_rowid_alias;
     uint32_t rowid_column;      // the INTEGER PRIMARY KEY column, stored as NULL in

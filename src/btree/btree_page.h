@@ -40,7 +40,7 @@ typedef struct PageHeader {
     uint16_t      freeblock_offset;     // offset 1
     uint16_t      cell_count;           // offset 3
     uint16_t      cell_area_start;      // offset 5
-    uint32_t      rightmost_ptr;        // offset 8, only on interior pages (0 on leaves)
+    uint32_t      rightmost_page;       // offset 8, only on interior pages (0 on leaves)
 
     uint32_t      cell_pointers;        // not stored: where in the page the cell pointer
                                         // array starts, right after this header
@@ -49,7 +49,7 @@ typedef struct PageHeader {
 // a table b-tree interior cell: one child page and the key that bounds it
 typedef struct TableInteriorCell {
     int64_t  key;
-    uint32_t left_child;    // the page holding every rowid up to and including key
+    uint32_t left_child_page;   // the page holding every rowid up to and including key
 } TableInteriorCell;
 
 // a table b-tree leaf cell: one row

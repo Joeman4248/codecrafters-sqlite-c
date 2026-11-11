@@ -51,25 +51,26 @@ static inline CursorFrame* cursor_top(TableCursor* cursor) {
 }
 
 // how many entries a frame visits: its rows on a leaf, or its children on an
-// interior page, which has one more child (rightmost_ptr) than it has cells
+// interior page, which has one more child (rightmost_page) than it has cells
 static uint32_t frame_entries(const CursorFrame* frame) {
     const uint32_t cells = frame->header.cell_count;
     return frame->header.page_type == PAGE_TYPE_LEAF_TABLE ? cells : cells + 1;
 }
 
-// the child page for entry index of the top frame, an interior page: cell
-// index's left child, or rightmost_ptr for the entry after the last cell.
-// Fails the cursor if the cell can't be read.
-static uint32_t frame_child(TableCursor* cursor, const uint16_t index) {
+// the page number of the child page to visit for entry index of the top
+// frame, an interior page: cell index's left_child_page, or the header's
+// rightmost_page for the entry after the last cell. Fails the cursor if the
+// cell can't be read.
+static uint32_t frame_child_page(TableCursor* cursor, const uint16_t index) {
     const CursorFrame* frame = cursor_top(cursor);
-    if (index == frame->header.cell_count) return frame->header.rightmost_ptr;
+    if (index == frame->header.cell_count) return frame->header.rightmost_page;
 
     // the cell's key separates the children; only lookups need it, not full scans
     Reader reader = btree_header_reader(frame->page);
     seek_cell(&reader, &frame->header, index);
-    const uint32_t child = read_interior_table_cell(&reader).left_child;
+    const uint32_t child_page = read_interior_table_cell(&reader).left_child_page;
     if (reader.failed) cursor_fail(cursor);
-    return child;
+    return child_page;
 }
 
 // the row in entry index of the top frame, a leaf page. Fails the cursor if
@@ -105,9 +106,9 @@ bool cursor_next(TableCursor* cursor) {
             return !cursor->failed;
         }
 
-        // push_page does nothing if frame_child failed
-        const uint32_t child = frame_child(cursor, index);
-        push_page(cursor, child);
+        // push_page does nothing if frame_child_page failed
+        const uint32_t child_page = frame_child_page(cursor, index);
+        push_page(cursor, child_page);
     }
     return false;
 }
