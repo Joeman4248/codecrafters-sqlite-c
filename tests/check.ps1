@@ -76,6 +76,7 @@ $fails = @(
     @("sample.db", "SELECT name FROM apples WHERE = 3"),
     @("sample.db", "SELECT name FROM apples WHERE id = 3 3"),
     @("sample.db", "SELECT name FROM apples WHERE id = 3 = 3"),
+    @("sample.db", "SELECT name FROM apples WHERE id ! 3"),
     @("sample.db", "SELECT name FROM apples WHERE nothing = 3"),
     @("sample.db", "SELECT name FROM apples WHERE 3 = nothing"),
     @("sample.db", "SELECT name FROM apples WHERE id > 1 AND"),

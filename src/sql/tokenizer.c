@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "sql/tokenizer.h"
 
@@ -35,6 +36,16 @@ static const StringView TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_GT]          = SV_LIT(">"),
     [TOKEN_GE]          = SV_LIT(">="),
     [TOKEN_NE]          = SV_LIT("!="),
+};
+
+// every spelling of each comparison operator, longest first, so "<=" is
+// found before "<"
+static const struct { StringView text; enum TokenType type; } OPERATORS[] = {
+    { SV_LIT("<="), TOKEN_LE }, { SV_LIT(">="), TOKEN_GE },
+    { SV_LIT("!="), TOKEN_NE }, { SV_LIT("<>"), TOKEN_NE },
+    { SV_LIT("=="), TOKEN_EQUALS },
+    { SV_LIT("<"),  TOKEN_LT }, { SV_LIT(">"),  TOKEN_GT },
+    { SV_LIT("="),  TOKEN_EQUALS },
 };
 
 // true for characters that can start an identifier or keyword
@@ -107,50 +118,15 @@ static Token scan_integer(Tokenizer* tokenizer, Token* token) {
 // scans a comparison operator: = == < <= > >= != <>. A lone ! starts no
 // token, so it stays a one-character TOKEN_UNKNOWN.
 static Token scan_operator(Tokenizer* tokenizer, Token* token) {
-    const char first = tokenizer->pos[0];
-    const char second = tokenizer->pos[1];
-    uint32_t len = 1;
-
-    switch (first) {
-        case '=':
-            token->type = TOKEN_EQUALS;
-            if (second == '=') len = 2;
+    for (size_t i = 0; i < sizeof OPERATORS / sizeof OPERATORS[0]; i++) {
+        const StringView op = OPERATORS[i].text;
+        if (strncmp(tokenizer->pos, op.data, op.len) == 0) {
+            token->type = OPERATORS[i].type;
+            token->text.len = op.len;
             break;
-
-        case '!':
-            if (second == '=') {
-                token->type = TOKEN_NE;
-                len = 2;
-            }
-            break;
-
-        case '<':
-            if (second == '=') {
-                token->type = TOKEN_LE;
-                len = 2;
-            }
-            else if (second == '>') {
-                token->type = TOKEN_NE;
-                len = 2;
-            }
-            else {
-                token->type = TOKEN_LT;
-            }
-            break;
-
-        case '>':
-            if (second == '=') {
-                token->type = TOKEN_GE;
-                len = 2;
-            }
-            else {
-                token->type = TOKEN_GT;
-            }
-            break;
+        }
     }
-
-    token->text.len = len;
-    tokenizer->pos += len;
+    tokenizer->pos += token->text.len;
     return *token;
 }
 
