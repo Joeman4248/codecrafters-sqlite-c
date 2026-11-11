@@ -62,61 +62,30 @@ static int build_create_index(Parser* parser, IndexColumns* create_index) {
             case TAG_INDEX:  create_index->name = capture.token; break;
             case TAG_TABLE:  create_index->table = capture.token; break;
             case TAG_COLUMN: if (token_list_add(&create_index->columns, capture.token)) return 1; break;
-            case TAG_WHERE_COLUMN: create_index->has_where = true; break;
-            case TAG_WHERE_VALUE:  break;   // which rows a partial index covers isn't needed yet
+            // which rows a partial index covers isn't needed yet, only that it's partial
+            case TAG_WHERE_TOKEN: create_index->has_where = true; break;
             default: return 1;
         }
     }
     return 0;
 }
 
-// the comparison operator an operator token stands for, or COMPARE_UNKNOWN
-// for a token the grammar doesn't match as one
-static enum CompareOp comparison_op(const Token token) {
-    switch (token.type) {
-        case TOKEN_EQUALS: return COMPARE_EQUAL;
-        case TOKEN_LT:     return COMPARE_LESS;
-        case TOKEN_LE:     return COMPARE_LESS_EQUAL;
-        case TOKEN_GT:     return COMPARE_GREATER;
-        case TOKEN_GE:     return COMPARE_GREATER_EQUAL;
-        case TOKEN_NE:     return COMPARE_NOT_EQUAL;
-        default: break;
+// the WHERE expression, from the tokens captured under TAG_WHERE_TOKEN. Leaves
+// query->where NULL if there are none.
+static int build_where(const Parser* parser, SelectQuery* query) {
+    TokenList tokens = { 0 };
+    int result = 0;
+    for (uint32_t i = 0; i < parser->capture_count && result == 0; i++) {
+        const Capture capture = parser->captures[i];
+        if (capture.tag == TAG_WHERE_TOKEN) result = token_list_add(&tokens, capture.token);
     }
-    return COMPARE_UNKNOWN;
-}
 
-// the INTEGER a run of digits stands for. Returns false, after printing an
-// error, if the number doesn't fit in 64 bits.
-static bool integer_literal(const StringView digits, int64_t* integer) {
-    *integer = 0;
-    for (uint32_t i = 0; i < digits.len; i++) {
-        const int digit = digits.data[i] - '0';
-        if (*integer > (INT64_MAX - digit) / 10) {
-            fprintf(stderr, "integer too large: " SV_FMT "\n", SV_ARG(digits));
-            return false;
-        }
-        *integer = *integer * 10 + digit;
+    if (result == 0 && tokens.count > 0) {
+        query->where = parse_expr(&tokens);
+        result = query->where == NULL;
     }
-    return true;
-}
-
-// the value a literal token stands for: a string is TEXT (viewing the query,
-// not copied), a run of digits an INTEGER, and NULL is NULL. Returns false for
-// a token the grammar doesn't match as a literal, or an integer too large.
-static bool literal_value(const Token token, Value* value) {
-    switch (token.type) {
-        case TOKEN_STRING:
-            *value = (Value) { .type = VALUE_TEXT, .text = token.text };
-            return true;
-        case TOKEN_INTEGER:
-            *value = (Value) { .type = VALUE_INTEGER };
-            return integer_literal(token.text, &value->integer);
-        case TOKEN_NULL:
-            *value = (Value) { .type = VALUE_NULL };
-            return true;
-        default: break;
-    }
-    return false;
+    free_token_list(&tokens);
+    return result;
 }
 
 static int build_select_statement(Parser* parser, SelectQuery* query) {
@@ -126,24 +95,11 @@ static int build_select_statement(Parser* parser, SelectQuery* query) {
             case TAG_COLUMN: if (token_list_add(&query->names, capture.token)) return 1; break;
             case TAG_COUNT:  query->is_count = true; break;
             case TAG_TABLE:  query->table = capture.token; break;
-            case TAG_WHERE_COLUMN:
-                query->has_where = true;
-                query->where.column = capture.token;
-                break;
-            case TAG_WHERE_OP:
-                query->where.op = comparison_op(capture.token);
-                if (query->where.op == COMPARE_UNKNOWN) return 1;
-                // the captures are in token order, so no column yet means the
-                // query wrote the literal first: 1990 < year becomes year > 1990
-                if (!query->has_where) query->where.op = compare_op_swapped(query->where.op);
-                break;
-            case TAG_WHERE_VALUE:
-                if (!literal_value(capture.token, &query->where.value)) return 1;
-                break;
+            case TAG_WHERE_TOKEN: break;    // read by build_where
             default: return 1;
         }
     }
-    return 0;
+    return build_where(parser, query);
 }
 
 static int build_statement(Parser* parser, Statement* statement) {
@@ -223,7 +179,11 @@ int parse_statement(const char* sql, Statement* statement) {
 
 void free_statement(Statement* statement) {
     switch (statement->type) {
-        case STATEMENT_TYPE_SELECT:         free_token_list(&statement->select.names);         break;
+        case STATEMENT_TYPE_SELECT:
+            free_token_list(&statement->select.names);
+            free_expr(statement->select.where);
+            statement->select.where = NULL;
+            break;
         case STATEMENT_TYPE_CREATE_TABLE:   free_token_list(&statement->create_table.names);   break;
         case STATEMENT_TYPE_CREATE_INDEX:   free_token_list(&statement->create_index.columns); break;
         case STATEMENT_TYPE_UNKNOWN:        break;

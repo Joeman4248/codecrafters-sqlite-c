@@ -58,18 +58,53 @@ static int plan_count(const Token name, const TableColumns* columns, PlanCount* 
     return resolve_column(columns, name, &count->column);
 }
 
-// the WHERE condition. The parser already gives it as column op value, so
-// only the column needs looking up.
-static int plan_where(const Condition* condition, const TableColumns* columns, PlanWhere* where) {
-    where->op    = condition->op;
-    where->value = condition->value;
-    return resolve_column(columns, condition->column, &where->column);
+static Expr* plan_expr(const Expr* expr, const TableColumns* columns);
+
+// fills in the children of planned, a copy of a node whose child pointers
+// still belong to the query's tree. Clears them first, so planned can be freed
+// on failure without touching the query's nodes.
+static int plan_expr_children(Expr* planned, const TableColumns* columns) {
+    switch (planned->type) {
+        case EXPR_COLUMN:
+            return resolve_column(columns, planned->column.name, &planned->column.index);
+        case EXPR_LITERAL:
+            return 0;
+        case EXPR_COMPARE: {
+            const Expr* left  = planned->compare.left;
+            const Expr* right = planned->compare.right;
+            planned->compare.left  = NULL;
+            planned->compare.right = NULL;
+
+            planned->compare.left = plan_expr(left, columns);
+            if (planned->compare.left == NULL) return 1;
+            planned->compare.right = plan_expr(right, columns);
+            return planned->compare.right == NULL;
+        }
+        case EXPR_UNKNOWN:
+            break;
+    }
+    return 1;
+}
+
+// a copy of expr, the WHERE or a part of it, with its columns' indexes filled
+// in. Returns NULL if a column doesn't exist (after printing an error) or
+// memory runs out.
+static Expr* plan_expr(const Expr* expr, const TableColumns* columns) {
+    Expr* planned = malloc(sizeof(Expr));
+    if (planned == NULL) return NULL;
+
+    *planned = *expr;
+    if (plan_expr_children(planned, columns)) {
+        free_expr(planned);
+        return NULL;
+    }
+    return planned;
 }
 
 // ---- planning a SELECT -----------------------------------------------------
 
 // plans the query against its table, given the table's parsed sql. On failure
-// plan->selected.items may be allocated; the caller frees it.
+// parts of the plan may be allocated; the caller frees them.
 static int plan_against(const SelectQuery* query, const SchemaEntry* table,
                         const Statement* create, SelectPlan* plan) {
     if (create->type != STATEMENT_TYPE_CREATE_TABLE) {
@@ -87,9 +122,9 @@ static int plan_against(const SelectQuery* query, const SchemaEntry* table,
         if (plan_columns(&query->names, columns, &plan->selected)) return 1;
     }
 
-    plan->has_where = query->has_where;
-    if (!query->has_where) return 0;
-    return plan_where(&query->where, columns, &plan->where);
+    if (query->where == NULL) return 0;
+    plan->where = plan_expr(query->where, columns);
+    return plan->where == NULL;
 }
 
 int plan_select(const Database* db, const SelectQuery* query, SelectPlan* plan) {
@@ -114,4 +149,6 @@ int plan_select(const Database* db, const SelectQuery* query, SelectPlan* plan) 
 void free_plan(SelectPlan* plan) {
     free(plan->selected.items);
     plan->selected = (PlanColumns) { 0 };
+    free_expr(plan->where);
+    plan->where = NULL;
 }

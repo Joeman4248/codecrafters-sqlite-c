@@ -65,10 +65,6 @@ enum CompareOrder value_compare(Value a, Value b);
 // holds.
 bool value_satisfies(Value a, enum CompareOp op, Value b);
 
-// the operator that makes the same comparison with its operands swapped:
-// 1990 < year is year > 1990. COMPARE_UNKNOWN stays unknown.
-enum CompareOp compare_op_swapped(enum CompareOp op);
-
 // writes value to out without a newline, the way sqlite3 prints it: nothing
 // for NULL, floats always with a decimal point, and text and blobs as their
 // raw bytes

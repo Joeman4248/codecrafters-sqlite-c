@@ -29,9 +29,7 @@ enum CaptureTag : uint8_t {
     TAG_TABLE,
     TAG_INDEX,          // the name of the index a CREATE INDEX makes
     TAG_TYPE_WORD,      // a word of a column's type or constraints, such as integer or key
-    TAG_WHERE_COLUMN,   // the column a WHERE compares
-    TAG_WHERE_OP,       // the comparison operator it uses, such as <
-    TAG_WHERE_VALUE,    // the literal a WHERE compares it with
+    TAG_WHERE_TOKEN,    // any token of a WHERE's expression, for parse_expr to read
 };
 
 typedef struct Rule {

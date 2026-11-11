@@ -25,9 +25,10 @@ No two-way dependencies. (Exception for now: database.h in pager/ holds the sche
 - `btree/` btree_page.c (page header, cells), btree_cursor.c (table row walker)
 - `record/` record.c (records/serial types), schema.c
 - `sql/` tokenizer.c, grammar.c (generic rule matcher), sql_grammar.c (the SQL grammar as macro-built data),
-  sql_parser.c (builders that turn captures into Statement)
+  sql_parser.c (builders that turn captures into Statement), expr.c (WHERE expression trees,
+  parsed by hand since the grammar can't nest)
 - `query/` plan.c (schema lookup, column positions), rows.c (where rows come from: TableScan),
-  execute.c (filters and prints rows), commands.c (runs .dbinfo/.tables and SQL statements)
+  execute.c (evaluates WHERE, prints rows), commands.c (runs .dbinfo/.tables and SQL statements)
 - `main.c` argument handling
 
 Header comments state the contract; read the .h before the .c.
@@ -42,7 +43,8 @@ Header comments state the contract; read the .h before the .c.
     `FileHeader.page_size == 0`); say which field in the .h;
   - one past the end for a position in a list (`sv_find`, `find_column` return the count);
   - `FOO_UNKNOWN` for an enum (`comparison_op` returns `COMPARE_UNKNOWN`);
-  - otherwise a bool return with an out-parameter (`literal_value`).
+  - NULL for a pointer (`parse_expr` returns no tree);
+  - otherwise a bool return with an out-parameter (`integer_literal`).
 - Enums end with `FOO_COUNT` and `FOO_UNKNOWN = FOO_COUNT`, except ones that mirror fixed
   on-disk values (`PageType`, `TextEncoding`). Switches over an enum list every case, including
   `FOO_UNKNOWN`, with no `default:`, so the compiler flags a missing one. Exception: a switch on input (a byte from the file, a token
@@ -62,5 +64,5 @@ Header comments state the contract; read the .h before the .c.
 ## Known gaps
 
 - No type affinity: `WHERE text_column = 1990` doesn't match the text '1990' (sqlite3 does).
-- WHERE is one comparison, `column op literal` or `literal op column`; no AND/OR,
-  parentheses or NOT yet; no overflow pages; no index lookups yet.
+- WHERE is one comparison of two columns or literals (an `Expr` tree from expr.c); no
+  AND/OR, parentheses, NOT or IS NULL yet; no overflow pages; no index lookups yet.

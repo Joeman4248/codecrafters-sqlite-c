@@ -118,19 +118,6 @@ bool value_satisfies(const Value a, const enum CompareOp op, const Value b) {
     return order_satisfies(value_compare(a, b), op);
 }
 
-enum CompareOp compare_op_swapped(const enum CompareOp op) {
-    switch (op) {
-        case COMPARE_EQUAL:         return COMPARE_EQUAL;
-        case COMPARE_LESS:          return COMPARE_GREATER;
-        case COMPARE_LESS_EQUAL:    return COMPARE_GREATER_EQUAL;
-        case COMPARE_GREATER:       return COMPARE_LESS;
-        case COMPARE_GREATER_EQUAL: return COMPARE_LESS_EQUAL;
-        case COMPARE_NOT_EQUAL:     return COMPARE_NOT_EQUAL;
-        case COMPARE_UNKNOWN:       break;
-    }
-    return COMPARE_UNKNOWN;
-}
-
 // prints a REAL the way sqlite3 does: up to 15 significant digits, and always
 // with a decimal point, which %g leaves out of whole numbers ("3", "1e+100"
 // rather than "3.0", "1.0e+100")

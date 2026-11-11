@@ -32,13 +32,6 @@ typedef struct PlanCount {
     uint32_t column;
 } PlanCount;
 
-// a WHERE condition, column op value, with the operands the right way round
-typedef struct PlanWhere {
-    uint32_t       column;
-    enum CompareOp op;
-    Value          value;
-} PlanWhere;
-
 // how to run a SELECT, with every name in the query resolved against the
 // table's schema: columns are positions in a record, and the table is its root
 // page. Execution needs only this, not the query or the schema.
@@ -49,13 +42,13 @@ typedef struct SelectPlan {
     PlanColumns selected;       // when !is_count
     PlanCount   count;          // when is_count
 
-    bool        has_where;
-    PlanWhere   where;          // when has_where
+    Expr*       where;          // the plan's own copy of the WHERE, with every column's
+                                // index filled in, or NULL if there is none
 } SelectPlan;
 
 // plans query against the schema of db: finds the table, reads its columns
 // from its CREATE TABLE, and resolves every column the query names. A text
-// where.value points into the query's SQL text, so the plan must not outlive
+// literal in where points into the query's SQL text, so the plan must not outlive
 // it. On success the caller releases the plan with free_plan. On failure
 // prints an error to stderr, leaves nothing to free and returns nonzero.
 int plan_select(const Database* db, const SelectQuery* query, SelectPlan* plan);

@@ -4,8 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "sql/expr.h"
 #include "sql/tokenizer.h"
-#include "util/value.h"
 
 // the column names from a CREATE TABLE statement. The names are tokens: they
 // are not copied or null-terminated, but point into the SQL string, which
@@ -26,15 +26,6 @@ typedef struct IndexColumns {
     Token     name;         // the index's name
 } IndexColumns;
 
-// a WHERE condition, always as column op value. A query that wrote the
-// literal first has its operator swapped, so 1990 < year is year > 1990.
-typedef struct Condition {
-    Token           column;     // TOKEN_IDENTIFIER: the column to compare
-    enum CompareOp  op;
-    Value           value;      // the literal: TEXT (viewing the query string,
-                                // without the quotes), INTEGER or NULL
-} Condition;
-
 // the parts of a SELECT query. Like TableColumns, the tokens point into the
 // query string, which must outlive the SelectQuery.
 typedef struct SelectQuery {
@@ -43,8 +34,8 @@ typedef struct SelectQuery {
                             // means every column, except inside COUNT, where the
                             // list holds just the one name or *, and * means every row.
     bool      is_count;     // COUNT(names.items) rather than the values themselves
-    bool      has_where;    // whether the query has a WHERE clause
-    Condition where;        // only valid when has_where is true
+    Expr*     where;        // the WHERE condition, or NULL if there is none. Its
+                            // columns have names but no index yet.
 } SelectQuery;
 
 // the position of the column whose name matches the text of name (compared
@@ -75,13 +66,13 @@ typedef struct Statement {
 // statement its first keywords name. The grammar is written out in
 // sql_grammar.c; so far it supports:
 //
-//     SELECT column, ... FROM table [WHERE column op value]
-//     SELECT COUNT(column) FROM table [WHERE column op value]
+//     SELECT column, ... FROM table [WHERE expr]
+//     SELECT COUNT(column) FROM table [WHERE expr]
 //     CREATE TABLE name (column type constraints..., ...)
-//     CREATE INDEX name ON table (column, ...) [WHERE column op value]
+//     CREATE INDEX name ON table (column, ...) [WHERE expr]
 //
-// A SELECT column may be *, and so may COUNT's. A WHERE compares a column with
-// a 'string', an integer or NULL, in either order, using = == < <= > >= != or <>.
+// A SELECT column may be *, and so may COUNT's. What a WHERE's expr may be is
+// in parse_expr's comment.
 //
 // A CREATE TABLE, such as the sql column of a sqlite_schema row, is read for
 // its column names and which column, if any, is the INTEGER PRIMARY KEY. The
