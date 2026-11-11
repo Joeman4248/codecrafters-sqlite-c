@@ -43,9 +43,8 @@ static const StringView TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
 static const struct { StringView text; enum TokenType type; } OPERATORS[] = {
     { SV_LIT("<="), TOKEN_LE }, { SV_LIT(">="), TOKEN_GE },
     { SV_LIT("!="), TOKEN_NE }, { SV_LIT("<>"), TOKEN_NE },
-    { SV_LIT("=="), TOKEN_EQUALS },
+    { SV_LIT("=="), TOKEN_EQUALS }, { SV_LIT("="),  TOKEN_EQUALS },
     { SV_LIT("<"),  TOKEN_LT }, { SV_LIT(">"),  TOKEN_GT },
-    { SV_LIT("="),  TOKEN_EQUALS },
 };
 static const uint32_t OPERATOR_COUNT = sizeof OPERATORS / sizeof OPERATORS[0];
 
