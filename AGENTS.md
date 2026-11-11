@@ -36,8 +36,16 @@ Header comments state the contract; read the .h before the .c.
 - `}` then `else` on its own line; never `} else {`.
 - Bare error checks: `if (f(...)) return 1;`, not `!= 0`. Functions that can fail return int, nonzero on error.
 - No goto: split into a helper and do cleanup once in the caller.
-- No negative sentinels: return bool and fill an out-parameter for "not found".
-- Enums end with `FOO_COUNT` and `FOO_UNKNOWN = FOO_COUNT`; switches over them list every case, no `default:`.
+- No negative sentinels. A function that returns a value but can fail or find nothing signals it with:
+  - a field that is never 0/NULL when valid, if the struct has one (`Page.data == NULL`,
+    `FileHeader.page_size == 0`); say which field in the .h;
+  - one past the end for a position in a list (`sv_find`, `find_column` return the count);
+  - otherwise an explicit `ok` flag in a small result struct (`ValueResult`), or a bool
+    return with an out-parameter.
+- Enums end with `FOO_COUNT` and `FOO_UNKNOWN = FOO_COUNT` (closed sets like `CompareOp` may
+  skip them, saying so). Switches over an enum list every case with no `default:`, so the
+  compiler flags a missing one. Exception: a switch on input (a byte from the file, a token
+  from the query) uses `default:` for the "anything else" case, since any value can arrive.
 - Byte readers (`read_u16(Reader*)` etc.) return the value and set the sticky `reader->failed`;
   check it once after a group. One read per statement (call order inside an initializer is unspecified).
 - Contract comments in .h; .c comments only for the non-obvious, never repeating the header.

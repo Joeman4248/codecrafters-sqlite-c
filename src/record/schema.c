@@ -69,18 +69,20 @@ static int decode_schema_entry(const ByteView payload, SchemaEntry* entry) {
     // the text fields are copied to null-terminated c-strings, since entries
     // may outlive the pages they are read from. sql is NULL for automatic
     // indexes; name and tbl_name are always text.
-    const Value name = record_get_value(&record, SCHEMA_COL_NAME);
+    const Value name     = record_get_value(&record, SCHEMA_COL_NAME);
     const Value tbl_name = record_get_value(&record, SCHEMA_COL_TBL_NAME);
-    const Value sql = record_get_value(&record, SCHEMA_COL_SQL);
-    if (name.type != VALUE_TEXT || tbl_name.type != VALUE_TEXT ||
-        (sql.type != VALUE_TEXT && sql.type != VALUE_NULL)) return 1;
+    const Value sql      = record_get_value(&record, SCHEMA_COL_SQL);
+    if (name.type != VALUE_TEXT || tbl_name.type != VALUE_TEXT) return 1;
+    if (sql.type != VALUE_TEXT && sql.type != VALUE_NULL) return 1;
 
     entry->name     = sv_to_cstr(name.text);
     entry->tbl_name = sv_to_cstr(tbl_name.text);
-    entry->sql      = (sql.type == VALUE_TEXT) ? sv_to_cstr(sql.text) : NULL;
-    if (entry->name == NULL || entry->tbl_name == NULL ||
-        (sql.type == VALUE_TEXT && entry->sql == NULL)) return 1;
-    return 0;
+    if (entry->name == NULL || entry->tbl_name == NULL) return 1;
+
+    // an automatic index has no sql, so entry->sql stays NULL
+    if (sql.type == VALUE_NULL) return 0;
+    entry->sql = sv_to_cstr(sql.text);
+    return entry->sql == NULL;
 }
 
 // decodes one sqlite_schema row into a new entry at the end of db->schema
