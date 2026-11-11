@@ -47,6 +47,7 @@ static const struct { StringView text; enum TokenType type; } OPERATORS[] = {
     { SV_LIT("<"),  TOKEN_LT }, { SV_LIT(">"),  TOKEN_GT },
     { SV_LIT("="),  TOKEN_EQUALS },
 };
+static const uint32_t OPERATOR_COUNT = sizeof OPERATORS / sizeof OPERATORS[0];
 
 // true for characters that can start an identifier or keyword
 static bool is_word_start(const char c) {
@@ -118,7 +119,7 @@ static Token scan_integer(Tokenizer* tokenizer, Token* token) {
 // scans a comparison operator: = == < <= > >= != <>. A lone ! starts no
 // token, so it stays a one-character TOKEN_UNKNOWN.
 static Token scan_operator(Tokenizer* tokenizer, Token* token) {
-    for (size_t i = 0; i < sizeof OPERATORS / sizeof OPERATORS[0]; i++) {
+    for (uint32_t i = 0; i < OPERATOR_COUNT; i++) {
         const StringView op = OPERATORS[i].text;
         if (strncmp(tokenizer->pos, op.data, op.len) == 0) {
             token->type = OPERATORS[i].type;
