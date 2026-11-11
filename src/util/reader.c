@@ -23,26 +23,10 @@ uint16_t read_u16(Reader* reader) {
     return reader->failed ? 0 : ((upper << 8) | lower);
 }
 
-// 3 bytes, big-endian, as an upper uint16 and lower uint8. Only read_i24
-// needs it, in the next wider type.
-static uint32_t read_u24(Reader* reader) {
-    const uint32_t upper = read_u16(reader);
-    const uint32_t lower = read_u8(reader);
-    return reader->failed ? 0 : (upper << 8) | lower;
-}
-
 // 4 bytes, big-endian, as an upper and lower uint16
 uint32_t read_u32(Reader* reader) {
     const uint32_t upper = read_u16(reader);
     const uint32_t lower = read_u16(reader);
-    return reader->failed ? 0 : (upper << 16) | lower;
-}
-
-// 6 bytes, big-endian, as an upper uint32 and lower uint16. Only read_i48
-// needs it, in the next wider type.
-static uint64_t read_u48(Reader* reader) {
-    const uint64_t upper = read_u32(reader);
-    const uint64_t lower = read_u16(reader);
     return reader->failed ? 0 : (upper << 16) | lower;
 }
 
@@ -52,6 +36,26 @@ uint64_t read_u64(Reader* reader) {
     const uint64_t lower = read_u32(reader);
     return reader->failed ? 0 : (upper << 32) | lower;
 }
+
+// The odd widths: records also store 3- and 6-byte integers, always signed,
+// so these are only the first step of read_i24 and read_i48. Each is returned
+// in the next wider type.
+
+// 3 bytes, big-endian, as an upper uint16 and lower uint8
+static uint32_t read_u24(Reader* reader) {
+    const uint32_t upper = read_u16(reader);
+    const uint32_t lower = read_u8(reader);
+    return reader->failed ? 0 : (upper << 8) | lower;
+}
+
+// 6 bytes, big-endian, as an upper uint32 and lower uint16
+static uint64_t read_u48(Reader* reader) {
+    const uint64_t upper = read_u32(reader);
+    const uint64_t lower = read_u16(reader);
+    return reader->failed ? 0 : (upper << 16) | lower;
+}
+
+// The signed reads take the unsigned bits and reinterpret them.
 
 // raw already holds the two's-complement bits of the signed value; memcpy
 // reinterprets them without the implementation-defined conversion that a cast
