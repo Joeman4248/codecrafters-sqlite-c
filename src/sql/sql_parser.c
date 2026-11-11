@@ -85,6 +85,40 @@ static bool comparison_op(const Token token, enum CompareOp* op) {
     return false;
 }
 
+// the INTEGER a run of digits stands for. Returns false, after printing an
+// error, if the number doesn't fit in 64 bits.
+static bool integer_literal(const StringView digits, int64_t* integer) {
+    *integer = 0;
+    for (uint32_t i = 0; i < digits.len; i++) {
+        const int digit = digits.data[i] - '0';
+        if (*integer > (INT64_MAX - digit) / 10) {
+            fprintf(stderr, "integer too large: " SV_FMT "\n", SV_ARG(digits));
+            return false;
+        }
+        *integer = *integer * 10 + digit;
+    }
+    return true;
+}
+
+// the value a literal token stands for: a string is TEXT (viewing the query,
+// not copied), a run of digits an INTEGER, and NULL is NULL. Returns false for
+// a token the grammar doesn't match as a literal, or an integer too large.
+static bool literal_value(const Token token, Value* value) {
+    switch (token.type) {
+        case TOKEN_STRING:
+            *value = (Value) { .type = VALUE_TEXT, .text = token.text };
+            return true;
+        case TOKEN_INTEGER:
+            *value = (Value) { .type = VALUE_INTEGER };
+            return integer_literal(token.text, &value->integer);
+        case TOKEN_NULL:
+            *value = (Value) { .type = VALUE_NULL };
+            return true;
+        default: break;
+    }
+    return false;
+}
+
 static int build_select_statement(Parser* parser, SelectQuery* query) {
     for (uint32_t i = 0; i < parser->capture_count; i++) {
         const Capture capture = parser->captures[i];
@@ -98,12 +132,12 @@ static int build_select_statement(Parser* parser, SelectQuery* query) {
                 break;
             case TAG_WHERE_OP:
                 if (!comparison_op(capture.token, &query->where.op)) return 1;
+                // the captures are in token order, so no column yet means the
+                // query wrote the literal first: 1990 < year becomes year > 1990
+                if (!query->has_where) query->where.op = compare_op_swapped(query->where.op);
                 break;
             case TAG_WHERE_VALUE:
-                query->where.value = capture.token;
-                // the captures are in token order, so a value before the column
-                // means the query wrote the literal first
-                query->where.literal_first = !query->has_where;
+                if (!literal_value(capture.token, &query->where.value)) return 1;
                 break;
             default: return 1;
         }

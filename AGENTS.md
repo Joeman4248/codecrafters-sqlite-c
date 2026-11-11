@@ -40,8 +40,7 @@ Header comments state the contract; read the .h before the .c.
   - a field that is never 0/NULL when valid, if the struct has one (`Page.data == NULL`,
     `FileHeader.page_size == 0`); say which field in the .h;
   - one past the end for a position in a list (`sv_find`, `find_column` return the count);
-  - otherwise an explicit `ok` flag in a small result struct (`ValueResult`), or a bool
-    return with an out-parameter.
+  - otherwise a bool return with an out-parameter (`literal_value`, `comparison_op`).
 - Enums end with `FOO_COUNT` and `FOO_UNKNOWN = FOO_COUNT` (closed sets like `CompareOp` may
   skip them, saying so). Switches over an enum list every case with no `default:`, so the
   compiler flags a missing one. Exception: a switch on input (a byte from the file, a token

@@ -26,13 +26,13 @@ typedef struct IndexColumns {
     Token     name;         // the index's name
 } IndexColumns;
 
-// a WHERE condition: a column compared with a literal, in either order
+// a WHERE condition, always as column op value. A query that wrote the
+// literal first has its operator swapped, so 1990 < year is year > 1990.
 typedef struct Condition {
-    Token           column;         // TOKEN_IDENTIFIER: the column to compare
-    Token           value;          // TOKEN_STRING (the text, without the quotes),
-                                    // TOKEN_INTEGER or TOKEN_NULL: the value to compare it with
-    enum CompareOp  op;             // how they compare, as the query wrote it
-    bool            literal_first;  // whether the query wrote the value before the column
+    Token           column;     // TOKEN_IDENTIFIER: the column to compare
+    enum CompareOp  op;
+    Value           value;      // the literal: TEXT (viewing the query string,
+                                // without the quotes), INTEGER or NULL
 } Condition;
 
 // the parts of a SELECT query. Like TableColumns, the tokens point into the

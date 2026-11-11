@@ -14,108 +14,79 @@ static int resolve_column(const TableColumns* columns, const Token name, uint32_
     return 0;
 }
 
-// a Value, or the failure of making one. value is valid only when ok.
-typedef struct ValueResult {
-    bool  ok;
-    Value value;
-} ValueResult;
+// ---- the parts of a plan ---------------------------------------------------
+// Each fills in one part of the plan from the query and the table's columns,
+// and returns nonzero, after printing an error, if a column doesn't exist.
 
-// the INTEGER Value a run of digits stands for. Returns one whose ok is
-// false, after printing an error, if the number doesn't fit in 64 bits.
-static ValueResult integer_value(const StringView digits) {
-    int64_t integer = 0;
-    for (uint32_t i = 0; i < digits.len; i++) {
-        const int digit = digits.data[i] - '0';
-        if (integer > (INT64_MAX - digit) / 10) {
-            fprintf(stderr, "integer too large: " SV_FMT "\n", SV_ARG(digits));
-            return (ValueResult) { 0 };
-        }
-        integer = integer * 10 + digit;
-    }
-    return (ValueResult) { .ok = true,
-                           .value = { .type = VALUE_INTEGER, .integer = integer } };
+// COUNT(*), which counts rows, or COUNT(column), which counts its non-NULL values
+static int plan_count(const SelectQuery* query, const TableColumns* columns, SelectPlan* plan) {
+    const Token name = query->names.items[0];
+    plan->count_rows = name.type == TOKEN_STAR;
+    if (plan->count_rows) return 0;
+    return resolve_column(columns, name, &plan->count_column);
 }
 
-// the Value a literal in the query stands for: a string is TEXT, a run of
-// digits an INTEGER, and NULL is NULL. Returns one whose ok is false, after
-// printing an error, if it's none of those or the integer doesn't fit in 64 bits.
-static ValueResult literal_value(const Token literal) {
-    switch (literal.type) {
-        case TOKEN_STRING:
-            return (ValueResult) { .ok = true,
-                                   .value = { .type = VALUE_TEXT, .text = literal.text } };
-        case TOKEN_INTEGER:
-            return integer_value(literal.text);
-        case TOKEN_NULL:
-            return (ValueResult) { .ok = true, .value = { .type = VALUE_NULL } };
-        default: break;
-    }
-
-    fprintf(stderr, "expected a string, number or NULL, got: " SV_FMT "\n", SV_ARG(literal.text));
-    return (ValueResult) { 0 };
-}
-
-// returns how many column positions the query's names expand to: every column
-// for each *, and one for each name
-static uint32_t count_selected(const SelectQuery* query, const TableColumns* columns) {
+// the positions of the columns the query names, in query order, with each *
+// expanded to every column. Allocates plan->selected.
+static int plan_selected(const SelectQuery* query, const TableColumns* columns, SelectPlan* plan) {
+    // sized first: each * stands for every column, each name for one
     uint32_t count = 0;
     for (uint32_t i = 0; i < query->names.count; i++) {
-        const bool token_is_star = (query->names.items[i].type == TOKEN_STAR);
-        count += token_is_star ? columns->names.count : 1;
+        const bool is_star = query->names.items[i].type == TOKEN_STAR;
+        count += is_star ? columns->names.count : 1;
     }
-    return count;
-}
+    plan->selected = malloc(count * sizeof(uint32_t));
+    if (plan->selected == NULL) return 1;
 
-// fills selected with the positions of the columns the query names, in query
-// order, with each * expanded to every column. selected has room for
-// count_selected entries.
-static int select_columns(const SelectQuery* query, const TableColumns* columns,
-        uint32_t* selected, uint32_t* selected_count) {
-    uint32_t count = 0;
     for (uint32_t i = 0; i < query->names.count; i++) {
         const Token name = query->names.items[i];
-
         if (name.type == TOKEN_STAR) {
-            for (uint32_t j = 0; j < columns->names.count; j++) selected[count++] = j;
+            for (uint32_t j = 0; j < columns->names.count; j++) {
+                plan->selected[plan->selected_count++] = j;
+            }
             continue;
         }
-
-        if (resolve_column(columns, name, &selected[count++])) return 1;
+        if (resolve_column(columns, name, &plan->selected[plan->selected_count++])) return 1;
     }
-    *selected_count = count;
     return 0;
 }
 
-// fills in everything the plan takes from the query and the table's columns.
-// On failure plan->selected may be allocated; the caller frees it.
-static int plan_columns(const SelectQuery* query, const TableColumns* columns, SelectPlan* plan) {
+// the WHERE condition, if there is one. The parser already gives it as
+// column op value, so only the column needs looking up.
+static int plan_where(const SelectQuery* query, const TableColumns* columns, SelectPlan* plan) {
+    plan->has_where = query->has_where;
+    if (!query->has_where) return 0;
+
+    plan->where_op    = query->where.op;
+    plan->where_value = query->where.value;
+    return resolve_column(columns, query->where.column, &plan->where_column);
+}
+
+// ---- planning a SELECT -----------------------------------------------------
+
+// plans the query against its table, given the table's parsed sql. On failure
+// plan->selected may be allocated; the caller frees it.
+static int plan_table(const SelectQuery* query, const SchemaEntry* table,
+                      const Statement* create, SelectPlan* plan) {
+    if (create->type != STATEMENT_TYPE_CREATE_TABLE) {
+        fprintf(stderr, "schema sql for %s is not a CREATE TABLE\n", table->name);
+        return 1;
+    }
+    const TableColumns* columns = &create->create_table;
+
+    plan->table_root      = table->rootpage;
     plan->column_count    = columns->names.count;
     plan->has_rowid_alias = columns->has_rowid_alias;
     plan->rowid_column    = columns->rowid_column;
 
     plan->is_count = query->is_count;
     if (query->is_count) {
-        // * in COUNT means rows, not columns
-        const Token name = query->names.items[0];
-        plan->count_rows = name.type == TOKEN_STAR;
-        if (!plan->count_rows && resolve_column(columns, name, &plan->count_column)) return 1;
+        if (plan_count(query, columns, plan)) return 1;
     }
     else {
-        plan->selected = malloc(count_selected(query, columns) * sizeof(uint32_t));
-        if (plan->selected == NULL) return 1;
-        if (select_columns(query, columns, plan->selected, &plan->selected_count)) return 1;
+        if (plan_selected(query, columns, plan)) return 1;
     }
-
-    plan->has_where = query->has_where;
-    if (query->has_where) {
-        const ValueResult where_value = literal_value(query->where.value);
-        if (!where_value.ok) return 1;
-        plan->where_value = where_value.value;
-        plan->where_op = query->where.literal_first ? compare_op_swapped(query->where.op) : query->where.op;
-
-        if (resolve_column(columns, query->where.column, &plan->where_column)) return 1;
-    }
-    return 0;
+    return plan_where(query, columns, plan);
 }
 
 int plan_select(const Database* db, const SelectQuery* query, SelectPlan* plan) {
@@ -126,20 +97,13 @@ int plan_select(const Database* db, const SelectQuery* query, SelectPlan* plan) 
         fprintf(stderr, "no such table: " SV_FMT "\n", SV_ARG(query->table.text));
         return 1;
     }
-    plan->table_root = table->rootpage;
 
-    Statement create_statement;
-    if (parse_statement(table->sql, &create_statement)) return 1;
-
-    int result = 0;
-    if (create_statement.type != STATEMENT_TYPE_CREATE_TABLE) {
-        fprintf(stderr, "schema sql for %s is not a CREATE TABLE\n", table->name);
-        result = 1;
-    }
-    if (result == 0) result = plan_columns(query, &create_statement.create_table, plan);
+    Statement create;
+    if (parse_statement(table->sql, &create)) return 1;
+    const int result = plan_table(query, table, &create, plan);
 
     // the plan holds positions, not names, so the table's columns aren't needed after this
-    free_statement(&create_statement);
+    free_statement(&create);
     if (result) free_plan(plan);
     return result;
 }
