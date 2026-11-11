@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "sql/tokenizer.h"
 
@@ -38,9 +39,10 @@ static const StringView TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_NE]          = SV_LIT("!="),
 };
 
-// the two-character comparison operators, as tokens. "==" and "<>" are second
-// spellings of "=" and "!=". Only their types are handed out: a scanned
-// token's text still points into the SQL string.
+// the operators longer than one character, as tokens. "==" and "<>" are
+// second spellings of "=" and "!=". Only their types are handed out: a scanned
+// token's text still points into the SQL string. Keep longer ones first, so
+// one isn't taken for a shorter one it starts with.
 static const Token LONG_OPERATORS[] = {
     { TOKEN_LE,     SV_LIT("<=") },
     { TOKEN_GE,     SV_LIT(">=") },
@@ -138,14 +140,13 @@ static Token scan_integer(Tokenizer* tokenizer, Token* token) {
 // scans a comparison operator: = == < <= > >= != <>. A lone ! starts no
 // token, so it stays a one-character TOKEN_UNKNOWN.
 static Token scan_operator(Tokenizer* tokenizer, Token* token) {
-    // reading two characters is safe: at worst the second is the terminator
-    const StringView next = { tokenizer->pos, 2 };
     for (uint32_t i = 0; i < LONG_OPS_COUNT; i++) {
         const Token op = LONG_OPERATORS[i];
-        if (sv_equal(op.text, next)) {
-            token->type = op.type;
-            token->text.len = 2;
-            tokenizer->pos += 2;
+        // strncmp stops at the first difference, so it never reads past the
+        // end of a query shorter than op
+        if (strncmp(tokenizer->pos, op.text.data, op.text.len) == 0) {
+            *token = (Token) { .type = op.type, .text = { tokenizer->pos, op.text.len } };
+            tokenizer->pos += op.text.len;
             return *token;
         }
     }
