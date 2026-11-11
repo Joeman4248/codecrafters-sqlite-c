@@ -44,6 +44,10 @@ $same = @(
     @("sample.db",      "SELECT name FROM apples WHERE name = name"),
     @("sample.db",      "SELECT name FROM apples WHERE 3 = 3"),
     @("sample.db",      "SELECT COUNT(*) FROM apples WHERE 1 > 2"),
+    @("sample.db",      "SELECT name FROM apples WHERE id > 1 AND id < 4"),
+    @("sample.db",      "SELECT name FROM apples WHERE id > 1 and color = NULL"),
+    @("sample.db",      "SELECT COUNT(*) FROM apples WHERE id > 1 AND id < 4 AND name > 'G'"),
+    @("superheroes.db", "SELECT name FROM superheroes WHERE eye_color = 'Blue Eyes' AND hair_color = 'Blond Hair' AND first_appearance_year > '2000'"),
     @("superheroes.db", "SELECT COUNT(*) FROM superheroes"),
     @("superheroes.db", "SELECT id, name FROM superheroes WHERE eye_color = 'Pink Eyes'"),
     @("superheroes.db", "SELECT name, hair_color FROM superheroes WHERE first_appearance_year = '1990'"),
@@ -69,6 +73,9 @@ $fails = @(
     @("sample.db", "SELECT name FROM apples WHERE id = 3 = 3"),
     @("sample.db", "SELECT name FROM apples WHERE nothing = 3"),
     @("sample.db", "SELECT name FROM apples WHERE 3 = nothing"),
+    @("sample.db", "SELECT name FROM apples WHERE id > 1 AND"),
+    @("sample.db", "SELECT name FROM apples WHERE AND id > 1"),
+    @("sample.db", "SELECT name FROM apples WHERE id > 1 AND nothing = 2"),
     @("sample.db", ".nonsense")
 )
 

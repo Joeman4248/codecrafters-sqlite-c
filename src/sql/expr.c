@@ -72,18 +72,19 @@ static Expr* parse_primary(Parser* parser) {
     return NULL;
 }
 
-// the compare node for left op right, taking ownership of left
-static Expr* finish_comparison(Parser* parser, Expr* left, const enum CompareOp op) {
-    Expr* right = parse_primary(parser);
-    Expr* compare = (right == NULL) ? NULL : new_expr((Expr) {
-        .type = EXPR_COMPARE,
-        .compare = { .op = op, .left = left, .right = right },
+// a node of type joining left and right, taking ownership of both. Either
+// may be NULL, from a parse that failed, in which case the other is freed and
+// so is NULL returned.
+static Expr* new_binary(const enum ExprType type, Expr* left, const enum CompareOp op, Expr* right) {
+    Expr* node = (left == NULL || right == NULL) ? NULL : new_expr((Expr) {
+        .type = type,
+        .binary = { .left = left, .right = right, .op = op },
     });
-    if (compare == NULL) {
+    if (node == NULL) {
         free_expr(left);
         free_expr(right);
     }
-    return compare;
+    return node;
 }
 
 // comparison ::= primary op primary
@@ -98,11 +99,20 @@ static Expr* parse_comparison(Parser* parser) {
         return NULL;
     }
     advance(parser);
-    return finish_comparison(parser, left, op);
+    return new_binary(EXPR_COMPARE, left, op, parse_primary(parser));
+}
+
+// and_expr ::= comparison { AND comparison }
+static Expr* parse_and(Parser* parser) {
+    Expr* expr = parse_comparison(parser);
+    while (expr != NULL && match(parser, TOKEN_AND, NULL)) {
+        expr = new_binary(EXPR_AND, expr, COMPARE_UNKNOWN, parse_comparison(parser));
+    }
+    return expr;
 }
 
 Expr* parse_expr(Parser* parser) {
-    return parse_comparison(parser);
+    return parse_and(parser);
 }
 
 void free_expr(Expr* expr) {
@@ -112,8 +122,9 @@ void free_expr(Expr* expr) {
         case EXPR_LITERAL:
             break;
         case EXPR_COMPARE:
-            free_expr(expr->compare.left);
-            free_expr(expr->compare.right);
+        case EXPR_AND:
+            free_expr(expr->binary.left);
+            free_expr(expr->binary.right);
             break;
         case EXPR_UNKNOWN:
             break;

@@ -69,16 +69,17 @@ static int plan_expr_children(Expr* planned, const TableColumns* columns) {
             return resolve_column(columns, planned->column.name, &planned->column.index);
         case EXPR_LITERAL:
             return 0;
-        case EXPR_COMPARE: {
-            const Expr* left  = planned->compare.left;
-            const Expr* right = planned->compare.right;
-            planned->compare.left  = NULL;
-            planned->compare.right = NULL;
+        case EXPR_COMPARE:
+        case EXPR_AND: {
+            const Expr* left  = planned->binary.left;
+            const Expr* right = planned->binary.right;
+            planned->binary.left  = NULL;
+            planned->binary.right = NULL;
 
-            planned->compare.left = plan_expr(left, columns);
-            if (planned->compare.left == NULL) return 1;
-            planned->compare.right = plan_expr(right, columns);
-            return planned->compare.right == NULL;
+            planned->binary.left = plan_expr(left, columns);
+            if (planned->binary.left == NULL) return 1;
+            planned->binary.right = plan_expr(right, columns);
+            return planned->binary.right == NULL;
         }
         case EXPR_UNKNOWN:
             break;

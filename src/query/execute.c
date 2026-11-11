@@ -9,27 +9,13 @@
 
 static const Value NULL_VALUE = { .type = VALUE_NULL };
 
-// the value expr has for a row of table, as SQL works it out: a comparison
-// is 1 when it holds, 0 when it doesn't, and NULL when either side is NULL
-static Value eval_expr(const PlanTable* table, const Row* row, const Expr* expr) {
-    switch (expr->type) {
-        case EXPR_COLUMN:  return row_get_value(table, row, expr->column.index);
-        case EXPR_LITERAL: return expr->literal;
-        case EXPR_COMPARE: {
-            const Value left  = eval_expr(table, row, expr->compare.left);
-            const Value right = eval_expr(table, row, expr->compare.right);
-            if (left.type == VALUE_NULL || right.type == VALUE_NULL) return NULL_VALUE;
-            const bool holds = value_satisfies(left, expr->compare.op, right);
-            return (Value) { .type = VALUE_INTEGER, .integer = holds };
-        }
-        case EXPR_UNKNOWN: break;
-    }
-    return NULL_VALUE;
+// 1 for true and 0 for false, as SQL writes truth
+static Value truth_value(const bool truth) {
+    return (Value) { .type = VALUE_INTEGER, .integer = truth };
 }
 
-// whether a WHERE that came out as value lets the row through: only a nonzero
-// number does, so NULL, which a comparison with NULL gives, doesn't. So far
-// every WHERE is a comparison, so value is always an INTEGER or NULL.
+// whether value counts as true: only a nonzero number does. So far every
+// condition is a comparison or an AND, so value is always an INTEGER or NULL.
 static bool is_true(const Value value) {
     switch (value.type) {
         case VALUE_NULL:    return false;
@@ -41,8 +27,47 @@ static bool is_true(const Value value) {
     return false;
 }
 
-// whether the row passes the plan's WHERE condition. Every row passes when
-// there is no WHERE.
+// whether value counts as false. NULL is neither true nor false.
+static bool is_false(const Value value) {
+    return value.type != VALUE_NULL && !is_true(value);
+}
+
+static Value eval_expr(const PlanTable* table, const Row* row, const Expr* expr);
+
+// left op right: NULL when either side is NULL, since NULL stands for a value
+// that isn't known
+static Value eval_compare(const PlanTable* table, const Row* row, const Expr* expr) {
+    const Value left  = eval_expr(table, row, expr->binary.left);
+    const Value right = eval_expr(table, row, expr->binary.right);
+    if (left.type == VALUE_NULL || right.type == VALUE_NULL) return NULL_VALUE;
+    return truth_value(value_satisfies(left, expr->binary.op, right));
+}
+
+// left AND right: false if either side is, even when the other is NULL, since
+// it would be false whatever the NULL stood for. Otherwise NULL if either is.
+static Value eval_and(const PlanTable* table, const Row* row, const Expr* expr) {
+    const Value left  = eval_expr(table, row, expr->binary.left);
+    const Value right = eval_expr(table, row, expr->binary.right);
+    if (is_false(left) || is_false(right)) return truth_value(false);
+    if (left.type == VALUE_NULL || right.type == VALUE_NULL) return NULL_VALUE;
+    return truth_value(true);
+}
+
+// the value expr has for a row of table, as SQL works it out: a condition is
+// 1 when it holds, 0 when it doesn't, and NULL when it depends on a NULL
+static Value eval_expr(const PlanTable* table, const Row* row, const Expr* expr) {
+    switch (expr->type) {
+        case EXPR_COLUMN:  return row_get_value(table, row, expr->column.index);
+        case EXPR_LITERAL: return expr->literal;
+        case EXPR_COMPARE: return eval_compare(table, row, expr);
+        case EXPR_AND:     return eval_and(table, row, expr);
+        case EXPR_UNKNOWN: break;
+    }
+    return NULL_VALUE;
+}
+
+// whether the row passes the plan's WHERE condition: only a true one lets it
+// through, not a NULL. Every row passes when there is no WHERE.
 static bool row_matches(const SelectPlan* plan, const Row* row) {
     if (plan->where == NULL) return true;
     return is_true(eval_expr(&plan->table, row, plan->where));

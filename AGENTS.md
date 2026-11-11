@@ -63,5 +63,5 @@ Header comments state the contract; read the .h before the .c.
 ## Known gaps
 
 - No type affinity: `WHERE text_column = 1990` doesn't match the text '1990' (sqlite3 does).
-- WHERE is one comparison of two columns or literals (an `Expr` tree from expr.c); no
-  AND/OR, parentheses, NOT or IS NULL yet; no overflow pages; no index lookups yet.
+- WHERE is comparisons of two columns or literals joined by AND (an `Expr` tree from
+  expr.c); no OR, parentheses, NOT or IS NULL yet; no overflow pages; no index lookups yet.
