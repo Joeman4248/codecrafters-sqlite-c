@@ -155,7 +155,7 @@ Value record_get_value(const Record* record, const uint32_t index) {
                              .text = bv_as_text(reader_take(&reader, col->value_size)) };
 
         // 10 and 11: read_record rejects them, so a column never holds one
-        default:
-            return (Value) { .type = VALUE_NULL };
+        default: break;
     }
+    return (Value) { .type = VALUE_NULL };
 }
