@@ -107,8 +107,7 @@ bool cursor_next(TableCursor* cursor) {
         }
 
         // push_page does nothing if frame_child_page failed
-        const uint32_t child_page = frame_child_page(cursor, index);
-        push_page(cursor, child_page);
+        push_page(cursor, frame_child_page(cursor, index));
     }
     return false;
 }
