@@ -49,13 +49,16 @@ typedef struct Expr {
 //     or_expr    ::= and_expr { OR and_expr }
 //     and_expr   ::= not_expr { AND not_expr }
 //     not_expr   ::= [ NOT ] comparison
-//     comparison ::= primary op primary
+//     comparison ::= primary [ op primary ]
 //     op         ::= "=" | "==" | "<" | "<=" | ">" | ">=" | "!=" | "<>"
-//     primary    ::= IDENTIFIER | STRING | INTEGER | NULL
+//     primary    ::= IDENTIFIER | STRING | INTEGER | NULL | "(" expr ")"
 //
 // AND binds tighter than OR, so a AND b OR c is (a AND b) OR c, and a chain of
 // either groups from the left: a AND b AND c is (a AND b) AND c. NOT binds
 // tighter than both but looser than a comparison, so NOT a = b is NOT (a = b).
+// A parenthesized primary holds any expression, so it may already be a
+// comparison: (a = b) AND c. The operator is therefore optional, and a bare
+// primary such as a column is a condition on its own, as in sqlite.
 // The tree's text points into the query string, which must outlive it.
 Expr* parse_expr(Parser* parser);
 

@@ -50,7 +50,7 @@ static Expr* new_literal(const Value value) {
     return new_expr((Expr) { .type = EXPR_LITERAL, .literal = value });
 }
 
-// primary ::= IDENTIFIER | STRING | INTEGER | NULL
+// primary ::= IDENTIFIER | STRING | INTEGER | NULL | "(" expr ")"
 static Expr* parse_primary(Parser* parser) {
     Token token;
     if (match(parser, TOKEN_IDENTIFIER, &token)) {
@@ -67,8 +67,17 @@ static Expr* parse_primary(Parser* parser) {
     if (match(parser, TOKEN_NULL, NULL)) {
         return new_literal((Value) { .type = VALUE_NULL });
     }
+    if (match(parser, TOKEN_LPAREN, NULL)) {
+        Expr* expr = parse_expr(parser);
+        if (expr == NULL) return NULL;
+        if (expect(parser, TOKEN_RPAREN, NULL)) {
+            free_expr(expr);
+            return NULL;
+        }
+        return expr;
+    }
 
-    syntax_error(parser, "a column name or a value");
+    syntax_error(parser, "a column name, a value or (");
     return NULL;
 }
 
@@ -100,17 +109,13 @@ static Expr* new_unary(const enum ExprType type, Expr* operand) {
     return node;
 }
 
-// comparison ::= primary op primary
+// comparison ::= primary [ op primary ]
 static Expr* parse_comparison(Parser* parser) {
     Expr* left = parse_primary(parser);
     if (left == NULL) return NULL;
 
     const enum CompareOp op = comparison_op(current(parser));
-    if (op == COMPARE_UNKNOWN) {
-        syntax_error(parser, "a comparison operator");
-        free_expr(left);
-        return NULL;
-    }
+    if (op == COMPARE_UNKNOWN) return left;
     advance(parser);
     Expr* right = parse_primary(parser);
     return new_binary(EXPR_COMPARE, left, op, right);
