@@ -48,7 +48,7 @@ typedef struct Expr {
 //     expr       ::= or_expr
 //     or_expr    ::= and_expr { OR and_expr }
 //     and_expr   ::= not_expr { AND not_expr }
-//     not_expr   ::= [ NOT ] comparison
+//     not_expr   ::= NOT not_expr | comparison
 //     comparison ::= primary [ op primary ]
 //     op         ::= "=" | "==" | "<" | "<=" | ">" | ">=" | "!=" | "<>"
 //     primary    ::= IDENTIFIER | STRING | INTEGER | NULL | "(" expr ")"

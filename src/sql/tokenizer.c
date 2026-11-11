@@ -1,7 +1,6 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "sql/tokenizer.h"
 
@@ -39,15 +38,34 @@ static const StringView TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_NE]          = SV_LIT("!="),
 };
 
-// every spelling of each comparison operator, longest first, so "<=" is
-// found before "<"
-static const struct { StringView text; enum TokenType type; } OPERATORS[] = {
-    { SV_LIT("<="), TOKEN_LE }, { SV_LIT(">="), TOKEN_GE },
-    { SV_LIT("!="), TOKEN_NE }, { SV_LIT("<>"), TOKEN_NE },
-    { SV_LIT("=="), TOKEN_EQUALS }, { SV_LIT("="),  TOKEN_EQUALS },
-    { SV_LIT("<"),  TOKEN_LT }, { SV_LIT(">"),  TOKEN_GT },
+// the two-character comparison operators and their token types. "==" and
+// "<>" are second spellings of "=" and "!=".
+static const struct { StringView text; enum TokenType type; } LONG_OPERATORS[] = {
+    { SV_LIT("<="), TOKEN_LE },
+    { SV_LIT(">="), TOKEN_GE },
+    { SV_LIT("!="), TOKEN_NE },
+    { SV_LIT("=="), TOKEN_EQUALS },
+    { SV_LIT("<>"), TOKEN_NE },
 };
-static const uint32_t OPERATOR_COUNT = sizeof OPERATORS / sizeof OPERATORS[0];
+
+// how many entries LONG_OPERATORS has
+enum { LONG_OPS_COUNT = sizeof LONG_OPERATORS / sizeof LONG_OPERATORS[0] };
+
+// the token type of a one-character token, or TOKEN_UNKNOWN if c starts no
+// token on its own
+static enum TokenType single_char_token(const char c) {
+    switch (c) {
+        case '(': return TOKEN_LPAREN;
+        case ')': return TOKEN_RPAREN;
+        case ',': return TOKEN_COMMA;
+        case '*': return TOKEN_STAR;
+        case '=': return TOKEN_EQUALS;
+        case '<': return TOKEN_LT;
+        case '>': return TOKEN_GT;
+        default:  break;
+    }
+    return TOKEN_UNKNOWN;
+}
 
 // true for characters that can start an identifier or keyword
 static bool is_word_start(const char c) {
@@ -119,15 +137,19 @@ static Token scan_integer(Tokenizer* tokenizer, Token* token) {
 // scans a comparison operator: = == < <= > >= != <>. A lone ! starts no
 // token, so it stays a one-character TOKEN_UNKNOWN.
 static Token scan_operator(Tokenizer* tokenizer, Token* token) {
-    for (uint32_t i = 0; i < OPERATOR_COUNT; i++) {
-        const StringView op = OPERATORS[i].text;
-        if (strncmp(tokenizer->pos, op.data, op.len) == 0) {
-            token->type = OPERATORS[i].type;
-            token->text.len = op.len;
-            break;
+    // reading two characters is safe: at worst the second is the terminator
+    const StringView next = { tokenizer->pos, 2 };
+    for (uint32_t i = 0; i < LONG_OPS_COUNT; i++) {
+        if (sv_equal(LONG_OPERATORS[i].text, next)) {
+            token->type = LONG_OPERATORS[i].type;
+            token->text.len = 2;
+            tokenizer->pos += 2;
+            return *token;
         }
     }
-    tokenizer->pos += token->text.len;
+
+    token->type = single_char_token(*tokenizer->pos);
+    tokenizer->pos++;
     return *token;
 }
 
@@ -153,17 +175,14 @@ Token next_token(Tokenizer* tokenizer) {
         case '<': case '>': case '!': case '=': 
             return scan_operator(tokenizer, &token);
 
-        case '(': token.type = TOKEN_LPAREN; break;
-        case ')': token.type = TOKEN_RPAREN; break;
-        case ',': token.type = TOKEN_COMMA;  break;
-        case '*': token.type = TOKEN_STAR;   break;
-        default:  break;    // stays TOKEN_UNKNOWN
+        default: break;     // everything else is scanned below
     }
 
     if (is_word_start(c))           return scan_word(tokenizer, &token);
     if (isdigit((unsigned char) c)) return scan_integer(tokenizer, &token);
 
     // every single-character token, known or not, is consumed here
+    token.type = single_char_token(c);
     tokenizer->pos++;
     return token;
 }

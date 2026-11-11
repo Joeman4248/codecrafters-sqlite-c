@@ -121,10 +121,10 @@ static Expr* parse_comparison(Parser* parser) {
     return new_binary(EXPR_COMPARE, left, op, right);
 }
 
-// not_expr ::= [ NOT ] comparison
+// not_expr ::= NOT not_expr | comparison
 static Expr* parse_not(Parser* parser) {
     if (!match(parser, TOKEN_NOT, NULL)) return parse_comparison(parser);
-    return new_unary(EXPR_NOT, parse_comparison(parser));
+    return new_unary(EXPR_NOT, parse_not(parser));
 }
 
 // and_expr ::= not_expr { AND not_expr }

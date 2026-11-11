@@ -32,6 +32,8 @@ $same = @(
     @("sample.db",      "SELECT name FROM apples WHERE id > 2"),
     @("sample.db",      "SELECT name FROM apples WHERE 2 < id"),
     @("sample.db",      "SELECT name FROM apples WHERE id <= 2"),
+    @("sample.db",      "SELECT name FROM apples WHERE id >= 2"),
+    @("sample.db",      "SELECT name FROM apples WHERE NOT NOT id = 3"),
     @("sample.db",      "SELECT name FROM apples WHERE id != 3"),
     @("sample.db",      "SELECT name FROM apples WHERE id <> 3"),
     @("sample.db",      "SELECT name FROM apples WHERE id == 3"),
