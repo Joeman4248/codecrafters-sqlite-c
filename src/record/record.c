@@ -112,23 +112,15 @@ Record read_record(Reader* reader, const RecordHeader header) {
     return record;
 }
 
-// interprets the low 'bits' bits of raw as a two's-complement value. XOR-ing
-// the sign bit and subtracting it back maps e.g. 0xFF (8 bits) to -1 using
-// only well-defined arithmetic, since raw < 2^48 always fits in an int64_t.
-static int64_t sign_extend(const uint64_t raw, const unsigned bits) {
-    const int64_t sign_bit = INT64_C(1) << (bits - 1);
-    return ((int64_t) raw ^ sign_bit) - sign_bit;
-}
-
 // reads an integer of serial type 1-6 at the reader's position. Fails the
 // reader and returns 0 for any other serial type.
 static int64_t read_int(Reader* reader, const uint64_t serial_type) {
     switch (serial_type) {
-        case SERIAL_INT8:  return sign_extend(read_u8(reader), 8);
-        case SERIAL_INT16: return sign_extend(read_u16(reader), 16);
-        case SERIAL_INT24: return sign_extend(read_u24(reader), 24);
-        case SERIAL_INT32: return sign_extend(read_u32(reader), 32);
-        case SERIAL_INT48: return sign_extend(read_u48(reader), 48);
+        case SERIAL_INT8:  return read_i8(reader);
+        case SERIAL_INT16: return read_i16(reader);
+        case SERIAL_INT24: return read_i24(reader);
+        case SERIAL_INT32: return read_i32(reader);
+        case SERIAL_INT48: return read_i48(reader);
         case SERIAL_INT64: return read_i64(reader);
     }
     reader_fail(reader);

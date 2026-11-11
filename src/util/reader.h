@@ -41,16 +41,20 @@ static inline void reader_fail(Reader* reader) {
 // make a decision (a switch on a type, a loop count, an index, a size to
 // allocate) before that check.
 
-// big-endian fixed-width unsigned integers. The 24- and 48-bit widths (used by
-// record integer values) are returned in the next wider type.
+// big-endian fixed-width unsigned integers
 uint8_t  read_u8(Reader* reader);
 uint16_t read_u16(Reader* reader);
-uint32_t read_u24(Reader* reader);
 uint32_t read_u32(Reader* reader);
-uint64_t read_u48(Reader* reader);
 uint64_t read_u64(Reader* reader);
 
-// 8 bytes, big-endian, as a two's-complement signed integer
+// big-endian fixed-width two's-complement signed integers, all returned as
+// int64_t since that's what every caller stores them in. The 24- and 48-bit
+// widths are for record integer values.
+int64_t read_i8(Reader* reader);
+int64_t read_i16(Reader* reader);
+int64_t read_i24(Reader* reader);
+int64_t read_i32(Reader* reader);
+int64_t read_i48(Reader* reader);
 int64_t read_i64(Reader* reader);
 
 // 8 bytes, big-endian, as an IEEE 754 double

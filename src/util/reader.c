@@ -23,8 +23,9 @@ uint16_t read_u16(Reader* reader) {
     return reader->failed ? 0 : ((upper << 8) | lower);
 }
 
-// 3 bytes, big-endian, as an upper uint16 and lower uint8
-uint32_t read_u24(Reader* reader) {
+// 3 bytes, big-endian, as an upper uint16 and lower uint8. Only read_i24
+// needs it, in the next wider type.
+static uint32_t read_u24(Reader* reader) {
     const uint32_t upper = read_u16(reader);
     const uint32_t lower = read_u8(reader);
     return reader->failed ? 0 : (upper << 8) | lower;
@@ -37,8 +38,9 @@ uint32_t read_u32(Reader* reader) {
     return reader->failed ? 0 : (upper << 16) | lower;
 }
 
-// 6 bytes, big-endian, as an upper uint32 and lower uint16
-uint64_t read_u48(Reader* reader) {
+// 6 bytes, big-endian, as an upper uint32 and lower uint16. Only read_i48
+// needs it, in the next wider type.
+static uint64_t read_u48(Reader* reader) {
     const uint64_t upper = read_u32(reader);
     const uint64_t lower = read_u16(reader);
     return reader->failed ? 0 : (upper << 16) | lower;
@@ -60,9 +62,23 @@ static int64_t as_signed(const uint64_t raw) {
     return value;
 }
 
-int64_t read_i64(Reader* reader) {
-    return as_signed(read_u64(reader));
+// interprets the low 'bits' bits of raw as a two's-complement value. XOR-ing
+// the sign bit and subtracting it back maps e.g. 0xFF (8 bits) to -1 using
+// only well-defined arithmetic, since raw < 2^48 always fits in an int64_t.
+static int64_t sign_extend(const uint64_t raw, const unsigned bits) {
+    const int64_t sign_bit = INT64_C(1) << (bits - 1);
+    return ((int64_t) raw ^ sign_bit) - sign_bit;
 }
+
+int64_t read_i8(Reader* reader)  { return sign_extend(read_u8(reader), 8); }
+int64_t read_i16(Reader* reader) { return sign_extend(read_u16(reader), 16); }
+int64_t read_i24(Reader* reader) { return sign_extend(read_u24(reader), 24); }
+int64_t read_i32(Reader* reader) { return sign_extend(read_u32(reader), 32); }
+int64_t read_i48(Reader* reader) { return sign_extend(read_u48(reader), 48); }
+
+// sign_extend's trick needs room above the sign bit, which 64 bits don't
+// leave, so the full width is reinterpreted instead
+int64_t read_i64(Reader* reader) { return as_signed(read_u64(reader)); }
 
 // memcpy reinterprets the 64 bits as a double without breaking C's aliasing rules
 double read_f64(Reader* reader) {
