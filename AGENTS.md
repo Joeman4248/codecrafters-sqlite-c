@@ -26,7 +26,8 @@ No two-way dependencies. (Exception for now: database.h in pager/ holds the sche
 - `record/` record.c (records/serial types), schema.c
 - `sql/` tokenizer.c, grammar.c (generic rule matcher), sql_grammar.c (the SQL grammar as macro-built data),
   sql_parser.c (builders that turn captures into Statement)
-- `query/` plan.c (schema lookup, column positions), execute.c, commands.c (runs .dbinfo/.tables and SQL statements)
+- `query/` plan.c (schema lookup, column positions), rows.c (where rows come from: TableScan),
+  execute.c (filters and prints rows), commands.c (runs .dbinfo/.tables and SQL statements)
 - `main.c` argument handling
 
 Header comments state the contract; read the .h before the .c.
