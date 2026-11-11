@@ -40,10 +40,11 @@ Header comments state the contract; read the .h before the .c.
   - a field that is never 0/NULL when valid, if the struct has one (`Page.data == NULL`,
     `FileHeader.page_size == 0`); say which field in the .h;
   - one past the end for a position in a list (`sv_find`, `find_column` return the count);
-  - otherwise a bool return with an out-parameter (`literal_value`, `comparison_op`).
-- Enums end with `FOO_COUNT` and `FOO_UNKNOWN = FOO_COUNT` (closed sets like `CompareOp` may
-  skip them, saying so). Switches over an enum list every case with no `default:`, so the
-  compiler flags a missing one. Exception: a switch on input (a byte from the file, a token
+  - `FOO_UNKNOWN` for an enum (`comparison_op` returns `COMPARE_UNKNOWN`);
+  - otherwise a bool return with an out-parameter (`literal_value`).
+- Enums end with `FOO_COUNT` and `FOO_UNKNOWN = FOO_COUNT`, except ones that mirror fixed
+  on-disk values (`PageType`, `TextEncoding`). Switches over an enum list every case, including
+  `FOO_UNKNOWN`, with no `default:`, so the compiler flags a missing one. Exception: a switch on input (a byte from the file, a token
   from the query) uses `default:` for the "anything else" case, since any value can arrive.
 - Byte readers (`read_u16(Reader*)` etc.) return the value and set the sticky `reader->failed`;
   check it once after a group. One read per statement (call order inside an initializer is unspecified).

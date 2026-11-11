@@ -29,18 +29,17 @@ typedef struct Value {
     };
 } Value;
 
-// the result of comparing two values. The three are exhaustive, so there is no
-// ORDER_COUNT: nothing looks an order up by name, and a switch over it has no
-// "not found" to report.
+// the result of comparing two values
 enum CompareOrder : uint8_t {
     ORDER_LESS,
     ORDER_EQUAL,
     ORDER_GREATER,
+
+    ORDER_COUNT,
+    ORDER_UNKNOWN = ORDER_COUNT,    // not an order, such as the swap of an unknown one
 };
 
-// the comparison operators SQL can write between two values. Like CompareOrder
-// they are a closed set: nothing looks an operator up by name, so there is no
-// COMPARE_COUNT and no COMPARE_UNKNOWN.
+// the comparison operators SQL can write between two values
 enum CompareOp : uint8_t {
     COMPARE_EQUAL,          // = or ==
     COMPARE_LESS,           // <
@@ -48,6 +47,9 @@ enum CompareOp : uint8_t {
     COMPARE_GREATER,        // >
     COMPARE_GREATER_EQUAL,  // >=
     COMPARE_NOT_EQUAL,      // != or <>
+
+    COMPARE_COUNT,
+    COMPARE_UNKNOWN = COMPARE_COUNT,    // a token that isn't a comparison operator
 };
 
 // compares a and b as SQL orders values, so the result is a total order: NULL
@@ -59,11 +61,12 @@ enum CompareOrder value_compare(Value a, Value b);
 
 // whether a op b holds the way a WHERE compares: like value_compare, except
 // that a comparison with NULL on either side never holds, whatever the
-// operator, so NULL = NULL and NULL != 1 are both false
+// operator, so NULL = NULL and NULL != 1 are both false. COMPARE_UNKNOWN never
+// holds.
 bool value_satisfies(Value a, enum CompareOp op, Value b);
 
 // the operator that makes the same comparison with its operands swapped:
-// 1990 < year is year > 1990
+// 1990 < year is year > 1990. COMPARE_UNKNOWN stays unknown.
 enum CompareOp compare_op_swapped(enum CompareOp op);
 
 // writes value to out without a newline, the way sqlite3 prints it: nothing

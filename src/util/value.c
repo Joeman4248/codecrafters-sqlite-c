@@ -50,8 +50,9 @@ static enum CompareOrder flipped(const enum CompareOrder order) {
         case ORDER_LESS:    return ORDER_GREATER;
         case ORDER_EQUAL:   return ORDER_EQUAL;
         case ORDER_GREATER: return ORDER_LESS;
+        case ORDER_UNKNOWN: break;
     }
-    return ORDER_EQUAL;     // unreachable: every order is listed
+    return ORDER_UNKNOWN;
 }
 
 // orders an integer against a real exactly. Casting the integer to a double
@@ -107,8 +108,9 @@ static bool order_satisfies(const enum CompareOrder order, const enum CompareOp 
         case COMPARE_GREATER:       return order == ORDER_GREATER;
         case COMPARE_GREATER_EQUAL: return order != ORDER_LESS;
         case COMPARE_NOT_EQUAL:     return order != ORDER_EQUAL;
+        case COMPARE_UNKNOWN:       break;
     }
-    return false;   // unreachable: every CompareOp is listed
+    return false;
 }
 
 bool value_satisfies(const Value a, const enum CompareOp op, const Value b) {
@@ -124,8 +126,9 @@ enum CompareOp compare_op_swapped(const enum CompareOp op) {
         case COMPARE_GREATER:       return COMPARE_LESS;
         case COMPARE_GREATER_EQUAL: return COMPARE_LESS_EQUAL;
         case COMPARE_NOT_EQUAL:     return COMPARE_NOT_EQUAL;
+        case COMPARE_UNKNOWN:       break;
     }
-    return COMPARE_EQUAL;   // unreachable: every CompareOp is listed
+    return COMPARE_UNKNOWN;
 }
 
 // prints a REAL the way sqlite3 does: up to 15 significant digits, and always

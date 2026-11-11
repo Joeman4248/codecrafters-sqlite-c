@@ -70,19 +70,19 @@ static int build_create_index(Parser* parser, IndexColumns* create_index) {
     return 0;
 }
 
-// the comparison operator an operator token stands for. Returns false for a
-// token the grammar doesn't match as one.
-static bool comparison_op(const Token token, enum CompareOp* op) {
+// the comparison operator an operator token stands for, or COMPARE_UNKNOWN
+// for a token the grammar doesn't match as one
+static enum CompareOp comparison_op(const Token token) {
     switch (token.type) {
-        case TOKEN_EQUALS: *op = COMPARE_EQUAL;         return true;
-        case TOKEN_LT:     *op = COMPARE_LESS;          return true;
-        case TOKEN_LE:     *op = COMPARE_LESS_EQUAL;    return true;
-        case TOKEN_GT:     *op = COMPARE_GREATER;       return true;
-        case TOKEN_GE:     *op = COMPARE_GREATER_EQUAL; return true;
-        case TOKEN_NE:     *op = COMPARE_NOT_EQUAL;     return true;
+        case TOKEN_EQUALS: return COMPARE_EQUAL;
+        case TOKEN_LT:     return COMPARE_LESS;
+        case TOKEN_LE:     return COMPARE_LESS_EQUAL;
+        case TOKEN_GT:     return COMPARE_GREATER;
+        case TOKEN_GE:     return COMPARE_GREATER_EQUAL;
+        case TOKEN_NE:     return COMPARE_NOT_EQUAL;
         default: break;
     }
-    return false;
+    return COMPARE_UNKNOWN;
 }
 
 // the INTEGER a run of digits stands for. Returns false, after printing an
@@ -131,7 +131,8 @@ static int build_select_statement(Parser* parser, SelectQuery* query) {
                 query->where.column = capture.token;
                 break;
             case TAG_WHERE_OP:
-                if (!comparison_op(capture.token, &query->where.op)) return 1;
+                query->where.op = comparison_op(capture.token);
+                if (query->where.op == COMPARE_UNKNOWN) return 1;
                 // the captures are in token order, so no column yet means the
                 // query wrote the literal first: 1990 < year becomes year > 1990
                 if (!query->has_where) query->where.op = compare_op_swapped(query->where.op);
