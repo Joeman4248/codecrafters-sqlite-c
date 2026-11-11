@@ -115,8 +115,9 @@ uint32_t read_varint_u32(Reader* reader) {
 }
 
 ByteView reader_take(Reader* reader, const uint32_t len) {
-    // written so neither side can overflow: pos <= bytes.len is checked first
-    if (reader->failed || reader->pos > reader->bytes.len || len > reader->bytes.len - reader->pos) {
+    // written so the subtraction can't wrap: pos <= bytes.len is checked first
+    const bool fits = reader->pos <= reader->bytes.len && len <= reader->bytes.len - reader->pos;
+    if (reader->failed || !fits) {
         reader->failed = true;
         return (ByteView) { 0 };
     }

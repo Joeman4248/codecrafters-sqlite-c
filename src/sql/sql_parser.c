@@ -77,12 +77,14 @@ static int skip_column_type(Parser* parser, bool* is_rowid_alias) {
     Token previous = { 0 };
     while (!check(parser, TOKEN_EOF)) {
         const Token token = current(parser);
-        if (depth == 0 && (token.type == TOKEN_COMMA || token.type == TOKEN_RPAREN)) return 0;
+        const bool ends_column = token.type == TOKEN_COMMA || token.type == TOKEN_RPAREN;
+        if (depth == 0 && ends_column) return 0;
 
         if (token.type == TOKEN_LPAREN) depth++;
         if (token.type == TOKEN_RPAREN) depth--;
         // a PRIMARY KEY inside parentheses belongs to something else, not the column
-        if (is_integer && depth == 0 && token_is(previous, "primary") && token_is(token, "key")) {
+        const bool is_primary_key = token_is(previous, "primary") && token_is(token, "key");
+        if (is_integer && depth == 0 && is_primary_key) {
             *is_rowid_alias = true;
         }
         previous = token;

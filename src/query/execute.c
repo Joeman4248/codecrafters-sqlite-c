@@ -4,6 +4,7 @@
 
 #include "query/execute.h"
 #include "query/rows.h"
+#include "util/value.h"
 
 // ---- WHERE -----------------------------------------------------------------
 
@@ -85,7 +86,9 @@ static void print_rows(const SelectPlan* plan, TableScan* scan) {
 
         for (uint32_t j = 0; j < plan->selected.count; j++) {
             if (j > 0) printf("|");
-            value_print(row_get_value(&plan->table, &row, plan->selected.items[j]), stdout);
+            const uint32_t index = plan->selected.items[j];
+            const Value value = row_get_value(&plan->table, &row, index);
+            value_print(value, stdout);
         }
         printf("\n");
     }
@@ -105,7 +108,8 @@ static void count_values(const SelectPlan* plan, TableScan* scan) {
             continue;
         }
 
-        if (row_get_value(&plan->table, &row, plan->count.column).type != VALUE_NULL) count++;
+        const Value value = row_get_value(&plan->table, &row, plan->count.column);
+        if (value.type != VALUE_NULL) count++;
     }
     if (scan_failed(scan)) return;
 

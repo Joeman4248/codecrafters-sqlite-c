@@ -115,7 +115,8 @@ static bool order_satisfies(const enum CompareOrder order, const enum CompareOp 
 
 bool value_satisfies(const Value a, const enum CompareOp op, const Value b) {
     if (a.type == VALUE_NULL || b.type == VALUE_NULL) return false;
-    return order_satisfies(value_compare(a, b), op);
+    const enum CompareOrder order = value_compare(a, b);
+    return order_satisfies(order, op);
 }
 
 // prints a REAL the way sqlite3 does: up to 15 significant digits, and always

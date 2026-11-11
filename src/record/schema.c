@@ -118,10 +118,8 @@ int read_schema(Database* db) {
 const SchemaEntry* find_table(const Database* db, const StringView name) {
     for (uint32_t i = 0; i < db->schema_count; i++) {
         const SchemaEntry* entry = &db->schema[i];
-        if (entry->type == SCHEMA_TYPE_TABLE &&
-            sv_equal_nocase(sv_from_cstr(entry->name), name)) {
-            return entry;
-        }
+        const bool is_named = sv_equal_nocase(sv_from_cstr(entry->name), name);
+        if (entry->type == SCHEMA_TYPE_TABLE && is_named) return entry;
     }
     return NULL;
 }

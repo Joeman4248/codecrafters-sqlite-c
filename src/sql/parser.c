@@ -21,7 +21,8 @@ bool match(Parser* parser, const enum TokenType type, Token* out) {
 int expect(Parser* parser, const enum TokenType type, Token* out) {
     if (match(parser, type, out)) return 0;
 
-    syntax_error(parser, (type == TOKEN_EOF) ? "the end of the statement" : token_type_name(type));
+    const char* expected = (type == TOKEN_EOF) ? "the end of the statement" : token_type_name(type);
+    syntax_error(parser, expected);
     return 1;
 }
 

@@ -76,10 +76,10 @@ static Expr* parse_primary(Parser* parser) {
 // may be NULL, from a parse that failed, in which case the other is freed and
 // so is NULL returned.
 static Expr* new_binary(const enum ExprType type, Expr* left, const enum CompareOp op, Expr* right) {
-    Expr* node = (left == NULL || right == NULL) ? NULL : new_expr((Expr) {
-        .type = type,
-        .binary = { .left = left, .right = right, .op = op },
-    });
+    Expr* node = NULL;
+    if (left != NULL && right != NULL) {
+        node = new_expr((Expr) { .type = type, .binary = { .left = left, .right = right, .op = op } });
+    }
     if (node == NULL) {
         free_expr(left);
         free_expr(right);
@@ -99,14 +99,16 @@ static Expr* parse_comparison(Parser* parser) {
         return NULL;
     }
     advance(parser);
-    return new_binary(EXPR_COMPARE, left, op, parse_primary(parser));
+    Expr* right = parse_primary(parser);
+    return new_binary(EXPR_COMPARE, left, op, right);
 }
 
 // and_expr ::= comparison { AND comparison }
 static Expr* parse_and(Parser* parser) {
     Expr* expr = parse_comparison(parser);
     while (expr != NULL && match(parser, TOKEN_AND, NULL)) {
-        expr = new_binary(EXPR_AND, expr, COMPARE_UNKNOWN, parse_comparison(parser));
+        Expr* right = parse_comparison(parser);
+        expr = new_binary(EXPR_AND, expr, COMPARE_UNKNOWN, right);
     }
     return expr;
 }
