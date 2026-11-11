@@ -90,6 +90,16 @@ static Expr* new_binary(const enum ExprType type, Expr* left, const enum Compare
     return node;
 }
 
+// a node of type holding operand, taking ownership of it. A NULL operand, from
+// a parse that failed, gives NULL.
+static Expr* new_unary(const enum ExprType type, Expr* operand) {
+    if (operand == NULL) return NULL;
+
+    Expr* node = new_expr((Expr) { .type = type, .operand = operand });
+    if (node == NULL) free_expr(operand);
+    return node;
+}
+
 // comparison ::= primary op primary
 static Expr* parse_comparison(Parser* parser) {
     Expr* left = parse_primary(parser);
@@ -106,11 +116,17 @@ static Expr* parse_comparison(Parser* parser) {
     return new_binary(EXPR_COMPARE, left, op, right);
 }
 
-// and_expr ::= comparison { AND comparison }
+// not_expr ::= [ NOT ] comparison
+static Expr* parse_not(Parser* parser) {
+    if (!match(parser, TOKEN_NOT, NULL)) return parse_comparison(parser);
+    return new_unary(EXPR_NOT, parse_comparison(parser));
+}
+
+// and_expr ::= not_expr { AND not_expr }
 static Expr* parse_and(Parser* parser) {
-    Expr* expr = parse_comparison(parser);
+    Expr* expr = parse_not(parser);
     while (expr != NULL && match(parser, TOKEN_AND, NULL)) {
-        Expr* right = parse_comparison(parser);
+        Expr* right = parse_not(parser);
         expr = new_binary(EXPR_AND, expr, COMPARE_UNKNOWN, right);
     }
     return expr;
@@ -141,6 +157,9 @@ void free_expr(Expr* expr) {
         case EXPR_OR:
             free_expr(expr->binary.left);
             free_expr(expr->binary.right);
+            break;
+        case EXPR_NOT:
+            free_expr(expr->operand);
             break;
         case EXPR_UNKNOWN:
             break;

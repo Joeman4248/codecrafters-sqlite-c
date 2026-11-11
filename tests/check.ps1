@@ -51,6 +51,12 @@ $same = @(
     @("sample.db",      "SELECT name FROM apples WHERE id = 1 or color = NULL"),
     @("sample.db",      "SELECT name FROM apples WHERE id = 1 AND id = 2 OR id = 3"),
     @("sample.db",      "SELECT name FROM apples WHERE id = 3 OR id = 1 AND id = 2"),
+    @("sample.db",      "SELECT name FROM apples WHERE NOT id = 3"),
+    @("sample.db",      "SELECT name FROM apples WHERE NOT id > 2"),
+    @("sample.db",      "SELECT name FROM apples WHERE NOT id = 1 AND id < 4"),
+    @("sample.db",      "SELECT name FROM apples WHERE NOT id = 1 OR id = 3"),
+    @("sample.db",      "SELECT COUNT(*) FROM apples WHERE NOT NULL = 3"),
+    @("sample.db",      "SELECT COUNT(*) FROM apples WHERE NOT 1 = 2"),
     @("superheroes.db", "SELECT COUNT(*) FROM superheroes WHERE eye_color = 'Pink Eyes' OR hair_color = 'Pink Hair' OR id < 10"),
     @("superheroes.db", "SELECT name FROM superheroes WHERE eye_color = 'Blue Eyes' AND hair_color = 'Blond Hair' AND first_appearance_year > '2000'"),
     @("superheroes.db", "SELECT COUNT(*) FROM superheroes"),
@@ -84,6 +90,10 @@ $fails = @(
     @("sample.db", "SELECT name FROM apples WHERE id > 1 AND nothing = 2"),
     @("sample.db", "SELECT name FROM apples WHERE id = 1 OR"),
     @("sample.db", "SELECT name FROM apples WHERE id = 1 OR AND id = 2"),
+    @("sample.db", "SELECT name FROM apples WHERE NOT"),
+    @("sample.db", "SELECT name FROM apples WHERE NOT id ="),
+    @("sample.db", "SELECT name FROM apples WHERE NOT AND id = 1"),
+    @("sample.db", "SELECT name FROM apples WHERE id = 1 AND NOT"),
     @("sample.db", ".nonsense")
 )
 

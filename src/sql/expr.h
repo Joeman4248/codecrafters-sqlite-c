@@ -14,6 +14,7 @@ enum ExprType : uint8_t {
     EXPR_COMPARE,       // left op right
     EXPR_AND,           // left AND right
     EXPR_OR,            // left OR right
+    EXPR_NOT,           // NOT operand
 
     EXPR_TYPE_COUNT,
     EXPR_UNKNOWN = EXPR_TYPE_COUNT,
@@ -36,6 +37,7 @@ typedef struct Expr {
             struct Expr*   right;
             enum CompareOp op;  // EXPR_COMPARE only
         } binary;               // EXPR_COMPARE, EXPR_AND and EXPR_OR
+        struct Expr* operand;   // EXPR_NOT
     };
 } Expr;
 
@@ -45,13 +47,15 @@ typedef struct Expr {
 //
 //     expr       ::= or_expr
 //     or_expr    ::= and_expr { OR and_expr }
-//     and_expr   ::= comparison { AND comparison }
+//     and_expr   ::= not_expr { AND not_expr }
+//     not_expr   ::= [ NOT ] comparison
 //     comparison ::= primary op primary
 //     op         ::= "=" | "==" | "<" | "<=" | ">" | ">=" | "!=" | "<>"
 //     primary    ::= IDENTIFIER | STRING | INTEGER | NULL
 //
 // AND binds tighter than OR, so a AND b OR c is (a AND b) OR c, and a chain of
-// either groups from the left: a AND b AND c is (a AND b) AND c.
+// either groups from the left: a AND b AND c is (a AND b) AND c. NOT binds
+// tighter than both but looser than a comparison, so NOT a = b is NOT (a = b).
 // The tree's text points into the query string, which must outlive it.
 Expr* parse_expr(Parser* parser);
 

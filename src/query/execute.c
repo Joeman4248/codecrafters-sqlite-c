@@ -16,7 +16,8 @@ static Value truth_value(const bool truth) {
 }
 
 // whether value counts as true: only a nonzero number does. So far every
-// condition is a comparison, AND or OR, so value is always an INTEGER or NULL.
+// condition is a comparison, AND, OR or NOT, so value is always an INTEGER or
+// NULL.
 static bool is_true(const Value value) {
     switch (value.type) {
         case VALUE_NULL:    return false;
@@ -64,6 +65,14 @@ static Value eval_or(const PlanTable* table, const Row* row, const Expr* expr) {
     return truth_value(false);
 }
 
+// NOT operand: the opposite truth value, still NULL for NULL, since the
+// opposite of an unknown is unknown too
+static Value eval_not(const PlanTable* table, const Row* row, const Expr* expr) {
+    const Value operand = eval_expr(table, row, expr->operand);
+    if (operand.type == VALUE_NULL) return NULL_VALUE;
+    return truth_value(!is_true(operand));
+}
+
 // the value expr has for a row of table, as SQL works it out: a condition is
 // 1 when it holds, 0 when it doesn't, and NULL when it depends on a NULL
 static Value eval_expr(const PlanTable* table, const Row* row, const Expr* expr) {
@@ -73,6 +82,7 @@ static Value eval_expr(const PlanTable* table, const Row* row, const Expr* expr)
         case EXPR_COMPARE: return eval_compare(table, row, expr);
         case EXPR_AND:     return eval_and(table, row, expr);
         case EXPR_OR:      return eval_or(table, row, expr);
+        case EXPR_NOT:     return eval_not(table, row, expr);
         case EXPR_UNKNOWN: break;
     }
     return NULL_VALUE;
