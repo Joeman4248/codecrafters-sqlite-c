@@ -11,11 +11,11 @@
 //     result_column     ::= IDENTIFIER | "*"
 //     where_clause      ::= WHERE ( IDENTIFIER op literal | literal op IDENTIFIER )
 //     op                ::= "=" | "==" | "<" | "<=" | ">" | ">=" | "!=" | "<>"
-//     literal           ::= STRING | INTEGER
+//     literal           ::= STRING | INTEGER | NULL
 //
 //     create_table_stmt ::= CREATE TABLE IDENTIFIER "(" column_def { "," column_def } ")" EOF
 //     column_def        ::= IDENTIFIER { type_word | "(" { type_word | "," } ")" }
-//     type_word         ::= IDENTIFIER | INTEGER | STRING
+//     type_word         ::= IDENTIFIER | INTEGER | STRING | NULL
 //
 //     create_index_stmt ::= CREATE INDEX IDENTIFIER ON IDENTIFIER
 //                           "(" indexed_column { "," indexed_column } ")" [ where_clause ] EOF
@@ -37,9 +37,10 @@
 #define RESULT_COLUMN   CHOICE(TAGGED_TOK(TOKEN_IDENTIFIER, TAG_COLUMN), \
                                TAGGED_TOK(TOKEN_STAR, TAG_COLUMN))
 
-// literal ::= STRING | INTEGER
-#define LITERAL  CHOICE(TAGGED_TOK(TOKEN_STRING, TAG_WHERE_VALUE), \
-                        TAGGED_TOK(TOKEN_INTEGER, TAG_WHERE_VALUE))
+// literal ::= STRING | INTEGER | NULL
+#define LITERAL  CHOICE(TAGGED_TOK(TOKEN_STRING, TAG_WHERE_VALUE),  \
+                        TAGGED_TOK(TOKEN_INTEGER, TAG_WHERE_VALUE), \
+                        TAGGED_TOK(TOKEN_NULL, TAG_WHERE_VALUE))
 
 // op ::= "=" | "==" | "<" | "<=" | ">" | ">=" | "!=" | "<>"
 // == scans as = and <> as !=, so those are all the token types there are
@@ -72,15 +73,18 @@ static const Rule* const SELECT_STMT = SEQ(
     TOK(TOKEN_EOF)
 );
 
-// type_word ::= IDENTIFIER | INTEGER | STRING
-// words are captured so the builder can spot INTEGER PRIMARY KEY; numbers and
-// strings never take part in that, so they aren't
-#define TYPE_WORD   CHOICE(TAGGED_TOK(TOKEN_IDENTIFIER, TAG_TYPE_WORD), TOK(TOKEN_INTEGER), TOK(TOKEN_STRING))
+// type_word ::= IDENTIFIER | INTEGER | STRING | NULL
+// words are captured so the builder can spot INTEGER PRIMARY KEY; numbers,
+// strings and NULL (as in NOT NULL or DEFAULT NULL) never take part in that,
+// so they aren't
+#define TYPE_WORD   CHOICE(TAGGED_TOK(TOKEN_IDENTIFIER, TAG_TYPE_WORD), TOK(TOKEN_INTEGER), \
+                           TOK(TOKEN_STRING), TOK(TOKEN_NULL))
 
 // the same, inside a column's parentheses, as in varchar(255). Nothing in
 // there is captured: a PRIMARY KEY inside parentheses belongs to something
 // else, not the column.
-#define INNER_TYPE_WORD   CHOICE(TOK(TOKEN_IDENTIFIER), TOK(TOKEN_INTEGER), TOK(TOKEN_STRING))
+#define INNER_TYPE_WORD   CHOICE(TOK(TOKEN_IDENTIFIER), TOK(TOKEN_INTEGER), TOK(TOKEN_STRING), \
+                                 TOK(TOKEN_NULL))
 
 // column_def ::= IDENTIFIER { type_word | "(" { type_word | "," } ")" }
 #define COLUMN_DEF  SEQ(                                                        \

@@ -22,6 +22,7 @@ enum TokenType : uint8_t {
     TOKEN_ON,
     TOKEN_AND,
     TOKEN_OR,
+    TOKEN_NULL,
 
     TOKEN_IDENTIFIER,       // table or column name
     TOKEN_STRING,           // 'text' without the quotes

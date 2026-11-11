@@ -40,8 +40,8 @@ enum CompareOp : uint8_t {
 // a WHERE condition: a column compared with a literal, in either order
 typedef struct Condition {
     Token           column;         // TOKEN_IDENTIFIER: the column to compare
-    Token           value;          // TOKEN_STRING (the text, without the quotes) or
-                                    // TOKEN_INTEGER: the value to compare it with
+    Token           value;          // TOKEN_STRING (the text, without the quotes),
+                                    // TOKEN_INTEGER or TOKEN_NULL: the value to compare it with
     enum CompareOp  op;             // how they compare, as the query wrote it
     bool            literal_first;  // whether the query wrote the value before the column
 } Condition;
@@ -92,7 +92,7 @@ typedef struct Statement {
 //     CREATE INDEX name ON table (column, ...) [WHERE column op value]
 //
 // A SELECT column may be *, and so may COUNT's. A WHERE compares a column with
-// a 'string' or an integer, in either order, using = == < <= > >= != or <>.
+// a 'string', an integer or NULL, in either order, using = == < <= > >= != or <>.
 //
 // A CREATE TABLE, such as the sql column of a sqlite_schema row, is read for
 // its column names and which column, if any, is the INTEGER PRIMARY KEY. The

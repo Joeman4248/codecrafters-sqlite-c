@@ -36,9 +36,9 @@ static ValueResult integer_value(const StringView digits) {
                            .value = { .type = VALUE_INTEGER, .integer = integer } };
 }
 
-// the Value a literal in the query stands for: a string is TEXT and a run of
-// digits an INTEGER. Returns one whose ok is false, after printing an error,
-// if it's neither or the integer doesn't fit in 64 bits.
+// the Value a literal in the query stands for: a string is TEXT, a run of
+// digits an INTEGER, and NULL is NULL. Returns one whose ok is false, after
+// printing an error, if it's none of those or the integer doesn't fit in 64 bits.
 static ValueResult literal_value(const Token literal) {
     switch (literal.type) {
         case TOKEN_STRING:
@@ -46,10 +46,12 @@ static ValueResult literal_value(const Token literal) {
                                    .value = { .type = VALUE_TEXT, .text = literal.text } };
         case TOKEN_INTEGER:
             return integer_value(literal.text);
+        case TOKEN_NULL:
+            return (ValueResult) { .ok = true, .value = { .type = VALUE_NULL } };
         default: break;
     }
 
-    fprintf(stderr, "expected a string or number, got: " SV_FMT "\n", SV_ARG(literal.text));
+    fprintf(stderr, "expected a string, number or NULL, got: " SV_FMT "\n", SV_ARG(literal.text));
     return (ValueResult) { 0 };
 }
 

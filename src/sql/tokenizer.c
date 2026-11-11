@@ -20,6 +20,7 @@ static const StringView TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_ON]          = SV_LIT("ON"),
     [TOKEN_AND]         = SV_LIT("AND"),
     [TOKEN_OR]          = SV_LIT("OR"),
+    [TOKEN_NULL]        = SV_LIT("NULL"),
 
     [TOKEN_IDENTIFIER]  = SV_LIT("IDENTIFIER"),
     [TOKEN_STRING]      = SV_LIT("STRING"),
@@ -132,7 +133,9 @@ static Token scan_operator(Tokenizer* tokenizer, Token* token) {
                 token->type = TOKEN_NE;
                 len = 2;
             }
-            else token->type = TOKEN_LT;
+            else {
+                token->type = TOKEN_LT;
+            }
             break;
 
         case '>':
@@ -140,7 +143,9 @@ static Token scan_operator(Tokenizer* tokenizer, Token* token) {
                 token->type = TOKEN_GE;
                 len = 2;
             }
-            else token->type = TOKEN_GT;
+            else {
+                token->type = TOKEN_GT;
+            }
             break;
     }
 
