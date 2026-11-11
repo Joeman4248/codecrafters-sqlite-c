@@ -38,14 +38,15 @@ static const StringView TOKEN_NAMES[TOKEN_TYPE_COUNT] = {
     [TOKEN_NE]          = SV_LIT("!="),
 };
 
-// the two-character comparison operators and their token types. "==" and
-// "<>" are second spellings of "=" and "!=".
-static const struct { StringView text; enum TokenType type; } LONG_OPERATORS[] = {
-    { SV_LIT("<="), TOKEN_LE },
-    { SV_LIT(">="), TOKEN_GE },
-    { SV_LIT("!="), TOKEN_NE },
-    { SV_LIT("=="), TOKEN_EQUALS },
-    { SV_LIT("<>"), TOKEN_NE },
+// the two-character comparison operators, as tokens. "==" and "<>" are second
+// spellings of "=" and "!=". Only their types are handed out: a scanned
+// token's text still points into the SQL string.
+static const Token LONG_OPERATORS[] = {
+    { TOKEN_LE,     SV_LIT("<=") },
+    { TOKEN_GE,     SV_LIT(">=") },
+    { TOKEN_NE,     SV_LIT("!=") },
+    { TOKEN_EQUALS, SV_LIT("==") },
+    { TOKEN_NE,     SV_LIT("<>") },
 };
 
 // how many entries LONG_OPERATORS has
@@ -140,8 +141,9 @@ static Token scan_operator(Tokenizer* tokenizer, Token* token) {
     // reading two characters is safe: at worst the second is the terminator
     const StringView next = { tokenizer->pos, 2 };
     for (uint32_t i = 0; i < LONG_OPS_COUNT; i++) {
-        if (sv_equal(LONG_OPERATORS[i].text, next)) {
-            token->type = LONG_OPERATORS[i].type;
+        const Token op = LONG_OPERATORS[i];
+        if (sv_equal(op.text, next)) {
+            token->type = op.type;
             token->text.len = 2;
             tokenizer->pos += 2;
             return *token;
