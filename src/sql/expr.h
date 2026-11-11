@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "sql/parser.h"
 #include "sql/tokenizer.h"
 #include "util/value.h"
 
@@ -36,15 +37,17 @@ typedef struct Expr {
     };
 } Expr;
 
-// parses all of tokens as one expression, and returns its tree, or NULL after
-// printing an error if they aren't one. So far an expression is
+// parses one expression starting at the current token, and returns its tree,
+// leaving the parser at the first token after it. Returns NULL after printing
+// an error if the tokens there don't start an expression. So far one is
 //
 //     expr       ::= comparison
 //     comparison ::= primary op primary
+//     op         ::= "=" | "==" | "<" | "<=" | ">" | ">=" | "!=" | "<>"
 //     primary    ::= IDENTIFIER | STRING | INTEGER | NULL
 //
 // The tree's text points into the query string, which must outlive it.
-Expr* parse_expr(const TokenList* tokens);
+Expr* parse_expr(Parser* parser);
 
 // frees expr and every node below it. Safe to call with NULL, and on a tree
 // whose building stopped partway, as long as its missing children are NULL.

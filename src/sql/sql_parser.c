@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 #include "sql/sql_parser.h"
-#include "sql/sql_grammar.h"
+#include "sql/parser.h"
 #include "sql/tokenizer.h"
 
 uint32_t find_column(const TableColumns* columns, const Token name) {
@@ -14,107 +14,154 @@ uint32_t find_column(const TableColumns* columns, const Token name) {
     return columns->names.count;
 }
 
-// true if the type words after the column captured at index start make it the
-// rowid alias: the first is "integer", and somewhere "primary" is followed by "key"
-static bool is_rowid_alias(const Parser* parser, const uint32_t start) {
-    const Capture* captures = parser->captures;
-    const uint32_t first = start + 1;
+// ---- SELECT ----------------------------------------------------------------
 
-    // only a type of exactly INTEGER makes a primary key the rowid alias; INT or BIGINT don't
-    if (first >= parser->capture_count || captures[first].tag != TAG_TYPE_WORD ||
-        !token_is(captures[first].token, "integer")) {
-        return false;
+// result_column ::= IDENTIFIER | "*"
+// added to names; the planner tells * apart by its token type
+static int parse_result_column(Parser* parser, TokenList* names) {
+    Token name;
+    if (!match(parser, TOKEN_IDENTIFIER, &name) && !match(parser, TOKEN_STAR, &name)) {
+        syntax_error(parser, "a column name or *");
+        return 1;
     }
-
-    // stops at the next column's capture, so only this column's words are looked at
-    for (uint32_t j = first + 1; j < parser->capture_count && captures[j].tag == TAG_TYPE_WORD; j++) {
-        if (token_is(captures[j - 1].token, "primary") && token_is(captures[j].token, "key")) {
-            return true;
-        }
-    }
-    return false;
+    return token_list_add(names, name);
 }
 
-static int build_create_table(Parser* parser, TableColumns* create_table) {
-    for (uint32_t i = 0; i < parser->capture_count; i++) {
-        const Capture capture = parser->captures[i];
-        switch (capture.tag) {
-            case TAG_TABLE: create_table->table = capture.token; break;
-            case TAG_COLUMN: {
-                if (token_list_add(&create_table->names, capture.token)) return 1;
-                if (is_rowid_alias(parser, i)) {
-                    create_table->has_rowid_alias = true;
-                    create_table->rowid_column = create_table->names.count - 1;
-                }
-                break;
-            }
-            case TAG_TYPE_WORD: break;      // already read by is_rowid_alias
-            default: return 1;
-        }
+// result_columns ::= COUNT "(" result_column ")" | result_column { "," result_column }
+static int parse_result_columns(Parser* parser, SelectQuery* query) {
+    query->is_count = match(parser, TOKEN_COUNT, NULL);
+    if (query->is_count) {
+        if (expect(parser, TOKEN_LPAREN, NULL)) return 1;
+        if (parse_result_column(parser, &query->names)) return 1;
+        return expect(parser, TOKEN_RPAREN, NULL);
     }
+
+    do {
+        if (parse_result_column(parser, &query->names)) return 1;
+    } while (match(parser, TOKEN_COMMA, NULL));
     return 0;
 }
 
-static int build_create_index(Parser* parser, IndexColumns* create_index) {
-    for (uint32_t i = 0; i < parser->capture_count; i++) {
-        const Capture capture = parser->captures[i];
-        switch (capture.tag) {
-            case TAG_INDEX:  create_index->name = capture.token; break;
-            case TAG_TABLE:  create_index->table = capture.token; break;
-            case TAG_COLUMN: if (token_list_add(&create_index->columns, capture.token)) return 1; break;
-            // which rows a partial index covers isn't needed yet, only that it's partial
-            case TAG_WHERE_TOKEN: create_index->has_where = true; break;
-            default: return 1;
+// [ WHERE expr ], leaving *where NULL when there's no WHERE
+static int parse_where(Parser* parser, Expr** where) {
+    if (!match(parser, TOKEN_WHERE, NULL)) return 0;
+
+    *where = parse_expr(parser);
+    return *where == NULL;
+}
+
+// select_stmt ::= SELECT result_columns FROM IDENTIFIER [ WHERE expr ] EOF
+static int parse_select(Parser* parser, SelectQuery* query) {
+    if (expect(parser, TOKEN_SELECT, NULL)) return 1;
+    if (parse_result_columns(parser, query)) return 1;
+    if (expect(parser, TOKEN_FROM, NULL)) return 1;
+    if (expect(parser, TOKEN_IDENTIFIER, &query->table)) return 1;
+    if (parse_where(parser, &query->where)) return 1;
+    return expect(parser, TOKEN_EOF, NULL);
+}
+
+// ---- CREATE TABLE ----------------------------------------------------------
+
+// skips the type and constraints after a column's name, such as "integer
+// primary key autoincrement" or "varchar(255) not null": every token up to
+// the "," or ")" that ends the column, which is left as the current token.
+// Parentheses inside are skipped whole, so their commas don't end it.
+// Sets *is_rowid_alias if the type is exactly INTEGER (not INT or BIGINT) and
+// PRIMARY KEY follows outside parentheses. Returns nonzero if the statement
+// ends first.
+static int skip_column_type(Parser* parser, bool* is_rowid_alias) {
+    const bool is_integer = token_is(current(parser), "integer");
+    *is_rowid_alias = false;
+
+    uint32_t depth = 0;
+    Token previous = { 0 };
+    while (!check(parser, TOKEN_EOF)) {
+        const Token token = current(parser);
+        if (depth == 0 && (token.type == TOKEN_COMMA || token.type == TOKEN_RPAREN)) return 0;
+
+        if (token.type == TOKEN_LPAREN) depth++;
+        if (token.type == TOKEN_RPAREN) depth--;
+        // a PRIMARY KEY inside parentheses belongs to something else, not the column
+        if (is_integer && depth == 0 && token_is(previous, "primary") && token_is(token, "key")) {
+            *is_rowid_alias = true;
         }
-    }
-    return 0;
-}
-
-// the WHERE expression, from the tokens captured under TAG_WHERE_TOKEN. Leaves
-// query->where NULL if there are none.
-static int build_where(const Parser* parser, SelectQuery* query) {
-    TokenList tokens = { 0 };
-    int result = 0;
-    for (uint32_t i = 0; i < parser->capture_count && result == 0; i++) {
-        const Capture capture = parser->captures[i];
-        if (capture.tag == TAG_WHERE_TOKEN) result = token_list_add(&tokens, capture.token);
+        previous = token;
+        advance(parser);
     }
 
-    if (result == 0 && tokens.count > 0) {
-        query->where = parse_expr(&tokens);
-        result = query->where == NULL;
-    }
-    free_token_list(&tokens);
-    return result;
-}
-
-static int build_select_statement(Parser* parser, SelectQuery* query) {
-    for (uint32_t i = 0; i < parser->capture_count; i++) {
-        const Capture capture = parser->captures[i];
-        switch (capture.tag) {
-            case TAG_COLUMN: if (token_list_add(&query->names, capture.token)) return 1; break;
-            case TAG_COUNT:  query->is_count = true; break;
-            case TAG_TABLE:  query->table = capture.token; break;
-            case TAG_WHERE_TOKEN: break;    // read by build_where
-            default: return 1;
-        }
-    }
-    return build_where(parser, query);
-}
-
-static int build_statement(Parser* parser, Statement* statement) {
-    switch (statement->type) {
-        case STATEMENT_TYPE_SELECT:
-            return build_select_statement(parser, &statement->select);
-        case STATEMENT_TYPE_CREATE_TABLE:
-            return build_create_table(parser, &statement->create_table);
-        case STATEMENT_TYPE_CREATE_INDEX:
-            return build_create_index(parser, &statement->create_index);
-        case STATEMENT_TYPE_UNKNOWN:
-            break;
-    }
+    syntax_error(parser, "\")\" to end the columns");
     return 1;
 }
+
+// column_def ::= IDENTIFIER { type or constraint word, with parentheses allowed }
+static int parse_column_def(Parser* parser, TableColumns* columns) {
+    Token name;
+    if (expect(parser, TOKEN_IDENTIFIER, &name)) return 1;
+    if (token_list_add(&columns->names, name)) return 1;
+
+    bool is_rowid_alias;
+    if (skip_column_type(parser, &is_rowid_alias)) return 1;
+    if (is_rowid_alias) {
+        columns->has_rowid_alias = true;
+        columns->rowid_column = columns->names.count - 1;
+    }
+    return 0;
+}
+
+// create_table_stmt ::= CREATE TABLE IDENTIFIER "(" column_def { "," column_def } ")" EOF
+static int parse_create_table(Parser* parser, TableColumns* columns) {
+    if (expect(parser, TOKEN_CREATE, NULL)) return 1;
+    if (expect(parser, TOKEN_TABLE, NULL)) return 1;
+    if (expect(parser, TOKEN_IDENTIFIER, &columns->table)) return 1;
+    if (expect(parser, TOKEN_LPAREN, NULL)) return 1;
+
+    do {
+        if (parse_column_def(parser, columns)) return 1;
+    } while (match(parser, TOKEN_COMMA, NULL));
+
+    if (expect(parser, TOKEN_RPAREN, NULL)) return 1;
+    return expect(parser, TOKEN_EOF, NULL);
+}
+
+// ---- CREATE INDEX ----------------------------------------------------------
+
+// indexed_column ::= IDENTIFIER { IDENTIFIER }
+// only the name is kept; the words after it, such as DESC, aren't needed
+static int parse_indexed_column(Parser* parser, TokenList* columns) {
+    Token name;
+    if (expect(parser, TOKEN_IDENTIFIER, &name)) return 1;
+    while (match(parser, TOKEN_IDENTIFIER, NULL)) {
+        // skipping the words
+    }
+    return token_list_add(columns, name);
+}
+
+// create_index_stmt ::= CREATE INDEX IDENTIFIER ON IDENTIFIER
+//                       "(" indexed_column { "," indexed_column } ")" [ WHERE ... ] EOF
+static int parse_create_index(Parser* parser, IndexColumns* index) {
+    if (expect(parser, TOKEN_CREATE, NULL)) return 1;
+    if (expect(parser, TOKEN_INDEX, NULL)) return 1;
+    if (expect(parser, TOKEN_IDENTIFIER, &index->name)) return 1;
+    if (expect(parser, TOKEN_ON, NULL)) return 1;
+    if (expect(parser, TOKEN_IDENTIFIER, &index->table)) return 1;
+    if (expect(parser, TOKEN_LPAREN, NULL)) return 1;
+
+    do {
+        if (parse_indexed_column(parser, &index->columns)) return 1;
+    } while (match(parser, TOKEN_COMMA, NULL));
+
+    if (expect(parser, TOKEN_RPAREN, NULL)) return 1;
+
+    // which rows a partial index covers isn't needed yet, only that it's
+    // partial, so its condition is skipped without being parsed
+    index->has_where = match(parser, TOKEN_WHERE, NULL);
+    if (index->has_where) {
+        while (!check(parser, TOKEN_EOF)) advance(parser);
+    }
+    return expect(parser, TOKEN_EOF, NULL);
+}
+
+// ---- any statement ---------------------------------------------------------
 
 // which statement the tokens start, from their first one or two keywords
 static enum StatementType statement_type_of(const TokenList* tokens) {
@@ -134,22 +181,29 @@ static enum StatementType statement_type_of(const TokenList* tokens) {
     return STATEMENT_TYPE_UNKNOWN;
 }
 
-// matches the tokens against the grammar for statement->type and fills in the
-// statement from the captures. On failure, leaves nothing in the statement to free.
-static int match_statement(Parser* parser, const char* sql, Statement* statement) {
-    const Rule* rule = (statement->type == STATEMENT_TYPE_UNKNOWN) ? NULL
-                                                                   : STATEMENT_RULES[statement->type];
-    if (rule == NULL) {
+// parses the tokens as the kind of statement statement->type says
+static int parse_by_type(Parser* parser, Statement* statement) {
+    switch (statement->type) {
+        case STATEMENT_TYPE_SELECT:       return parse_select(parser, &statement->select);
+        case STATEMENT_TYPE_CREATE_TABLE: return parse_create_table(parser, &statement->create_table);
+        case STATEMENT_TYPE_CREATE_INDEX: return parse_create_index(parser, &statement->create_index);
+        case STATEMENT_TYPE_UNKNOWN:      break;
+    }
+    return 1;
+}
+
+// parses the tokens of sql into statement. On failure leaves nothing in the
+// statement to free.
+static int parse_tokens(const TokenList* tokens, const char* sql, Statement* statement) {
+    statement->type = statement_type_of(tokens);
+    if (statement->type == STATEMENT_TYPE_UNKNOWN) {
         fprintf(stderr, "Unsupported statement: %s\n", sql);
         return 1;
     }
-    if (!match_rule(parser, rule)) {
-        fprintf(stderr, "Syntax error: %s\n", sql);
-        return 1;
-    }
 
-    // a build that fails partway may have filled in some of the statement
-    const int result = build_statement(parser, statement);
+    // a parse that fails partway may have filled in some of the statement
+    Parser parser = { .tokens = tokens, .pos = 0 };
+    const int result = parse_by_type(&parser, statement);
     if (result) free_statement(statement);
     return result;
 }
@@ -160,19 +214,8 @@ int parse_statement(const char* sql, Statement* statement) {
 
     TokenList tokens = { 0 };
     int result = tokenize_all(sql, &tokens);
+    if (result == 0) result = parse_tokens(&tokens, sql, statement);
 
-    // a token is captured at most once, so one capture per token is always enough.
-    // There's always at least the EOF token, so this never asks for 0 bytes.
-    Capture* captures = (result) ? NULL : malloc(tokens.count * sizeof(Capture));
-    if (captures == NULL) result = 1;
-
-    if (result == 0) {
-        Parser parser = { .pos = 0, .tokens = &tokens, .captures = captures };
-        statement->type = statement_type_of(&tokens);
-        result = match_statement(&parser, sql, statement);
-    }
-
-    free(captures);
     free_token_list(&tokens);
     return result;
 }

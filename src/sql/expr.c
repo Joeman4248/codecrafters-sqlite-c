@@ -3,32 +3,6 @@
 
 #include "sql/expr.h"
 
-// the tokens being parsed and how far parsing has got
-typedef struct ExprParser {
-    const TokenList* tokens;
-    uint32_t         pos;       // index of the next token
-} ExprParser;
-
-// ---- tokens ----------------------------------------------------------------
-
-// the next token without moving past it, or TOKEN_EOF once there are none left
-static Token peek(const ExprParser* parser) {
-    if (parser->pos == parser->tokens->count) return (Token) { .type = TOKEN_EOF };
-    return parser->tokens->items[parser->pos];
-}
-
-// the next token, moving past it
-static Token next(ExprParser* parser) {
-    const Token token = peek(parser);
-    if (token.type != TOKEN_EOF) parser->pos++;
-    return token;
-}
-
-static void syntax_error(const Token token) {
-    if (token.type == TOKEN_EOF) fprintf(stderr, "Syntax error: incomplete WHERE\n");
-    else fprintf(stderr, "Syntax error in WHERE near \"" SV_FMT "\"\n", SV_ARG(token.text));
-}
-
 // ---- what a token stands for -----------------------------------------------
 
 // the comparison operator an operator token stands for, or COMPARE_UNKNOWN
@@ -77,28 +51,29 @@ static Expr* new_literal(const Value value) {
 }
 
 // primary ::= IDENTIFIER | STRING | INTEGER | NULL
-static Expr* parse_primary(ExprParser* parser) {
-    const Token token = next(parser);
-    switch (token.type) {
-        case TOKEN_IDENTIFIER:
-            return new_expr((Expr) { .type = EXPR_COLUMN, .column = { .name = token } });
-        case TOKEN_STRING:
-            return new_literal((Value) { .type = VALUE_TEXT, .text = token.text });
-        case TOKEN_INTEGER: {
-            int64_t integer;
-            if (!integer_literal(token.text, &integer)) return NULL;
-            return new_literal((Value) { .type = VALUE_INTEGER, .integer = integer });
-        }
-        case TOKEN_NULL:
-            return new_literal((Value) { .type = VALUE_NULL });
-        default:
-            syntax_error(token);
-            return NULL;
+static Expr* parse_primary(Parser* parser) {
+    Token token;
+    if (match(parser, TOKEN_IDENTIFIER, &token)) {
+        return new_expr((Expr) { .type = EXPR_COLUMN, .column = { .name = token } });
     }
+    if (match(parser, TOKEN_STRING, &token)) {
+        return new_literal((Value) { .type = VALUE_TEXT, .text = token.text });
+    }
+    if (match(parser, TOKEN_INTEGER, &token)) {
+        int64_t integer;
+        if (!integer_literal(token.text, &integer)) return NULL;
+        return new_literal((Value) { .type = VALUE_INTEGER, .integer = integer });
+    }
+    if (match(parser, TOKEN_NULL, NULL)) {
+        return new_literal((Value) { .type = VALUE_NULL });
+    }
+
+    syntax_error(parser, "a column name or a value");
+    return NULL;
 }
 
 // the compare node for left op right, taking ownership of left
-static Expr* finish_comparison(ExprParser* parser, Expr* left, const enum CompareOp op) {
+static Expr* finish_comparison(Parser* parser, Expr* left, const enum CompareOp op) {
     Expr* right = parse_primary(parser);
     Expr* compare = (right == NULL) ? NULL : new_expr((Expr) {
         .type = EXPR_COMPARE,
@@ -112,32 +87,22 @@ static Expr* finish_comparison(ExprParser* parser, Expr* left, const enum Compar
 }
 
 // comparison ::= primary op primary
-static Expr* parse_comparison(ExprParser* parser) {
+static Expr* parse_comparison(Parser* parser) {
     Expr* left = parse_primary(parser);
     if (left == NULL) return NULL;
 
-    const Token token = next(parser);
-    const enum CompareOp op = comparison_op(token);
+    const enum CompareOp op = comparison_op(current(parser));
     if (op == COMPARE_UNKNOWN) {
-        syntax_error(token);
+        syntax_error(parser, "a comparison operator");
         free_expr(left);
         return NULL;
     }
+    advance(parser);
     return finish_comparison(parser, left, op);
 }
 
-Expr* parse_expr(const TokenList* tokens) {
-    ExprParser parser = { .tokens = tokens, .pos = 0 };
-    Expr* expr = parse_comparison(&parser);
-    if (expr == NULL) return NULL;
-
-    // the whole expression has been read, so anything left over doesn't belong
-    if (peek(&parser).type != TOKEN_EOF) {
-        syntax_error(peek(&parser));
-        free_expr(expr);
-        return NULL;
-    }
-    return expr;
+Expr* parse_expr(Parser* parser) {
+    return parse_comparison(parser);
 }
 
 void free_expr(Expr* expr) {

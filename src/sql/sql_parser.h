@@ -62,9 +62,9 @@ typedef struct Statement {
     };
 } Statement;
 
-// parses one SQL statement, matching it against the grammar for the kind of
-// statement its first keywords name. The grammar is written out in
-// sql_grammar.c; so far it supports:
+// parses one SQL statement, as the kind of statement its first keywords name.
+// Each grammar rule is a parse_* function in sql_parser.c, with the rule in
+// its comment; so far it supports:
 //
 //     SELECT column, ... FROM table [WHERE expr]
 //     SELECT COUNT(column) FROM table [WHERE expr]
@@ -80,7 +80,7 @@ typedef struct Statement {
 //
 // A CREATE INDEX is read for its name, its table and its column names. Words
 // after a column name, such as DESC, aren't interpreted, and of a partial
-// index's WHERE only its presence is kept.
+// index's WHERE only its presence is kept; its condition isn't parsed.
 //
 // On success fills in *statement, which the caller releases with
 // free_statement. On failure prints an error to stderr, leaves nothing to
