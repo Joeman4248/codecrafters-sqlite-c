@@ -70,7 +70,8 @@ static int plan_expr_children(Expr* planned, const TableColumns* columns) {
         case EXPR_LITERAL:
             return 0;
         case EXPR_COMPARE:
-        case EXPR_AND: {
+        case EXPR_AND:
+        case EXPR_OR: {
             const Expr* left  = planned->binary.left;
             const Expr* right = planned->binary.right;
             planned->binary.left  = NULL;

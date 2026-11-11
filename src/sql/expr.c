@@ -116,8 +116,18 @@ static Expr* parse_and(Parser* parser) {
     return expr;
 }
 
+// or_expr ::= and_expr { OR and_expr }
+static Expr* parse_or(Parser* parser) {
+    Expr* expr = parse_and(parser);
+    while (expr != NULL && match(parser, TOKEN_OR, NULL)) {
+        Expr* right = parse_and(parser);
+        expr = new_binary(EXPR_OR, expr, COMPARE_UNKNOWN, right);
+    }
+    return expr;
+}
+
 Expr* parse_expr(Parser* parser) {
-    return parse_and(parser);
+    return parse_or(parser);
 }
 
 void free_expr(Expr* expr) {
@@ -128,6 +138,7 @@ void free_expr(Expr* expr) {
             break;
         case EXPR_COMPARE:
         case EXPR_AND:
+        case EXPR_OR:
             free_expr(expr->binary.left);
             free_expr(expr->binary.right);
             break;

@@ -20,7 +20,8 @@ uint32_t find_column(const TableColumns* columns, const Token name) {
 // added to names; the planner tells * apart by its token type
 static int parse_result_column(Parser* parser, TokenList* names) {
     Token name;
-    if (!match(parser, TOKEN_IDENTIFIER, &name) && !match(parser, TOKEN_STAR, &name)) {
+    const bool found = match(parser, TOKEN_IDENTIFIER, &name) || match(parser, TOKEN_STAR, &name);
+    if (!found) {
         syntax_error(parser, "a column name or *");
         return 1;
     }

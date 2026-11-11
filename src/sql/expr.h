@@ -13,6 +13,7 @@ enum ExprType : uint8_t {
     EXPR_LITERAL,       // a value written in the query
     EXPR_COMPARE,       // left op right
     EXPR_AND,           // left AND right
+    EXPR_OR,            // left OR right
 
     EXPR_TYPE_COUNT,
     EXPR_UNKNOWN = EXPR_TYPE_COUNT,
@@ -34,7 +35,7 @@ typedef struct Expr {
             struct Expr*   left;
             struct Expr*   right;
             enum CompareOp op;  // EXPR_COMPARE only
-        } binary;               // EXPR_COMPARE and EXPR_AND
+        } binary;               // EXPR_COMPARE, EXPR_AND and EXPR_OR
     };
 } Expr;
 
@@ -42,13 +43,15 @@ typedef struct Expr {
 // leaving the parser at the first token after it. Returns NULL after printing
 // an error if the tokens there don't start an expression. So far one is
 //
-//     expr       ::= and_expr
+//     expr       ::= or_expr
+//     or_expr    ::= and_expr { OR and_expr }
 //     and_expr   ::= comparison { AND comparison }
 //     comparison ::= primary op primary
 //     op         ::= "=" | "==" | "<" | "<=" | ">" | ">=" | "!=" | "<>"
 //     primary    ::= IDENTIFIER | STRING | INTEGER | NULL
 //
-// A chain of ANDs groups from the left: a AND b AND c is (a AND b) AND c.
+// AND binds tighter than OR, so a AND b OR c is (a AND b) OR c, and a chain of
+// either groups from the left: a AND b AND c is (a AND b) AND c.
 // The tree's text points into the query string, which must outlive it.
 Expr* parse_expr(Parser* parser);
 

@@ -32,6 +32,8 @@ $ ./your_program.sh companies.db "SELECT id, name FROM companies WHERE country =
 | Count non-NULL values | `SELECT COUNT(color) FROM apples` |
 | Read columns | `SELECT name, color FROM apples` or `SELECT * FROM apples` |
 | Filter rows | `SELECT id, name FROM apples WHERE color = 'Yellow'` or `WHERE id = 3` |
+| Compare | `WHERE id > 2`, `WHERE 'G' < name`, `WHERE id != 3`: any of `= == < <= > >= != <>` |
+| Combine conditions | `WHERE id > 1 AND id < 4`, `WHERE color = 'Red' OR id = 3` |
 
 Tables can span many pages: the B-tree is walked through interior and leaf
 pages, so the multi-megabyte sample databases work the same as the tiny one.
@@ -40,10 +42,14 @@ Values of every SQLite type are read and printed: integers, floats, text,
 blobs and NULL, plus the `INTEGER PRIMARY KEY` column, which SQLite stores as
 the row's rowid rather than in the row itself.
 
+A `WHERE` compares columns, strings, integers and `NULL` the way SQLite does:
+`AND` binds tighter than `OR`, and a comparison with `NULL` is neither true nor
+false, so `WHERE color = NULL` matches nothing.
+
 Not supported yet:
 
-- `WHERE` takes one `column = value` comparison, where the value is a string
-  or an integer: no `AND`/`OR`, other operators or parentheses yet.
+- `NOT`, parentheses and `IS NULL` in a `WHERE`, and type affinity: SQLite
+  matches `WHERE year = 1990` against the text `'1990'`, but this doesn't.
 - Rows too big for one page (overflow pages), and indexes.
 
 ## How it works
@@ -63,16 +69,18 @@ A query goes through four stages:
 
 1. **Tokenize** ([tokenizer.c](src/sql/tokenizer.c)): split the SQL text into
    tokens such as `SELECT`, `apples` and `'Yellow'`.
-2. **Parse** ([sql_parser.c](src/sql/sql_parser.c)): match the tokens against
-   the SQL grammar and turn them into a statement: which table, which columns,
-   what filter. The grammar is written as data in
-   [sql_grammar.c](src/sql/sql_grammar.c), and one generic matcher
-   ([grammar.c](src/sql/grammar.c)) checks queries against it, instead of a
-   hand-written parsing function for every statement.
+2. **Parse** ([sql_parser.c](src/sql/sql_parser.c)): turn the tokens into a
+   statement: which table, which columns, what filter. It's a hand-written
+   recursive-descent parser: each grammar rule is one `parse_*` function,
+   with the rule in its comment, reading tokens with the small helpers in
+   [parser.c](src/sql/parser.c). A `WHERE` becomes an expression tree
+   ([expr.c](src/sql/expr.c)), one function per level of precedence.
 3. **Plan** ([plan.c](src/query/plan.c)): look the table up in the schema, find
-   the page its B-tree starts on, and work out where each column sits in a row.
-4. **Execute** ([execute.c](src/query/execute.c)): walk the table's rows with a
-   B-tree cursor, read each column as a value, and print the rows that match.
+   the page its B-tree starts on, and work out where each column sits in a row,
+   including every column the `WHERE` tree names.
+4. **Execute** ([execute.c](src/query/execute.c)): walk the table's rows
+   ([rows.c](src/query/rows.c), with a B-tree cursor), work out the `WHERE`
+   tree's value for each row, and print the rows it's true for.
 
 Underneath, these read the file itself:
 
@@ -101,8 +109,8 @@ Underneath, these read the file itself:
   straight to matching rows instead of scanning the whole table. The parser
   already reads `CREATE INDEX` statements, so the next step is finding an
   index in the schema that fits a query.
-- **Full `WHERE` expressions**: `AND`, `OR`, `NOT`, parentheses and the other
-  comparison operators, parsed into an expression tree.
+- **The rest of `WHERE`**: `NOT`, parentheses and `IS [NOT] NULL`, each one
+  more level in the expression parser.
 
 ## Running it
 

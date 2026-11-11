@@ -8,7 +8,7 @@ user-facing overview; don't re-read it for orientation.
 
 - Build: `cmake --build build`. If `build/` is missing:
   `cmake -G "MinGW Makefiles" -S . -B build`.
-- Test: `pwsh -NoProfile -File tests/check.ps1` builds, compares ~25 queries
+- Test: `pwsh -NoProfile -File tests/check.ps1` builds, compares ~65 queries
   with sqlite3, and prints only differences plus `N/N passed`. Run this
   instead of ad-hoc queries; add a case there for new behaviour.
 - Run one query: `./build/sqlite.exe sample.db "SELECT name FROM apples"`.
@@ -63,5 +63,5 @@ Header comments state the contract; read the .h before the .c.
 ## Known gaps
 
 - No type affinity: `WHERE text_column = 1990` doesn't match the text '1990' (sqlite3 does).
-- WHERE is comparisons of two columns or literals joined by AND (an `Expr` tree from
-  expr.c); no OR, parentheses, NOT or IS NULL yet; no overflow pages; no index lookups yet.
+- WHERE is comparisons of two columns or literals joined by AND/OR (an `Expr` tree from
+  expr.c); no parentheses, NOT or IS NULL yet; no overflow pages; no index lookups yet.
