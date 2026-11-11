@@ -2,18 +2,18 @@
 
 #include "query/rows.h"
 
-void scan_open(TableScan* scan, Pager* pager, const SelectPlan* plan) {
+void scan_open(TableScan* scan, Pager* pager, const PlanTable* table) {
     // the cursor is zeroed so scan_close is safe even if cursor_open is never reached
     *scan = (TableScan) {
-        .plan = plan,
+        .table = table,
         .cursor = { 0 },
-        .storage = malloc(plan->column_count * sizeof(RecordColumn)),
+        .storage = malloc(table->column_count * sizeof(RecordColumn)),
     };
     if (scan->storage == NULL) {
         cursor_fail(&scan->cursor);
         return;
     }
-    cursor_open(&scan->cursor, pager, plan->table_root);
+    cursor_open(&scan->cursor, pager, table->root);
 }
 
 bool scan_next(TableScan* scan, Row* row) {
@@ -23,7 +23,7 @@ bool scan_next(TableScan* scan, Row* row) {
     row->rowid = cell.rowid;
     Reader reader = reader_at(cell.payload, 0);
     row->record = read_record(&reader, (RecordHeader) { .columns = scan->storage,
-                                                        .capacity = scan->plan->column_count });
+                                                        .capacity = scan->table->column_count });
     if (reader.failed) cursor_fail(&scan->cursor);
     return !reader.failed;
 }
@@ -34,8 +34,8 @@ void scan_close(TableScan* scan) {
     scan->storage = NULL;
 }
 
-Value row_get_value(const SelectPlan* plan, const Row* row, const uint32_t index) {
-    if (plan->has_rowid_alias && index == plan->rowid_column) {
+Value row_get_value(const PlanTable* table, const Row* row, const uint32_t index) {
+    if (table->has_rowid_alias && index == table->rowid_column) {
         return (Value) { .type = VALUE_INTEGER, .integer = row->rowid };
     }
     return record_get_value(&row->record, index);

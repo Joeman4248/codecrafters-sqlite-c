@@ -8,13 +8,13 @@
 #include "query/plan.h"
 #include "record/record.h"
 
-// a pass over every row of the plan's table, in rowid order. Like its cursor
-// it fails stickily: once failed, scan_next returns false, so a loop over the
-// rows checks scan_failed once after it ends.
+// a pass over every row of a table, in rowid order. Like its cursor it fails
+// stickily: once failed, scan_next returns false, so a loop over the rows
+// checks scan_failed once after it ends.
 typedef struct TableScan {
-    const SelectPlan* plan;
-    TableCursor       cursor;
-    RecordColumn*     storage;      // room for plan->column_count entries, reused for every row
+    const PlanTable* table;
+    TableCursor      cursor;
+    RecordColumn*    storage;       // room for table->column_count entries, reused for every row
 } TableScan;
 
 // one row as read by scan_next. Its record points into the cursor's page and
@@ -24,10 +24,10 @@ typedef struct Row {
     Record  record;
 } Row;
 
-// starts a scan at the first row of the plan's table. Fails the scan if its
-// storage can't be allocated or the root page can't be read. Either way the
-// caller releases it with scan_close.
-void scan_open(TableScan* scan, Pager* pager, const SelectPlan* plan);
+// starts a scan at the first row of table, which must outlive the scan. Fails
+// the scan if its storage can't be allocated or the root page can't be read.
+// Either way the caller releases it with scan_close.
+void scan_open(TableScan* scan, Pager* pager, const PlanTable* table);
 
 // reads the next row into *row, with its record parsed. Returns false once
 // every row has been read or the scan has failed; a record that can't be read
@@ -41,8 +41,8 @@ static inline bool scan_failed(const TableScan* scan) {
 // frees the scan's storage and unpins its pages
 void scan_close(TableScan* scan);
 
-// the value of column index in the row. The rowid alias column is stored as
-// NULL in the record, so its value is the row's rowid instead.
-Value row_get_value(const SelectPlan* plan, const Row* row, uint32_t index);
+// the value of column index in a row of table. The rowid alias column is
+// stored as NULL in the record, so its value is the row's rowid instead.
+Value row_get_value(const PlanTable* table, const Row* row, uint32_t index);
 
 #endif // CODECRAFTERS_SQLITE_ROWS_H

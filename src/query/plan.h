@@ -9,32 +9,53 @@
 #include "util/value.h"
 #include "util/view.h"
 
+// the table a plan reads: everything needed to walk its rows and get a
+// column's value out of one
+typedef struct PlanTable {
+    uint32_t root;              // root page of the table's b-tree
+    uint32_t column_count;      // columns the table declares
+    bool     has_rowid_alias;
+    uint32_t rowid_column;      // the INTEGER PRIMARY KEY column, stored as NULL in
+                                // records, when has_rowid_alias
+} PlanTable;
+
+// the columns a plain SELECT prints, as positions, in query order, with each *
+// expanded to every column
+typedef struct PlanColumns {
+    uint32_t* items;
+    uint32_t  count;
+} PlanColumns;
+
+// what a COUNT counts: rows for COUNT(*), or else the non-NULL values of column
+typedef struct PlanCount {
+    bool     rows;
+    uint32_t column;
+} PlanCount;
+
+// a WHERE condition, column op value, with the operands the right way round
+typedef struct PlanWhere {
+    uint32_t       column;
+    enum CompareOp op;
+    Value          value;
+} PlanWhere;
+
 // how to run a SELECT, with every name in the query resolved against the
 // table's schema: columns are positions in a record, and the table is its root
 // page. Execution needs only this, not the query or the schema.
 typedef struct SelectPlan {
-    uint32_t   table_root;      // root page of the table's b-tree
-    uint32_t   column_count;    // columns the table declares
-    bool       has_rowid_alias;
-    uint32_t   rowid_column;    // the INTEGER PRIMARY KEY column, stored as NULL in
-                                // records, when has_rowid_alias
+    PlanTable   table;
 
-    bool       is_count;
-    uint32_t*  selected;        // !is_count: column positions to print, in order,
-    uint32_t   selected_count;  // with each * expanded to every column
-    bool       count_rows;      // is_count: COUNT(*), which counts rows,
-    uint32_t   count_column;    // or else COUNT(column), which counts its non-NULL values
+    bool        is_count;
+    PlanColumns selected;       // when !is_count
+    PlanCount   count;          // when is_count
 
-    bool            has_where;
-    uint32_t        where_column;   // has_where: the column to compare
-    enum CompareOp  where_op;       // has_where: how it compares with where_value,
-                                    // with the operands the right way round
-    Value           where_value;    // has_where: the value to compare it with
+    bool        has_where;
+    PlanWhere   where;          // when has_where
 } SelectPlan;
 
 // plans query against the schema of db: finds the table, reads its columns
 // from its CREATE TABLE, and resolves every column the query names. A text
-// where_value points into the query's SQL text, so the plan must not outlive
+// where.value points into the query's SQL text, so the plan must not outlive
 // it. On success the caller releases the plan with free_plan. On failure
 // prints an error to stderr, leaves nothing to free and returns nonzero.
 int plan_select(const Database* db, const SelectQuery* query, SelectPlan* plan);
