@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 #include "sql/tokenizer.h"
+#include "util/value.h"
 
 // the column names from a CREATE TABLE statement. The names are tokens: they
 // are not copied or null-terminated, but point into the SQL string, which
@@ -24,18 +25,6 @@ typedef struct IndexColumns {
     bool      has_where;    // a partial index (... WHERE ...), with entries for only some rows
     Token     name;         // the index's name
 } IndexColumns;
-
-// the comparison operators a WHERE condition can use. Like CompareOrder they
-// are a closed set: nothing looks an operator up by name, so there is no
-// COMPARE_COUNT and no COMPARE_UNKNOWN.
-enum CompareOp : uint8_t {
-    COMPARE_EQUAL,          // = or ==
-    COMPARE_LESS,           // <
-    COMPARE_LESS_EQUAL,     // <=
-    COMPARE_GREATER,        // >
-    COMPARE_GREATER_EQUAL,  // >=
-    COMPARE_NOT_EQUAL,      // != or <>
-};
 
 // a WHERE condition: a column compared with a literal, in either order
 typedef struct Condition {

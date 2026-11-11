@@ -38,14 +38,33 @@ enum CompareOrder : uint8_t {
     ORDER_GREATER,
 };
 
+// the comparison operators SQL can write between two values. Like CompareOrder
+// they are a closed set: nothing looks an operator up by name, so there is no
+// COMPARE_COUNT and no COMPARE_UNKNOWN.
+enum CompareOp : uint8_t {
+    COMPARE_EQUAL,          // = or ==
+    COMPARE_LESS,           // <
+    COMPARE_LESS_EQUAL,     // <=
+    COMPARE_GREATER,        // >
+    COMPARE_GREATER_EQUAL,  // >=
+    COMPARE_NOT_EQUAL,      // != or <>
+};
+
 // compares a and b as SQL orders values, so the result is a total order: NULL
 // sorts below every number, numbers (integer or real, compared as one class)
 // below text, text below blob, and values of the same class compare by their
 // contents, text and blobs byte for byte. NULLs compare as equal to each other.
-//
-// A comparison in a WHERE still drops rows whose side is NULL, which is a rule
-// of the comparison, not of the order: callers check for NULL before comparing.
+// This is the order sorting and index b-trees use; a WHERE uses value_satisfies.
 enum CompareOrder value_compare(Value a, Value b);
+
+// whether a op b holds the way a WHERE compares: like value_compare, except
+// that a comparison with NULL on either side never holds, whatever the
+// operator, so NULL = NULL and NULL != 1 are both false
+bool value_satisfies(Value a, enum CompareOp op, Value b);
+
+// the operator that makes the same comparison with its operands swapped:
+// 1990 < year is year > 1990
+enum CompareOp compare_op_swapped(enum CompareOp op);
 
 // writes value to out without a newline, the way sqlite3 prints it: nothing
 // for NULL, floats always with a decimal point, and text and blobs as their

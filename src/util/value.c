@@ -98,6 +98,36 @@ enum CompareOrder value_compare(const Value a, const Value b) {
     return ORDER_EQUAL;     // unreachable: every ValueType has a class
 }
 
+// whether order is one that op accepts
+static bool order_satisfies(const enum CompareOrder order, const enum CompareOp op) {
+    switch (op) {
+        case COMPARE_EQUAL:         return order == ORDER_EQUAL;
+        case COMPARE_LESS:          return order == ORDER_LESS;
+        case COMPARE_LESS_EQUAL:    return order != ORDER_GREATER;
+        case COMPARE_GREATER:       return order == ORDER_GREATER;
+        case COMPARE_GREATER_EQUAL: return order != ORDER_LESS;
+        case COMPARE_NOT_EQUAL:     return order != ORDER_EQUAL;
+    }
+    return false;   // unreachable: every CompareOp is listed
+}
+
+bool value_satisfies(const Value a, const enum CompareOp op, const Value b) {
+    if (a.type == VALUE_NULL || b.type == VALUE_NULL) return false;
+    return order_satisfies(value_compare(a, b), op);
+}
+
+enum CompareOp compare_op_swapped(const enum CompareOp op) {
+    switch (op) {
+        case COMPARE_EQUAL:         return COMPARE_EQUAL;
+        case COMPARE_LESS:          return COMPARE_GREATER;
+        case COMPARE_LESS_EQUAL:    return COMPARE_GREATER_EQUAL;
+        case COMPARE_GREATER:       return COMPARE_LESS;
+        case COMPARE_GREATER_EQUAL: return COMPARE_LESS_EQUAL;
+        case COMPARE_NOT_EQUAL:     return COMPARE_NOT_EQUAL;
+    }
+    return COMPARE_EQUAL;   // unreachable: every CompareOp is listed
+}
+
 // prints a REAL the way sqlite3 does: up to 15 significant digits, and always
 // with a decimal point, which %g leaves out of whole numbers ("3", "1e+100"
 // rather than "3.0", "1.0e+100")
