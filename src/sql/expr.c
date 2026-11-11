@@ -74,12 +74,15 @@ static Expr* parse_primary(Parser* parser) {
 
 // a node of type joining left and right, taking ownership of both. Either
 // may be NULL, from a parse that failed, in which case the other is freed and
-// so is NULL returned.
+// NULL is returned.
 static Expr* new_binary(const enum ExprType type, Expr* left, const enum CompareOp op, Expr* right) {
+    const Expr binary = {
+        .type   = type,
+        .binary = { .left = left, .right = right, .op = op },
+    };
+
     Expr* node = NULL;
-    if (left != NULL && right != NULL) {
-        node = new_expr((Expr) { .type = type, .binary = { .left = left, .right = right, .op = op } });
-    }
+    if (left != NULL && right != NULL) node = new_expr(binary);
     if (node == NULL) {
         free_expr(left);
         free_expr(right);
