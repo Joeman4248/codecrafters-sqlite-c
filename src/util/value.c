@@ -96,11 +96,14 @@ enum CompareOrder value_compare(const Value a, const Value b) {
         case VALUE_TEXT:    return compare_bytes(sv_as_bytes(a.text), sv_as_bytes(b.text));
         case VALUE_BLOB:    return compare_bytes(a.blob, b.blob);
     }
-    return ORDER_EQUAL;     // unreachable: every ValueType has a class
+    return ORDER_UNKNOWN;
 }
 
 // whether order is one that op accepts
 static bool order_satisfies(const enum CompareOrder order, const enum CompareOp op) {
+    // no op accepts it, though "anything but greater" for <= would
+    if (order == ORDER_UNKNOWN) return false;
+
     switch (op) {
         case COMPARE_EQUAL:         return order == ORDER_EQUAL;
         case COMPARE_LESS:          return order == ORDER_LESS;

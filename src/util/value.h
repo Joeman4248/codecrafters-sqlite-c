@@ -56,7 +56,7 @@ enum CompareOp : uint8_t {
 // sorts below every number, numbers (integer or real, compared as one class)
 // below text, text below blob, and values of the same class compare by their
 // contents, text and blobs byte for byte. NULLs compare as equal to each other.
-// This is the order sorting and index b-trees use; a WHERE uses value_satisfies.
+// Gives ORDER_UNKNOWN only for a value with no valid type. This is the order sorting and index b-trees use; a WHERE uses value_satisfies.
 enum CompareOrder value_compare(Value a, Value b);
 
 // whether a op b holds the way a WHERE compares: like value_compare, except
