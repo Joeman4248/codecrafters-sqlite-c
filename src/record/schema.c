@@ -5,6 +5,7 @@
 #include "btree/btree_cursor.h"
 #include "btree/btree_page.h"
 #include "record/record.h"
+#include "util/array.h"
 
 // type strings, indexed by their SchemaType value; SCHEMA_TYPE_COUNT keeps
 // this list in sync with the enum
@@ -26,17 +27,15 @@ static enum SchemaType schema_type_from_text(const StringView text) {
 static int grow_schema(Database* db, uint32_t* capacity) {
     if (db->schema_count < *capacity) return 0;
 
-    // a full array doubles, so the copying realloc does adds up to a constant
-    // amount per entry rather than growing with the schema
-    const uint32_t grown_capacity = (*capacity == 0) ? 8 : *capacity * 2;
-    if (grown_capacity < *capacity) return 1;   // doubling would wrap around
+    uint32_t new_capacity;
+    if (!grown_capacity(*capacity, &new_capacity)) return 1;
 
-    SchemaEntry* grown = realloc(db->schema, grown_capacity * sizeof(SchemaEntry));
+    SchemaEntry* grown = realloc(db->schema, new_capacity * sizeof(SchemaEntry));
     if (grown == NULL) return 1;    // the old array is still valid, caller frees it
 
-    memset(&grown[*capacity], 0, (grown_capacity - *capacity) * sizeof(SchemaEntry));
+    memset(&grown[*capacity], 0, (new_capacity - *capacity) * sizeof(SchemaEntry));
     db->schema = grown;
-    *capacity = grown_capacity;
+    *capacity = new_capacity;
     return 0;
 }
 

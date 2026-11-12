@@ -1,5 +1,6 @@
 #include <string.h>
 
+#include "util/macros.h"
 #include "util/value.h"
 
 // ORDER_LESS when less, ORDER_GREATER when greater, and ORDER_EQUAL when
@@ -25,7 +26,7 @@ static enum CompareOrder compare_classes(const enum ValueType a, const enum Valu
 // text and blobs: the first differing byte decides, and when one run is a
 // prefix of the other, the shorter one is less
 static enum CompareOrder compare_bytes(const ByteView a, const ByteView b) {
-    const uint32_t common = a.len < b.len ? a.len : b.len;
+    const uint32_t common = MIN(a.len, b.len);
 
     // memcmp must not be given NULL, even for a length of 0
     if (common > 0) {

@@ -3,6 +3,8 @@
 #include <stdlib.h>
 
 #include "sql/tokenizer.h"
+#include "util/array.h"
+#include "util/macros.h"
 #include "util/view.h"
 
 // token type names, indexed by their TokenType value. The entries from
@@ -53,7 +55,7 @@ static const Token LONG_OPERATORS[] = {
 };
 
 // how many entries LONG_OPERATORS has
-enum { LONG_OPS_COUNT = sizeof LONG_OPERATORS / sizeof LONG_OPERATORS[0] };
+enum { LONG_OPS_COUNT = ARRAY_COUNT(LONG_OPERATORS) };
 
 // the token type of a one-character token, or TOKEN_UNKNOWN if c starts no
 // token on its own
@@ -202,12 +204,10 @@ int tokenize_all(const char* sql, TokenList* tokens) {
     return 0;
 }
 
-// a full array doubles in size, so the copying realloc does adds up to a
-// constant amount per token rather than growing with the list
 int token_list_add(TokenList* list, const Token token) {
     if (list->count == list->capacity) {
-        if (list->capacity > UINT32_MAX / 2) return 1;      // doubling would wrap around
-        const uint32_t capacity = (list->capacity == 0) ? 8 : list->capacity * 2;
+        uint32_t capacity;
+        if (!grown_capacity(list->capacity, &capacity)) return 1;
         Token* grown = realloc(list->items, capacity * sizeof(Token));
         if (grown == NULL) return 1;    // the old array is still valid, caller frees it
         list->items = grown;

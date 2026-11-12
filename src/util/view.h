@@ -7,6 +7,8 @@
 #include <string.h>
 #include <strings.h>
 
+#include "util/macros.h"
+
 // characters that are not copied: data points into a longer string, such as
 // the SQL text or a page, which must outlive the view. The end is given by
 // len, so a view is not necessarily null-terminated.
@@ -75,7 +77,7 @@ static inline bool sv_equal_nocase(const StringView a, const StringView b) {
 
 // the first len bytes of bytes, or all of them if there are fewer
 static inline ByteView bv_prefix(const ByteView bytes, const uint32_t len) {
-    return (ByteView) { bytes.data, len < bytes.len ? len : bytes.len };
+    return (ByteView) { bytes.data, MIN(len, bytes.len) };
 }
 
 // true if a and b hold the same bytes

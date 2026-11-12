@@ -20,7 +20,8 @@ Layers depend downwards only: util <- pager <- btree <- record <- query, and uti
 No two-way dependencies. (Exception for now: database.h in pager/ holds the schema types.)
 
 - `util/` view.h (StringView/ByteView, not null-terminated), value.c (tagged-union Value, value_equal, value_print),
-  reader.c (byte reader, sticky `failed`), file.c (file_read_at: the only fseek/fread, 64-bit offsets)
+  reader.c (byte reader, sticky `failed`), file.c (file_read_at: the only fseek/fread, 64-bit offsets),
+  macros.h (MIN, ARRAY_COUNT), array.h (grown_capacity for growing arrays)
 - `pager/` database.h (Database, Page), file_header.c, pager.c (page cache, in progress)
 - `btree/` btree_page.c (page header, cells), btree_cursor.c (table row walker)
 - `record/` record.c (records/serial types), schema.c
