@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <string.h>
 
 #include "query/commands.h"
 #include "query/execute.h"
@@ -26,7 +25,8 @@ int run_dbinfo_command(const Database* db) {
 // true for a table the user made, rather than one SQLite keeps for itself,
 // such as sqlite_sequence. SQLite reserves every name starting with sqlite_.
 static bool is_user_table(const SchemaEntry* entry) {
-    return entry->type == SCHEMA_TYPE_TABLE && strncmp(entry->name, "sqlite_", 7) != 0;
+    static const StringView RESERVED_PREFIX = SV_LIT("sqlite_");
+    return entry->type == SCHEMA_TYPE_TABLE && !cstr_starts_with(entry->name, RESERVED_PREFIX);
 }
 
 int run_tables_command(const Database* db) {

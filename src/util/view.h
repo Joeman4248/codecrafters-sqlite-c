@@ -30,9 +30,15 @@ typedef struct ByteView {
 #define SV_FMT      "%.*s"
 #define SV_ARG(s)   (int) (s).len, (s).data
 
+// views at most max characters of a null-terminated string, or all of it if
+// it's shorter
+static inline StringView sv_from_cstr_max(const char* s, const uint32_t max) {
+    return (StringView) { s, (uint32_t) strnlen(s, max) };
+}
+
 // views a null-terminated string, without its terminator
 static inline StringView sv_from_cstr(const char* s) {
-    return (StringView) { s, (uint32_t) strlen(s) };
+    return sv_from_cstr_max(s, UINT32_MAX);
 }
 
 // copies s into a new null-terminated heap string, for text that must outlive
@@ -50,6 +56,12 @@ static inline char* sv_to_cstr(const StringView s) {
 static inline bool sv_equal(const StringView a, const StringView b) {
     // memcmp must not be given NULL, even for a length of 0
     return a.len == b.len && (a.len == 0 || memcmp(a.data, b.data, a.len) == 0);
+}
+
+// true if the null-terminated string s starts with prefix. Never reads past
+// s's terminator.
+static inline bool cstr_starts_with(const char* s, const StringView prefix) {
+    return sv_equal(sv_from_cstr_max(s, prefix.len), prefix);
 }
 
 // true if a and b hold the same characters, ignoring ASCII case. For names,

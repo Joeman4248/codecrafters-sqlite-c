@@ -1,7 +1,6 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "sql/tokenizer.h"
 #include "util/view.h"
@@ -143,13 +142,12 @@ static Token scan_integer(Tokenizer* tokenizer, Token* token) {
 static Token scan_operator(Tokenizer* tokenizer, Token* token) {
     for (uint32_t i = 0; i < LONG_OPS_COUNT; i++) {
         const Token op = LONG_OPERATORS[i];
-        // strnlen stops at the terminator, so a query that ends before op's
-        // length gives a shorter view, which sv_equal rejects unread
-        const StringView next = { tokenizer->pos, strnlen(tokenizer->pos, op.text.len) };
-        if (sv_equal(next, op.text)) {
-            token->type = op.type;
-            token->text = next;
-            tokenizer->pos += op.text.len;
+        // a query that ends before op's length gives a shorter view, which
+        // sv_equal rejects unread
+        const StringView text = sv_from_cstr_max(tokenizer->pos, op.text.len);
+        if (sv_equal(text, op.text)) {
+            *token = (Token) { .type = op.type, .text = text };
+            tokenizer->pos += text.len;
             return *token;
         }
     }
