@@ -65,7 +65,7 @@ The code under [src/](src/) is grouped by layer:
 | [sql/](src/sql/) | the SQL language: tokenizing and parsing |
 | [query/](src/query/) | running commands: the dot commands, and planning and executing SQL |
 | [record/](src/record/) | SQLite's row format, and the schema table built from it |
-| [btree/](src/btree/) | B-tree pages and a cursor over a table's rows |
+| [btree/](src/btree/) | B-tree pages, a cursor over a table's rows, and overflow pages |
 | [pager/](src/pager/) | the database file: its header, and a cache of the pages read from it |
 | [util/](src/util/) | small shared types: string and byte views, values, and a byte reader |
 
@@ -97,6 +97,11 @@ Underneath, these read the file itself:
   the file header and the `sqlite_schema` table that lists every table and index.
 - [btree_page.c](src/btree/btree_page.c) and [btree_cursor.c](src/btree/btree_cursor.c):
   B-tree pages and a cursor that steps through a table's rows in order.
+- [overflow.c](src/btree/overflow.c): a row too big for its page keeps only
+  its start in the B-tree cell, and the rest goes on a chain of overflow pages,
+  each pointing to the next. This follows the chain and copies the pieces into
+  one buffer, which is reused from row to row. A row that fits is read where
+  it is, uncopied.
 - [record.c](src/record/record.c) and [reader.c](src/util/reader.c): SQLite's
   row format (a header saying each column's type, then the values), and a
   reader for its big-endian integers, floats and variable-length integers
@@ -139,5 +144,6 @@ sqlite3 sample.db "SELECT name, color FROM apples"
 
 [tests/check.py](tests/check.py) does that for a set of queries: it builds
 the program, runs each query through both, and prints only the ones whose
-output differs (it needs Python 3 and `sqlite3`). `--sanitize` runs them
-under AddressSanitizer and UndefinedBehaviorSanitizer (in WSL on Windows).
+output differs (it needs Python 3.12 or newer and `sqlite3`). `--sanitize` runs them
+under AddressSanitizer and UndefinedBehaviorSanitizer, which catch memory
+errors and undefined behaviour (in WSL on Windows, since MinGW has neither).
