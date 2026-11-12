@@ -109,10 +109,24 @@ static Expr* new_unary(const enum ExprType type, Expr* operand) {
     return node;
 }
 
-// comparison ::= primary [ op primary ]
+// the rest of left IS [ NOT ] NULL, just after the IS. Takes ownership of left.
+static Expr* parse_is_null(Parser* parser, Expr* left) {
+    const bool is_not = match(parser, TOKEN_NOT, NULL);
+    if (expect(parser, TOKEN_NULL, NULL)) {
+        free_expr(left);
+        return NULL;
+    }
+
+    // IS NULL never gives NULL, so NOT around it is exactly IS NOT NULL
+    Expr* is_null = new_unary(EXPR_IS_NULL, left);
+    return is_not ? new_unary(EXPR_NOT, is_null) : is_null;
+}
+
+// comparison ::= primary [ op primary | IS [ NOT ] NULL ]
 static Expr* parse_comparison(Parser* parser) {
     Expr* left = parse_primary(parser);
     if (left == NULL) return NULL;
+    if (match(parser, TOKEN_IS, NULL)) return parse_is_null(parser, left);
 
     const enum CompareOp op = comparison_op(current(parser));
     if (op == COMPARE_UNKNOWN) return left;
@@ -164,6 +178,7 @@ void free_expr(Expr* expr) {
             free_expr(expr->binary.right);
             break;
         case EXPR_NOT:
+        case EXPR_IS_NULL:
             free_expr(expr->operand);
             break;
         case EXPR_UNKNOWN:

@@ -82,7 +82,8 @@ static int plan_expr_children(Expr* planned, const TableColumns* columns) {
             planned->binary.right = plan_expr(right, columns);
             return planned->binary.right == NULL;
         }
-        case EXPR_NOT: {
+        case EXPR_NOT:
+        case EXPR_IS_NULL: {
             const Expr* operand = planned->operand;
             planned->operand = NULL;
 

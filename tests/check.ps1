@@ -68,6 +68,13 @@ $same = @(
     @("superheroes.db", "SELECT COUNT(*) FROM superheroes WHERE eye_color = 'Pink Eyes' OR hair_color = 'Pink Hair' OR id < 10"),
     @("superheroes.db", "SELECT name FROM superheroes WHERE eye_color = 'Blue Eyes' AND hair_color = 'Blond Hair' AND first_appearance_year > '2000'"),
     @("superheroes.db", "SELECT COUNT(*) FROM superheroes"),
+    @("superheroes.db", "SELECT COUNT(*) FROM superheroes WHERE eye_color IS NULL"),
+    @("superheroes.db", "SELECT COUNT(*) FROM superheroes WHERE hair_color is not null"),
+    @("superheroes.db", "SELECT COUNT(*) FROM superheroes WHERE NOT first_appearance_year IS NULL"),
+    @("superheroes.db", "SELECT name FROM superheroes WHERE first_appearance_year IS NULL AND eye_color IS NOT NULL AND id < 2000"),
+    @("superheroes.db", "SELECT COUNT(*) FROM superheroes WHERE (eye_color = 'Blue Eyes') IS NULL"),
+    @("sample.db",      "SELECT name FROM apples WHERE NULL IS NULL"),
+    @("sample.db",      "SELECT name FROM apples WHERE id IS NULL"),
     @("superheroes.db", "SELECT id, name FROM superheroes WHERE eye_color = 'Pink Eyes'"),
     @("superheroes.db", "SELECT name, hair_color FROM superheroes WHERE first_appearance_year = '1990'"),
     @("superheroes.db", "SELECT COUNT(*) FROM superheroes WHERE hair_color != 'Black Hair'"),
@@ -106,6 +113,9 @@ $fails = @(
     @("sample.db", "SELECT name FROM apples WHERE id = 3)"),
     @("sample.db", "SELECT name FROM apples WHERE ()"),
     @("sample.db", "SELECT name FROM apples WHERE (id = 3))"),
+    @("sample.db", "SELECT name FROM apples WHERE color IS"),
+    @("sample.db", "SELECT name FROM apples WHERE color IS NOT"),
+    @("sample.db", "SELECT name FROM apples WHERE color IS 3"),
     @("sample.db", ".nonsense")
 )
 

@@ -33,7 +33,8 @@ $ ./your_program.sh companies.db "SELECT id, name FROM companies WHERE country =
 | Read columns | `SELECT name, color FROM apples` or `SELECT * FROM apples` |
 | Filter rows | `SELECT id, name FROM apples WHERE color = 'Yellow'` or `WHERE id = 3` |
 | Compare | `WHERE id > 2`, `WHERE 'G' < name`, `WHERE id != 3`: any of `= == < <= > >= != <>` |
-| Combine conditions | `WHERE id > 1 AND id < 4`, `WHERE color = 'Red' OR id = 3` |
+| Combine conditions | `WHERE id > 1 AND id < 4`, `WHERE color = 'Red' OR id = 3`, `WHERE NOT (id = 1 OR id = 2)` |
+| Find NULLs | `WHERE eye_color IS NULL`, `WHERE hair_color IS NOT NULL` |
 
 Tables can span many pages: the B-tree is walked through interior and leaf
 pages, so the multi-megabyte sample databases work the same as the tiny one.
@@ -44,12 +45,14 @@ the row's rowid rather than in the row itself.
 
 A `WHERE` compares columns, strings, integers and `NULL` the way SQLite does:
 `AND` binds tighter than `OR`, and a comparison with `NULL` is neither true nor
-false, so `WHERE color = NULL` matches nothing.
+false, so `WHERE color = NULL` matches nothing; `IS NULL` is the way to find
+them.
 
 Not supported yet:
 
-- `NOT`, parentheses and `IS NULL` in a `WHERE`, and type affinity: SQLite
-  matches `WHERE year = 1990` against the text `'1990'`, but this doesn't.
+- Type affinity: SQLite matches `WHERE year = 1990` against the text
+  `'1990'`, but this doesn't. `IS` works only as `IS [NOT] NULL`, not between
+  two values.
 - Rows too big for one page (overflow pages), and indexes.
 
 ## How it works
@@ -109,8 +112,6 @@ Underneath, these read the file itself:
   straight to matching rows instead of scanning the whole table. The parser
   already reads `CREATE INDEX` statements, so the next step is finding an
   index in the schema that fits a query.
-- **The rest of `WHERE`**: `NOT`, parentheses and `IS [NOT] NULL`, each one
-  more level in the expression parser.
 
 ## Running it
 

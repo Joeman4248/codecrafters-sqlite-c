@@ -15,6 +15,7 @@ enum ExprType : uint8_t {
     EXPR_AND,           // left AND right
     EXPR_OR,            // left OR right
     EXPR_NOT,           // NOT operand
+    EXPR_IS_NULL,       // operand IS NULL; IS NOT NULL is an EXPR_NOT above one
 
     EXPR_TYPE_COUNT,
     EXPR_UNKNOWN = EXPR_TYPE_COUNT,
@@ -37,7 +38,7 @@ typedef struct Expr {
             struct Expr*   right;
             enum CompareOp op;  // EXPR_COMPARE only
         } binary;               // EXPR_COMPARE, EXPR_AND and EXPR_OR
-        struct Expr* operand;   // EXPR_NOT
+        struct Expr* operand;   // EXPR_NOT and EXPR_IS_NULL
     };
 } Expr;
 
@@ -49,7 +50,7 @@ typedef struct Expr {
 //     or_expr    ::= and_expr { OR and_expr }
 //     and_expr   ::= not_expr { AND not_expr }
 //     not_expr   ::= NOT not_expr | comparison
-//     comparison ::= primary [ op primary ]
+//     comparison ::= primary [ op primary | IS [ NOT ] NULL ]
 //     op         ::= "=" | "==" | "<" | "<=" | ">" | ">=" | "!=" | "<>"
 //     primary    ::= IDENTIFIER | STRING | INTEGER | NULL | "(" expr ")"
 //
@@ -58,7 +59,8 @@ typedef struct Expr {
 // tighter than both but looser than a comparison, so NOT a = b is NOT (a = b).
 // A parenthesized primary holds any expression, so it may already be a
 // comparison: (a = b) AND c. The operator is therefore optional, and a bare
-// primary such as a column is a condition on its own, as in sqlite.
+// primary such as a column is a condition on its own, as in sqlite. IS NULL is
+// the only test that can find a NULL: a = NULL is NULL whatever a holds.
 // The tree's text points into the query string, which must outlive it.
 Expr* parse_expr(Parser* parser);
 

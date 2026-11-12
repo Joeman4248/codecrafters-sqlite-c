@@ -23,6 +23,7 @@ enum TokenType : uint8_t {
     TOKEN_AND,
     TOKEN_OR,
     TOKEN_NOT,
+    TOKEN_IS,
     TOKEN_NULL,
 
     TOKEN_IDENTIFIER,       // table or column name
