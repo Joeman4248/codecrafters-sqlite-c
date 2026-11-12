@@ -3,16 +3,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "util/file.h"
+
 // fills data, which holds page_size bytes, with page number of the file
 static int read_page_bytes(const Pager* pager, const uint32_t page_number, uint8_t* data) {
-    const uint32_t page_size = pager->page_size;
-
-    if (fseek(pager->file, (long) (page_number - 1) * page_size, SEEK_SET)) {
-        fprintf(stderr, "Error seeking to start of page\n");
+    // page 1 starts at the beginning of the file; 64 bits, since a large
+    // file's offsets don't fit in 32
+    const uint64_t offset = (uint64_t) (page_number - 1) * pager->page_size;
+    if (file_read_at(pager->file, offset, data, pager->page_size)) {
+        fprintf(stderr, "Error reading page %u\n", page_number);
         return 1;
     }
-
-    return fread(data, 1, page_size, pager->file) != page_size;
+    return 0;
 }
 
 // reads page number into a new heap Page, or one whose data is NULL, so the
