@@ -75,6 +75,12 @@ static inline ByteView bv_prefix(const ByteView bytes, const uint32_t len) {
     return (ByteView) { bytes.data, len < bytes.len ? len : bytes.len };
 }
 
+// true if a and b hold the same bytes
+static inline bool bv_equal(const ByteView a, const ByteView b) {
+    // memcmp must not be given NULL, even for a length of 0
+    return a.len == b.len && (a.len == 0 || memcmp(a.data, b.data, a.len) == 0);
+}
+
 // the same characters viewed as bytes, for the comparisons text and blobs share
 static inline ByteView sv_as_bytes(const StringView text) {
     return (ByteView) { (const uint8_t*) text.data, text.len };

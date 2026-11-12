@@ -53,7 +53,10 @@ static bool is_known_text_encoding(const enum TextEncoding encoding) {
 // validates the field values once the header has been fully read,
 // per the SQLite file format spec
 static int validate_file_header(const FileHeader* header) {
-    if (memcmp(header->header_string, VALID_HEADER_STR, HEADER_STR_SZ) != 0) {
+    // the '\0' after the text is part of the 16 bytes, so it's compared too
+    static const ByteView VALID_HEADER = { (const uint8_t*) VALID_HEADER_STR, HEADER_STR_SZ };
+    const ByteView header_string = { header->header_string, HEADER_STR_SZ };
+    if (!bv_equal(header_string, VALID_HEADER)) {
         // fprintf(stderr, "Invalid header string");
         return 1;
     }
