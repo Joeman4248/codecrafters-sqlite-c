@@ -8,9 +8,12 @@ user-facing overview; don't re-read it for orientation.
 
 - Build: `cmake --build build`. If `build/` is missing:
   `cmake -G "MinGW Makefiles" -S . -B build`.
-- Test: `pwsh -NoProfile -File tests/check.ps1` builds, compares ~65 queries
+- Test: `python tests/check.py` builds, compares ~100 queries
   with sqlite3, and prints only differences plus `N/N passed`. Run this
   instead of ad-hoc queries; add a case there for new behaviour.
+- Memory safety: `python tests/check.py --sanitize` runs the same suite under ASan/UBSan
+  (reruns itself in WSL on Windows; build in WSL's ~/sqlite-sanitize). Run it after
+  pointer or buffer changes.
 - Run one query: `./build/sqlite.exe sample.db "SELECT name FROM apples"`.
 - `*.db` files are binary test data: never Read them; query them with sqlite3.
 
@@ -23,7 +26,8 @@ No two-way dependencies. (Exception for now: database.h in pager/ holds the sche
   reader.c (byte reader, sticky `failed`), file.c (file_read_at: the only fseek/fread, 64-bit offsets),
   macros.h (MIN, ARRAY_COUNT), array.h (grown_capacity for growing arrays)
 - `pager/` database.h (Database, Page), file_header.c, pager.c (page cache, in progress)
-- `btree/` btree_page.c (page header, cells), btree_cursor.c (table row walker)
+- `btree/` btree_page.c (page header, cells), btree_cursor.c (table row walker),
+  overflow.c (puts records that spill onto overflow pages back together)
 - `record/` record.c (records/serial types), schema.c
 - `sql/` tokenizer.c, parser.c (token helpers: check/match/expect), sql_parser.c (one parse_*
   per statement rule, filling Statement), expr.c (WHERE expression trees)
@@ -59,10 +63,10 @@ Header comments state the contract; read the .h before the .c.
 - Main line is `master`. `index-lookup` is a reference branch only: never merge it.
 - Commit messages: lowercase subject, then a body explaining why. Use a PowerShell here-string:
   `git commit -m @'...'@`.
-- Commit once it builds and `tests/check.ps1` passes. Pushing (to GitHub or `codecrafters submit`) needs the user's go-ahead.
+- Commit once it builds and `tests/check.py` passes. Pushing (to GitHub or `codecrafters submit`) needs the user's go-ahead.
 
 ## Known gaps
 
 - No type affinity: `WHERE text_column = 1990` doesn't match the text '1990' (sqlite3 does).
 - WHERE (an `Expr` tree from expr.c) has comparisons, AND/OR/NOT, parentheses and
-  IS [NOT] NULL, but not `a IS b` between two values; no overflow pages; no index lookups yet.
+  IS [NOT] NULL, but not `a IS b` between two values; no index lookups yet.

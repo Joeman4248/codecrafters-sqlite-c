@@ -6,7 +6,12 @@
     },
     {
         "label": "check",
-        "command": "pwsh",
-        "args": ["-NoProfile", "-File", "tests/check.ps1"]
+        "command": "python",
+        "args": ["tests/check.py"]
+    },
+    {
+        "label": "check with sanitizers",
+        "command": "python",
+        "args": ["tests/check.py", "--sanitize"]
     }
 ]

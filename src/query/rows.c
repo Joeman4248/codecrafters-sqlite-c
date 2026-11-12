@@ -7,6 +7,7 @@ void scan_open(TableScan* scan, Pager* pager, const PlanTable* table) {
     *scan = (TableScan) {
         .table = table,
         .cursor = { 0 },
+        .overflow = { 0 },
         .storage = malloc(table->column_count * sizeof(RecordColumn)),
     };
     if (scan->storage == NULL) {
@@ -21,7 +22,13 @@ bool scan_next(TableScan* scan, Row* row) {
 
     const TableLeafCell cell = scan->cursor.cell;
     row->rowid = cell.rowid;
-    Reader reader = reader_at(cell.payload, 0);
+
+    ByteView payload;
+    if (assemble_payload(scan->cursor.pager, &cell, &scan->overflow, &payload)) {
+        cursor_fail(&scan->cursor);
+        return false;
+    }
+    Reader reader = reader_at(payload, 0);
     row->record = read_record(&reader, (RecordHeader) { .columns = scan->storage,
                                                         .capacity = scan->table->column_count });
     if (reader.failed) cursor_fail(&scan->cursor);
@@ -32,6 +39,7 @@ void scan_close(TableScan* scan) {
     cursor_close(&scan->cursor);
     free(scan->storage);
     scan->storage = NULL;
+    free_overflow_buffer(&scan->overflow);
 }
 
 Value row_get_value(const PlanTable* table, const Row* row, const uint32_t index) {

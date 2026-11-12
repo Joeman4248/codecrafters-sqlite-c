@@ -67,21 +67,37 @@ TableInteriorCell read_interior_table_cell(Reader* reader) {
     return cell;
 }
 
+// how many bytes of a table leaf record of payload_size bytes stay in the
+// cell, on a page whose usable size is usable_size; the rest spill onto
+// overflow pages. The formula is SQLite's, from its file format spec. Usable
+// sizes are at least 480, so none of it can wrap.
+static uint32_t local_payload_size(const uint32_t usable_size, const uint32_t payload_size) {
+    // the most a cell holds itself; a record this size or smaller doesn't spill
+    const uint32_t max_local = usable_size - 35;
+    if (payload_size <= max_local) return payload_size;
+
+    // a spilling record keeps at least min_local bytes, plus whatever makes the
+    // rest fill its last overflow page (each holds usable_size - 4), if that
+    // still fits in the cell
+    const uint32_t min_local = (usable_size - 12) * 32 / 255 - 23;
+    const uint32_t local = min_local + (payload_size - min_local) % (usable_size - 4);
+    return (local <= max_local) ? local : min_local;
+}
+
 TableLeafCell read_leaf_table_cell(Reader* reader) {
     TableLeafCell cell;
 
     // SQLite caps a value's length at 2^31 - 1 bytes, so a payload size always
     // fits in 32 bits
-    const uint32_t payload_size = read_varint_u32(reader);
-    cell.rowid = read_varint_i64(reader);
+    cell.payload_size = read_varint_u32(reader);
+    cell.rowid        = read_varint_i64(reader);
 
-    // max payload that can be stored inline on a table b-tree leaf page is
-    // U - 35, where U is the usable page size: the length of the bytes the
-    // reader reads (see page_bytes). Larger payloads spill onto overflow pages,
-    // so they are reported as unsupported rather than read incorrectly. Usable
-    // sizes are at least 480, so this can't wrap.
-    if (payload_size > reader->bytes.len - 35) reader_fail(reader);
+    // the reader's bytes are the page's usable part (see page_bytes)
+    const uint32_t local_size = local_payload_size(reader->bytes.len, cell.payload_size);
+    cell.payload = reader_take(reader, local_size);
 
-    cell.payload = reader_take(reader, payload_size);
+    // the first overflow page's number follows the part in the cell
+    const bool spills = local_size < cell.payload_size;
+    cell.overflow_page = spills ? read_u32(reader) : 0;
     return cell;
 }

@@ -4,6 +4,7 @@
 #include "record/schema.h"
 #include "btree/btree_cursor.h"
 #include "btree/btree_page.h"
+#include "btree/overflow.h"
 #include "record/record.h"
 #include "util/array.h"
 
@@ -100,16 +101,20 @@ int read_schema(Database* db) {
     cursor_open(&cursor, &db->pager, SCHEMA_ROOT_PAGE);
 
     uint32_t capacity = 0;
+    OverflowBuffer overflow = { 0 };
     int result = 0;
 
     while (cursor_next(&cursor)) {
-        if (add_schema_entry(db, &capacity, cursor.cell.payload)) {
+        ByteView payload;
+        if (assemble_payload(&db->pager, &cursor.cell, &overflow, &payload)
+            || add_schema_entry(db, &capacity, payload)) {
             result = 1;
             break;
         }
     }
     if (cursor.failed) result = 1;
 
+    free_overflow_buffer(&overflow);
     cursor_close(&cursor);
     return result;
 }

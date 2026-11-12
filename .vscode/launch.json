@@ -50,7 +50,7 @@
             "name": "Run checks",
             "type": "node-terminal",
             "request": "launch",
-            "command": "pwsh -NoProfile -File tests/check.ps1",
+            "command": "python tests/check.py",
             "cwd": "${workspaceFolder}"
         }
     ]

@@ -86,6 +86,12 @@ static inline bool bv_equal(const ByteView a, const ByteView b) {
     return a.len == b.len && (a.len == 0 || memcmp(a.data, b.data, a.len) == 0);
 }
 
+// copies the bytes to dest, which must have room for bytes.len of them
+static inline void bv_copy(uint8_t* dest, const ByteView bytes) {
+    // memcpy must not be given NULL, even for a length of 0
+    if (bytes.len > 0) memcpy(dest, bytes.data, bytes.len);
+}
+
 // the same characters viewed as bytes, for the comparisons text and blobs share
 static inline ByteView sv_as_bytes(const StringView text) {
     return (ByteView) { (const uint8_t*) text.data, text.len };

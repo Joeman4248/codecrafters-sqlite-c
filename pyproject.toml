@@ -1,0 +1,8 @@
+# Only for tooling on tests/check.py, the test runner; the project itself is C.
+
+[tool.basedpyright]
+pythonVersion = "3.14"
+include = ["tests"]
+
+[tool.ruff]
+target-version = "py314"

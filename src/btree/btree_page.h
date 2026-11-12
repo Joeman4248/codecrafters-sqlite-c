@@ -52,10 +52,15 @@ typedef struct TableInteriorCell {
     uint32_t left_child_page;   // the page holding every rowid up to and including key
 } TableInteriorCell;
 
-// a table b-tree leaf cell: one row
+// a table b-tree leaf cell: one row. A record too big for the cell keeps its
+// first part here and the rest on a chain of overflow pages.
 typedef struct TableLeafCell {
     int64_t  rowid;
-    ByteView payload;       // the row's record, viewed inside the page (not copied)
+    uint32_t payload_size;  // the whole record's size, overflow included
+    ByteView payload;       // the part of the record in the cell, viewed inside
+                            // the page (not copied); all of it if it doesn't spill
+    uint32_t overflow_page; // the first overflow page, or 0 if the record doesn't
+                            // spill (page numbers start at 1)
 } TableLeafCell;
 
 // The functions below read through a Reader over the whole page, as
@@ -79,9 +84,9 @@ void seek_cell(Reader* reader, const PageHeader* header, uint16_t index);
 // reads a table b-tree interior cell at the reader's position
 TableInteriorCell read_interior_table_cell(Reader* reader);
 
-// reads a table b-tree leaf cell at the reader's position. Fails the reader if
-// the payload is too big for one page, meaning the rest of it is on overflow
-// pages, which aren't supported.
+// reads a table b-tree leaf cell at the reader's position: the part of the
+// record in the cell and, if the record spills, the first overflow page. The
+// overflow pages themselves aren't read.
 TableLeafCell read_leaf_table_cell(Reader* reader);
 
 #endif // CODECRAFTERS_SQLITE_BTREE_PAGE_H

@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "btree/btree_cursor.h"
+#include "btree/overflow.h"
 #include "query/plan.h"
 #include "record/record.h"
 
@@ -15,10 +16,12 @@ typedef struct TableScan {
     const PlanTable* table;
     TableCursor      cursor;
     RecordColumn*    storage;       // room for table->column_count entries, reused for every row
+    OverflowBuffer   overflow;      // holds a record that spills off its page, reused for every row
 } TableScan;
 
-// one row as read by scan_next. Its record points into the cursor's page and
-// the scan's storage, so it is valid until the next scan_next or scan_close.
+// one row as read by scan_next. Its record points into the cursor's page (or
+// the scan's overflow buffer) and the scan's storage, so it is valid until the
+// next scan_next or scan_close.
 typedef struct Row {
     int64_t rowid;
     Record  record;
@@ -38,7 +41,7 @@ static inline bool scan_failed(const TableScan* scan) {
     return scan->cursor.failed;
 }
 
-// frees the scan's storage and unpins its pages
+// frees the scan's storage and overflow buffer, and unpins its pages
 void scan_close(TableScan* scan);
 
 // the value of column index in a row of table. The rowid alias column is

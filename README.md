@@ -41,7 +41,8 @@ pages, so the multi-megabyte sample databases work the same as the tiny one.
 The schema is read the same way, so a database with many tables works too.
 Values of every SQLite type are read and printed: integers, floats, text,
 blobs and NULL, plus the `INTEGER PRIMARY KEY` column, which SQLite stores as
-the row's rowid rather than in the row itself.
+the row's rowid rather than in the row itself. A row too big for its page,
+which SQLite spills onto a chain of overflow pages, is put back together.
 
 A `WHERE` compares columns, strings, integers and `NULL` the way SQLite does:
 `AND` binds tighter than `OR`, and a comparison with `NULL` is neither true nor
@@ -53,7 +54,7 @@ Not supported yet:
 - Type affinity: SQLite matches `WHERE year = 1990` against the text
   `'1990'`, but this doesn't. `IS` works only as `IS [NOT] NULL`, not between
   two values.
-- Rows too big for one page (overflow pages), and indexes.
+- Indexes.
 
 ## How it works
 
@@ -136,6 +137,7 @@ To compare answers with the real thing, run the same query through `sqlite3`:
 sqlite3 sample.db "SELECT name, color FROM apples"
 ```
 
-[tests/check.ps1](tests/check.ps1) does that for a set of queries: it builds
+[tests/check.py](tests/check.py) does that for a set of queries: it builds
 the program, runs each query through both, and prints only the ones whose
-output differs (it needs PowerShell and `sqlite3`).
+output differs (it needs Python 3 and `sqlite3`). `--sanitize` runs them
+under AddressSanitizer and UndefinedBehaviorSanitizer (in WSL on Windows).
