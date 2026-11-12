@@ -53,7 +53,7 @@ static bool is_known_text_encoding(const enum TextEncoding encoding) {
 // validates the field values once the header has been fully read,
 // per the SQLite file format spec
 static int validate_file_header(const FileHeader* header) {
-    const ByteView header_string = { header->header_string, VALID_HEADER_STR.len };
+    const ByteView header_string = { header->header_string, sizeof(header->header_string) };
     if (!bv_equal(header_string, VALID_HEADER_STR)) return 1;
 
     // page size must be a power of two between 512 and 65536 (the marker
@@ -96,7 +96,9 @@ static FileHeader decode_file_header(Reader* reader) {
     FileHeader header = { 0 };
 
     const ByteView header_string = reader_take(reader, sizeof(header.header_string));
-    if (!reader->failed) memcpy(header.header_string, header_string.data, header_string.len);
+    if (!reader->failed) {
+        memcpy(header.header_string, header_string.data, header_string.len);
+    }
 
     header.page_size = page_size_bytes(read_u16(reader));
 
