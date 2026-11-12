@@ -26,6 +26,9 @@ typedef struct ByteView {
 // time, without the '\0'. Usable in static initialisers.
 #define SV_LIT(s)   { s, sizeof(s) - 1 }
 
+// SV_LIT for a ByteView: the literal's bytes, without the final '\0'
+#define BV_LIT(s)   { (const uint8_t*) s, sizeof(s) - 1 }
+
 // prints a StringView with printf: printf("no such table: " SV_FMT "\n", SV_ARG(name))
 #define SV_FMT      "%.*s"
 #define SV_ARG(s)   (int) (s).len, (s).data

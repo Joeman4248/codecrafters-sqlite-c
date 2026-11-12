@@ -10,7 +10,6 @@
 #define FILE_HEADER_SZ 100
 
 #define HEADER_STR_SZ 16
-#define VALID_HEADER_STR "SQLite format 3"
 #define FILE_HEADER_RESV_SZ 20          // header bytes reserved for expansion (offset 72)
 
 // page size field (offset 16): stores an ordinary page size directly, as a
