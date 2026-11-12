@@ -4,10 +4,6 @@
 #include "util/file.h"
 #include "util/reader.h"
 
-// the 16 bytes every database file starts with. The '\0' after the text is
-// one of them, so it's written out: BV_LIT leaves off only the literal's own.
-static const ByteView VALID_HEADER_STR = BV_LIT("SQLite format 3\0");
-
 // resolves the page size field into the actual page size in bytes,
 // translating the marker value 1 into 65536
 static uint32_t page_size_bytes(const uint16_t page_size) {
@@ -57,11 +53,8 @@ static bool is_known_text_encoding(const enum TextEncoding encoding) {
 // validates the field values once the header has been fully read,
 // per the SQLite file format spec
 static int validate_file_header(const FileHeader* header) {
-    const ByteView header_string = { header->header_string, HEADER_STR_SZ };
-    if (!bv_equal(header_string, VALID_HEADER_STR)) {
-        // fprintf(stderr, "Invalid header string");
-        return 1;
-    }
+    const ByteView header_string = { header->header_string, VALID_HEADER_STR.len };
+    if (!bv_equal(header_string, VALID_HEADER_STR)) return 1;
 
     // page size must be a power of two between 512 and 65536 (the marker
     // value 1 was already resolved to 65536 when reading)

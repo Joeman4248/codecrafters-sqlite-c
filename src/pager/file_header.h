@@ -4,13 +4,22 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "util/view.h"
+
 // size of the header on disk, at the start of page 1. Not sizeof(FileHeader):
 // that struct is the decoded form, with wider fields, padding, no reserved
 // bytes and the extra usable_size.
 #define FILE_HEADER_SZ 100
 
-#define HEADER_STR_SZ 16
 #define FILE_HEADER_RESV_SZ 20          // header bytes reserved for expansion (offset 72)
+
+// the 16 bytes every database file starts with. The '\0' after the text is
+// one of them, so it's written out: BV_LIT leaves off only the literal's own.
+static const ByteView VALID_HEADER_STR = BV_LIT("SQLite format 3\0");
+
+// VALID_HEADER_STR.len, for the array in FileHeader: an array's size must be
+// a constant, and a const variable's field isn't one in C
+#define HEADER_STR_SZ 16
 
 // page size field (offset 16): stores an ordinary page size directly, as a
 // power of two between PAGE_SIZE_MIN and PAGE_SIZE_2_BYTE_MAX, or the marker
